@@ -1,41 +1,69 @@
+import { Panel } from "@/components/ui/Panel";
+import { BtnLink } from "@/components/ui/Btn";
+import { Chip } from "@/components/ui/Chip";
+
 export default function Home() {
-  const items = [
-    { label: "Trim", href: "/trim", desc: "Main + Jib, Upwind/Downwind" },
-    { label: "Start", href: "/start", desc: "Bias, time-distance, execution" },
-    { label: "Tactics", href: "/tactics", desc: "Upwind + Downwind decisions" },
-    { label: "Troubleshoot", href: "/troubleshoot", desc: "Fix speed/control fast" },
-    { label: "Notes", href: "/notes", desc: "Save what worked" },
-  ];
-
   return (
-    <main className="min-h-screen bg-black text-white flex items-center justify-center">
-      <div className="text-center space-y-6 px-6 w-full">
-        <h1 className="text-4xl font-bold tracking-tight">Layline</h1>
-        <p className="text-lg opacity-80">A Cal 25 Sailing Guide</p>
-
-        <div className="pt-8 space-y-4">
-          {/* Panic button */}
-          <a
-            href="/troubleshoot/slow"
-            className="block w-full max-w-sm mx-auto rounded-2xl bg-amber-400 text-black py-4 px-4 text-left shadow-lg active:scale-[0.98] transition"
-          >
-            <div className="text-lg font-semibold">I’M SLOW</div>
-            <div className="text-sm opacity-80">Go to the fast fix checklist</div>
-          </a>
-
-          {/* Main navigation */}
-          {items.map((item) => (
-            <a
-              key={item.href}
-              href={item.href}
-              className="block w-full max-w-sm mx-auto rounded-2xl bg-white text-black py-4 px-4 text-left shadow-lg active:scale-[0.98] hover:bg-gray-200 transition"
-            >
-              <div className="text-lg font-semibold">{item.label}</div>
-              <div className="text-sm opacity-70">{item.desc}</div>
-            </a>
-          ))}
+    <main className="space-y-5">
+      {/* Header */}
+      <header className="flex items-end justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Layline</h1>
+          <p className="text-sm text-[color:var(--muted)]">
+            A Cal 25 Sailing Guide
+          </p>
         </div>
-      </div>
+        <div className="text-xs text-[color:var(--muted)]">
+          v1
+        </div>
+      </header>
+
+      {/* Instrument bar */}
+      <Panel title="Instruments" right={<span className="text-xs text-[color:var(--muted)]">Tap into Trim for live values</span>}>
+        <div className="grid grid-cols-2 gap-3">
+          <Chip label="Mode" value="Upwind" accent="blue" />
+          <Chip label="Wind" value="— kt" accent="teal" />
+          <Chip label="Car" value="—" accent="neutral" />
+          <Chip label="GPS" value="Off" accent="neutral" />
+        </div>
+      </Panel>
+
+      {/* Panic */}
+      <Panel title="Quick Fix">
+        <BtnLink href="/troubleshoot/slow" tone="amber" className="text-lg">
+          I’M SLOW
+        </BtnLink>
+        <p className="mt-2 text-xs text-[color:var(--muted)]">
+          Fast checklist to stabilize speed before you start tweaking.
+        </p>
+      </Panel>
+
+      {/* Navigation */}
+      <Panel title="Sections">
+        <div className="grid grid-cols-2 gap-3">
+          <BtnLink href="/trim" tone="primary">
+            Trim
+          </BtnLink>
+          <BtnLink href="/start" tone="neutral">
+            Start
+          </BtnLink>
+          <BtnLink href="/tactics" tone="neutral">
+            Tactics
+          </BtnLink>
+          <BtnLink href="/troubleshoot" tone="neutral">
+            Troubleshoot
+          </BtnLink>
+          <BtnLink href="/logs" tone="neutral">
+            Logs
+          </BtnLink>
+          <BtnLink href="/notes" tone="neutral">
+            Notes
+          </BtnLink>
+        </div>
+      </Panel>
+
+      {/* Accent bar */}
+      <div className="h-1 w-full rounded-full bg-[color:var(--teal)]/30" />
     </main>
   );
 }

@@ -3,33 +3,30 @@
 import { useEffect, useMemo, useState } from "react";
 import { useGpsCourse } from "@/lib/useGpsCourse";
 
+import { Panel } from "@/components/ui/Panel";
+import { Btn, BtnLink } from "@/components/ui/Btn";
+import { Chip } from "@/components/ui/Chip";
+
 type SailMode = "upwind" | "downwind";
 type BoatMode = "speed" | "pointing" | "control";
-type Symptom =
+
+type MainSymptom =
   | "normal"
   | "slow"
-  | "pinching"
   | "overpowered"
-  | "badair"
-  | "cant_hold_lane";
+  | "pinching"
+  | "cant_hold_lane"
+  | "badair";
 
-type TelltaleRead =
+type MainTwist =
   | "unknown"
-  | "all_streaming"
-  | "leeward_lifting"
-  | "windward_lifting"
-  | "leech_stalling";
+  | "too_closed"
+  | "too_open"
+  | "balanced";
 
-const MODE_KEY = "trim-mode"; // shared across Trim pages
+const MODE_KEY = "trim-mode";
 const WIND_DIR_KEY = "wind-dir-deg";
 const WIND_SPD_KEY = "wind-spd-kt";
-
-function titleCase(s: string) {
-  return s
-    .split("_")
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-    .join(" ");
-}
 
 function wrap360(d: number) {
   return (d % 360 + 360) % 360;
@@ -40,54 +37,42 @@ function smallestAngle(a: number, b: number) {
   return Math.min(diff, 360 - diff);
 }
 
-// If course is within 70° of wind => upwind
-// If course is 110°+ away from wind => downwind
 function inferMode(cog: number, windDir: number): SailMode | null {
   const rel = smallestAngle(cog, windDir);
   if (rel <= 70) return "upwind";
   if (rel >= 110) return "downwind";
-  return null; // reach/ambiguous
+  return null;
 }
 
 function windBand(kt: number | null): "light" | "medium" | "heavy" | "unknown" {
-  if (kt === null) return "unknown";
+  if (kt == null) return "unknown";
   if (kt < 8) return "light";
   if (kt <= 14) return "medium";
   return "heavy";
 }
 
 export default function TrimMainPage() {
-  // Upwind/Downwind section (remembered across Trim pages)
+  // shared sail mode (remembered)
   const [sailMode, setSailMode] = useState<SailMode>("upwind");
 
   // GPS
   const [gpsOn, setGpsOn] = useState(false);
   const gps = useGpsCourse(gpsOn);
 
-  // Wind direction + speed (stored)
+  // Wind inputs (stored)
   const [windDir, setWindDir] = useState<number | "">("");
   const [windSpd, setWindSpd] = useState<number | "">("");
 
-  // Dropdown inputs
+  // Main tuning intent
   const [boatMode, setBoatMode] = useState<BoatMode>("speed");
-  const [symptom, setSymptom] = useState<Symptom>("normal");
-  const [telltales, setTelltales] = useState<TelltaleRead>("unknown");
+  const [symptom, setSymptom] = useState<MainSymptom>("normal");
+  const [twist, setTwist] = useState<MainTwist>("unknown");
 
-  // Load saved sailMode
+  // Load saved state
   useEffect(() => {
-    const saved = localStorage.getItem(MODE_KEY);
-    if (saved === "upwind" || saved === "downwind") {
-      setSailMode(saved);
-    }
-  }, []);
+    const savedMode = localStorage.getItem(MODE_KEY);
+    if (savedMode === "upwind" || savedMode === "downwind") setSailMode(savedMode);
 
-  // Save sailMode
-  useEffect(() => {
-    localStorage.setItem(MODE_KEY, sailMode);
-  }, [sailMode]);
-
-  // Load wind dir + speed
-  useEffect(() => {
     const savedDir = localStorage.getItem(WIND_DIR_KEY);
     if (savedDir) {
       const n = Number(savedDir);
@@ -101,7 +86,9 @@ export default function TrimMainPage() {
     }
   }, []);
 
-  // Save wind dir + speed
+  // Persist
+  useEffect(() => localStorage.setItem(MODE_KEY, sailMode), [sailMode]);
+
   useEffect(() => {
     if (windDir !== "") localStorage.setItem(WIND_DIR_KEY, String(wrap360(windDir)));
   }, [windDir]);
@@ -110,228 +97,208 @@ export default function TrimMainPage() {
     if (windSpd !== "") localStorage.setItem(WIND_SPD_KEY, String(windSpd));
   }, [windSpd]);
 
-  // Auto-switch sailMode when GPS + wind dir are available AND it's clearly up/downwind
+  // Auto-switch mode from GPS if clear up/downwind
   useEffect(() => {
     if (!gpsOn) return;
     if (windDir === "") return;
-    if (gps.cogDeg === null) return;
+    if (gps.cogDeg == null) return;
 
     const suggestion = inferMode(gps.cogDeg, windDir);
     if (suggestion) setSailMode(suggestion);
   }, [gpsOn, gps.cogDeg, windDir]);
 
-  const tabBase =
-    "flex-1 rounded-xl py-3 text-sm font-semibold transition active:scale-[0.98]";
-  const tabOn = "bg-white text-black shadow";
-  const tabOff = "bg-white/10 text-white border border-white/10";
-
-  const recommendation = useMemo(() => {
+  const computed = useMemo(() => {
     const spd = windSpd === "" ? null : Number(windSpd);
     const band = windBand(Number.isNaN(spd as number) ? null : spd);
-    const bandHint =
-      band === "light"
-        ? "Light air: protect flow and depth; avoid over-sheeting."
-        : band === "medium"
-        ? "Medium air: trim to the edge of stall, then hold."
-        : band === "heavy"
-        ? "Heavy air: depower in sequence (traveler → backstay → outhaul → cunningham)."
-        : "";
 
+    // Output fields
     let call = "";
     let why = "";
     let next = "";
     let ifthen = "";
 
-    // Base logic by sailMode + boatMode (Mainsail-focused)
-    if (sailMode === "upwind") {
-      if (boatMode === "speed") {
-        call =
-          "Keep main flow attached: ease slightly if the leech feels hooked, and use traveler to keep the boat on its feet.";
-        why =
-          "Speed comes from attached flow and a stable groove; over-trimming the main stalls the leech and loads the helm.";
-        next =
-          "Hold 30–60 seconds and compare speed. Make one change at a time (traveler OR sheet OR backstay).";
-        ifthen =
-          "If still slow, add a touch of depth (ease backstay or outhaul slightly). If helm is heavy, go to Control.";
-      }
-
-      if (boatMode === "pointing") {
-        call =
-          "Press for pointing only after speed is stable: traveler up for angle, then sheet for leech control without stalling.";
-        why =
-          "Pointing is the highest angle you can sail while maintaining speed and flow—stalling turns ‘high’ into slow.";
-        next =
-          "If speed holds, fine-tune: add backstay + cunningham as breeze builds to stabilize shape.";
-        ifthen =
-          "If speed drops or stall appears, go back to Speed (foot slightly and reattach flow).";
-      }
-
-      if (boatMode === "control") {
-        call =
-          "Depower in order: traveler down first, then add backstay, then tighten outhaul, then add cunningham.";
-        why =
-          "Excess heel and helm drag slow the boat and destroy groove. Control restores repeatable speed.";
-        next =
-          "After each change, re-check helm (neutral-to-light) and whether the boat tracks without constant rudder.";
-        ifthen =
-          "If still overpowered, flatten more (backstay/outhaul) and avoid steering to ‘fix’ trim.";
-      }
-
-      // Symptom overrides (Upwind)
-      if (symptom === "slow") {
-        call =
-          "Confirm clear air first. Then reattach flow: ease slightly (don’t hook the leech) and sail a touch lower to build speed.";
-        why =
-          "A stalled leech or pinched groove kills acceleration; speed must come first.";
-        next =
-          "Hold for 30–60 seconds and compare to a similar boat.";
-        ifthen =
-          "If still slow, add power (ease outhaul/backstay slightly) OR improve flow (ease sheet a touch)—one change only.";
-      }
-
-      if (symptom === "pinching") {
-        call =
-          "Ease slightly and sail lower until flow returns, then rebuild pointing gradually.";
-        why =
-          "Pinching stalls flow. You can’t point without speed and attached air.";
-        next =
-          "Once fast, head up slowly until you’re just at the edge of stall—then hold.";
-        ifthen =
-          "If stall returns immediately, stay in Speed mode longer and/or open twist slightly.";
-      }
-
-      if (symptom === "overpowered") {
-        call =
-          "Control sequence: traveler down → backstay on → outhaul tighter → cunningham on.";
-        why =
-          "Reducing heel and helm drag is faster than fighting the rudder.";
-        next =
-          "Aim for neutral helm and steadier speed through puffs.";
-        ifthen =
-          "If still heavy, flatten further (backstay/outhaul) rather than steering more.";
-      }
-
-      if (symptom === "badair") {
-        call =
-          "Prioritize clean air first. Once clear, trim for stable flow (don’t over-sheet and stall).";
-        why =
-          "Bad air makes trim feedback unreliable and speed inconsistent.";
-        next =
-          "After clearing, build speed before pressing for pointing.";
-        ifthen =
-          "If you re-enter bad air, reposition early instead of fighting for inches.";
-      }
-
-      if (symptom === "cant_hold_lane") {
-        call =
-          "Foot slightly for speed and lane stability. A fast boat holds lanes; a slow one can’t.";
-        why =
-          "Lane-holding requires speed more than trim perfection.";
-        next =
-          "Re-evaluate: do we have clear air for the next 30 seconds?";
-        ifthen =
-          "If pinned, make one decisive move to clear air rather than small corrections while slow.";
-      }
-    }
-
+    // Downwind baseline (your Cal 25 rule: vang eased/off)
     if (sailMode === "downwind") {
       call =
-        "Cal 25 default: vang OFF (eased). Use mainsheet to manage twist and keep the main drawing without forcing it.";
+        "Downwind main: ease vang (vang mostly OFF), ease sheet for twist, and control with traveler if needed.";
       why =
-        "Downwind is about stable flow and avoiding stall/over-trim. Small, steady changes beat constant trimming.";
+        "Downwind you want an open leech and stable airflow. Vang on downwind can hook the leech and stall.";
       next =
-        "Hold trim long enough to evaluate. If speed feels sticky, ease slightly to reattach flow.";
+        "Set vang light/off → ease sheet until top opens → stabilize with steering.";
       ifthen =
-        "If the main keeps collapsing, trim slightly to stabilize. If you’re on a run, some stall can be normal—focus on stability.";
+        "If rolling/unstable, add a touch of vang only to stop boom bounce—but avoid hooking the leech.";
+      return { call, why, next, ifthen };
     }
 
-    // Telltale overlays (Practical Sailor quick reference)
-    // NOTE: “windward/leeward” here assumes you’re using body telltales or equivalent indicators.
-    if (telltales === "all_streaming") {
-      call = `Telltales streaming aft: hold trim. ${call}`;
-      why = why || "Streaming telltales indicate attached flow and efficient trim.";
+    // Upwind logic (simple v1)
+    if (symptom === "badair") {
+      call = "Bad air: prioritize lane/clear air first, then reset main trim.";
+      why = "Dirty air makes trim feedback unreliable.";
+      next = "Once clear, build speed, then press for pointing.";
+      ifthen = "If pinned, make one decisive lane move rather than constant trim changes.";
+      return { call, why, next, ifthen };
     }
 
-    if (telltales === "leeward_lifting") {
-      // Article: leeward lifting => ease sheet or head up
+    if (symptom === "overpowered") {
       call =
-        "Leeward telltales lifting: ease sheet slightly OR head up a touch until they stream aft. Then hold and evaluate.";
+        "Overpowered: depower main first. Flatten with outhaul + cunningham, add backstay, then use traveler down.";
       why =
-        "Leeward telltales lifting is a sign the sail is trimmed too hard for the current angle.";
+        "Flattening reduces heel/helm and improves pointing and speed in breeze.";
       next =
-        "Make one change, then wait 20–30 seconds to confirm steadier flow and speed.";
+        "Outhaul tight → Cunningham on → Backstay on → Traveler down enough to keep flow.";
       ifthen =
-        "If you keep lifting leeward telltales, check you’re not sailing too low for your trim.";
+        "If still loaded, ease sheet slightly to open leech. If you lose too much height, bring traveler up a touch.";
+      return { call, why, next, ifthen };
     }
 
-    if (telltales === "windward_lifting") {
-      // Article: windward lifting => sheet in or bear away
+    if (symptom === "pinching") {
       call =
-        "Windward telltales lifting: sheet in slightly OR bear away a touch until they stream aft. Then hold.";
+        "Pinching: open the leech slightly and rebuild speed. Traveler down a touch OR ease sheet slightly.";
       why =
-        "Windward telltales lifting indicates the sail is under-trimmed for the current angle (or you’re sailing too high for your trim).";
+        "Pinching often comes from too much leech tension / too narrow a groove.";
       next =
-        "Choose one change (sheet OR helm). Confirm speed doesn’t drop.";
+        "Ease sheet 1–2 inches OR drop traveler slightly, then steer for speed.";
       ifthen =
-        "If speed drops when you sheet, you may be close to stall—return to Speed mode and rebuild flow first.";
+        "If heel is the reason you’re pinching, depower: outhaul/cunningham/backstay first.";
+      return { call, why, next, ifthen };
     }
 
-    if (telltales === "leech_stalling") {
-      // Article: leech telltales stalling => over-sheeted
+    if (symptom === "cant_hold_lane") {
       call =
-        "Leech telltales stalling/sucking behind: you’re over-sheeted. Ease mainsheet to open the leech and restore flow.";
+        "Can’t hold lane: prioritize speed and control. Ease sheet slightly, keep traveler in a stable range, and steer smoothly.";
       why =
-        "A stalled leech means air isn’t exiting cleanly, which increases drag and loads the helm.";
+        "Lane control requires speed and a forgiving groove.";
       next =
-        "Ease until leech telltales fly consistently, then stop changing things for 30 seconds.";
+        "Open leech slightly (sheet) → keep boat flat (traveler/backstay as needed) → hold 30–60 seconds.";
       ifthen =
-        "If easing makes you lose too much angle, use traveler to regain angle without re-stalling the leech.";
+        "If you’re still getting rolled, shift lanes instead of fighting while slow.";
+      return { call, why, next, ifthen };
     }
 
-    const hint = bandHint ? `\n\nWind note: ${bandHint}` : "";
+    if (symptom === "slow") {
+      call =
+        "Slow: build flow and power. Ease cunningham, ease outhaul slightly (if not windy), and trim sheet to the edge of stall.";
+      why =
+        "In lighter air, too-flat = no power. You need depth and attached flow.";
+      next =
+        "Ease cunningham → ease outhaul a touch → trim sheet until top telltales are just on the edge.";
+      ifthen =
+        `If wind is ${band === "heavy" ? "heavy" : "up"} and you’re still slow, check you’re not over-depowered (traveler too low / too much backstay).`;
+      return { call, why, next, ifthen };
+    }
 
-    return { call: call + hint, why, next, ifthen };
-  }, [sailMode, boatMode, symptom, telltales, windSpd]);
+    // Twist guidance
+    if (twist === "too_closed") {
+      call =
+        "Leech too closed: ease sheet slightly OR reduce vang-like leech tension (upwind: traveler + sheet balance).";
+      why =
+        "A hooked leech stalls the upper main and kills pointing/speed.";
+      next =
+        "Ease sheet a touch, then use traveler to recover height without re-hooking the leech.";
+      ifthen =
+        "If easing sheet makes you too low, add a little traveler up instead of more sheet.";
+      return { call, why, next, ifthen };
+    }
+
+    if (twist === "too_open") {
+      call =
+        "Leech too open: trim sheet slightly OR bring traveler up to add leech tension without over-sheeting.";
+      why =
+        "Too much twist can reduce pointing and make the main feel powerless.";
+      next =
+        "Trim sheet slightly, then fine-tune with traveler.";
+      ifthen =
+        "If you start stalling up high, reverse the last change and prioritize flow (speed mode).";
+      return { call, why, next, ifthen };
+    }
+
+    // Default by boat mode
+    if (boatMode === "speed") {
+      call =
+        "Speed: keep the main driving with attached flow. Use sheet for twist, traveler for angle.";
+      why =
+        "Sheet controls leech tension; traveler controls angle of attack.";
+      next =
+        "Trim to the edge of stall, keep boat flat, then hold 30–60 seconds.";
+      ifthen =
+        "If you’re slow, add a touch of depth (ease cunningham/outhaul) before trimming harder.";
+      return { call, why, next, ifthen };
+    }
+
+    if (boatMode === "pointing") {
+      call =
+        "Pointing: only press once speed is stable. Add traveler up first, then fine-tune with sheet.";
+      why =
+        "Traveler increases angle without immediately hooking the leech.";
+      next =
+        "Build speed → traveler up slightly → adjust sheet to keep top flowing.";
+      ifthen =
+        "If you stall, return to speed mode immediately (ease sheet / traveler down slightly).";
+      return { call, why, next, ifthen };
+    }
+
+    call =
+      "Control: widen the groove and stabilize the boat. Keep the leech slightly open and avoid constant trimming.";
+    why =
+      "Control means repeatable speed through puffs/chop.";
+    next =
+      "Keep boat flat with traveler/backstay as needed. Hold settings through one puff/wave set.";
+    ifthen =
+      "If you’re still unstable, depower with cunningham/outhaul before making large traveler moves.";
+    return { call, why, next, ifthen };
+  }, [windSpd, sailMode, symptom, boatMode, twist]);
+
+  const modeText = sailMode === "upwind" ? "Upwind" : "Downwind";
+  const windText = windSpd === "" ? "— kt" : `${windSpd} kt`;
+  const gpsText = gpsOn ? (gps.cogDeg == null ? "On" : `${Math.round(gps.cogDeg)}°`) : "Off";
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Trim — Mainsail</h1>
+    <main className="space-y-5">
+      <header className="space-y-1">
+        <h1 className="text-2xl font-bold tracking-tight">Mainsail</h1>
+        <p className="text-sm text-[color:var(--muted)]">
+          Sheet + traveler drive the boat. Flatten with outhaul/cunningham/backstay.
+        </p>
+      </header>
 
-      {/* Upwind/Downwind Toggle */}
-      <div className="rounded-2xl bg-white/5 border border-white/10 p-3">
-        <div className="flex gap-2">
-          <button
-            type="button"
-            className={`${tabBase} ${sailMode === "upwind" ? tabOn : tabOff}`}
-            onClick={() => setSailMode("upwind")}
-          >
-            Upwind
-          </button>
-          <button
-            type="button"
-            className={`${tabBase} ${sailMode === "downwind" ? tabOn : tabOff}`}
-            onClick={() => setSailMode("downwind")}
-          >
-            Downwind
-          </button>
+      <Panel title="Instruments">
+        <div className="grid grid-cols-2 gap-3">
+          <Chip label="Mode" value={modeText} accent="blue" />
+          <Chip label="Wind" value={windText} accent="teal" />
+          <Chip label="Target" value={sailMode === "upwind" ? boatMode : "Downwind"} accent="neutral" />
+          <Chip label="GPS" value={gpsText} accent={gpsOn ? "amber" : "neutral"} />
         </div>
-        <div className="text-xs opacity-70 mt-2 px-1">
-          Remembers selection across Trim pages
-        </div>
-      </div>
+      </Panel>
 
-      {/* GPS + Wind */}
-      <div className="rounded-2xl bg-white/5 border border-white/10 p-5 space-y-4">
-        <div className="text-xs uppercase tracking-wide opacity-60">GPS + Wind</div>
-
-        <div className="grid grid-cols-1 gap-3">
-          <label className="block space-y-2">
-            <div className="text-sm opacity-80">Wind direction (°)</div>
+      <Panel
+        title="Controls"
+        right={
+          <div className="flex gap-2">
+            <Btn
+              tone={sailMode === "upwind" ? "primary" : "neutral"}
+              full={false}
+              onClick={() => setSailMode("upwind")}
+            >
+              Up
+            </Btn>
+            <Btn
+              tone={sailMode === "downwind" ? "primary" : "neutral"}
+              full={false}
+              onClick={() => setSailMode("downwind")}
+            >
+              Down
+            </Btn>
+          </div>
+        }
+      >
+        <div className="grid grid-cols-2 gap-3">
+          <label className="space-y-1">
+            <div className="text-xs text-[color:var(--muted)]">Wind Dir (°T)</div>
             <input
               inputMode="numeric"
-              className="w-full rounded-xl bg-black/40 border border-white/10 p-3"
-              placeholder="Example: 225"
+              className="w-full rounded-2xl bg-black/40 border border-[color:var(--divider)] p-3"
               value={windDir}
+              placeholder="225"
               onChange={(e) => {
                 const v = e.target.value.trim();
                 if (v === "") return setWindDir("");
@@ -341,13 +308,13 @@ export default function TrimMainPage() {
             />
           </label>
 
-          <label className="block space-y-2">
-            <div className="text-sm opacity-80">Wind speed (kt)</div>
+          <label className="space-y-1">
+            <div className="text-xs text-[color:var(--muted)]">Wind Speed (kt)</div>
             <input
               inputMode="numeric"
-              className="w-full rounded-xl bg-black/40 border border-white/10 p-3"
-              placeholder="Example: 12"
+              className="w-full rounded-2xl bg-black/40 border border-[color:var(--divider)] p-3"
               value={windSpd}
+              placeholder="12"
               onChange={(e) => {
                 const v = e.target.value.trim();
                 if (v === "") return setWindSpd("");
@@ -356,160 +323,135 @@ export default function TrimMainPage() {
               }}
             />
           </label>
-        </div>
 
-        <div className="flex gap-2">
-          <button
-            type="button"
-            className={`flex-1 rounded-xl py-3 text-sm font-semibold transition active:scale-[0.98] ${
-              gpsOn ? "bg-white text-black shadow" : "bg-white/10 text-white border border-white/10"
-            }`}
-            onClick={() => setGpsOn((v) => !v)}
-          >
-            {gpsOn ? "GPS ON" : "GPS OFF"}
-          </button>
+          {sailMode === "upwind" ? (
+            <label className="space-y-1">
+              <div className="text-xs text-[color:var(--muted)]">Boat mode</div>
+              <select
+                className="w-full rounded-2xl bg-black/40 border border-[color:var(--divider)] p-3"
+                value={boatMode}
+                onChange={(e) => setBoatMode(e.target.value as BoatMode)}
+              >
+                <option value="speed">Speed</option>
+                <option value="pointing">Pointing</option>
+                <option value="control">Control</option>
+              </select>
+            </label>
+          ) : (
+            <div className="rounded-2xl border border-[color:var(--divider)] bg-black/30 p-3">
+              <div className="text-xs text-[color:var(--muted)]">Boat mode</div>
+              <div className="mt-1 text-sm opacity-80">Downwind</div>
+            </div>
+          )}
 
-          <button
-            type="button"
-            className="flex-1 rounded-xl py-3 text-sm font-semibold bg-white/10 text-white border border-white/10 active:scale-[0.98]"
-            onClick={() => {
-              if (windDir === "" || gps.cogDeg === null) return;
-              const suggestion = inferMode(gps.cogDeg, windDir);
-              if (suggestion) setSailMode(suggestion);
-            }}
-          >
-            Set Up/Down from GPS
-          </button>
-        </div>
-
-        <div className="text-xs opacity-70">
-          COG: {gps.cogDeg === null ? "—" : `${Math.round(gps.cogDeg)}°`}
-          {" · "}
-          {gps.permission === "denied" ? "Location denied" : gpsOn ? "Listening…" : "GPS off"}
-          {gps.error ? ` · ${gps.error}` : ""}
-        </div>
-
-        <div className="text-xs opacity-60">
-          Auto-switches only when clearly Upwind (≤70°) or Downwind (≥110°). Reaches won’t flip it.
-        </div>
-      </div>
-
-      {/* Inputs */}
-      <div className="rounded-2xl bg-white/5 border border-white/10 p-5 space-y-4">
-        <div className="text-xs uppercase tracking-wide opacity-60">Inputs</div>
-
-        {sailMode === "upwind" && (
-          <label className="block space-y-2">
-            <div className="text-sm opacity-80">Boat Mode</div>
+          <label className="space-y-1">
+            <div className="text-xs text-[color:var(--muted)]">Twist / Leech</div>
             <select
-              className="w-full rounded-xl bg-black/40 border border-white/10 p-3"
-              value={boatMode}
-              onChange={(e) => setBoatMode(e.target.value as BoatMode)}
+              className="w-full rounded-2xl bg-black/40 border border-[color:var(--divider)] p-3"
+              value={twist}
+              onChange={(e) => setTwist(e.target.value as MainTwist)}
             >
-              <option value="speed">Speed</option>
-              <option value="pointing">Pointing</option>
-              <option value="control">Control</option>
+              <option value="unknown">Not sure</option>
+              <option value="balanced">Looks balanced</option>
+              <option value="too_closed">Too closed / hooked</option>
+              <option value="too_open">Too open / too twisty</option>
             </select>
           </label>
-        )}
 
-        <label className="block space-y-2">
-          <div className="text-sm opacity-80">Symptom</div>
-          <select
-            className="w-full rounded-xl bg-black/40 border border-white/10 p-3"
-            value={symptom}
-            onChange={(e) => setSymptom(e.target.value as Symptom)}
-          >
-            <option value="normal">Normal / General</option>
-            <option value="slow">Slow</option>
-            <option value="pinching">Pinching / stalling</option>
-            <option value="overpowered">Overpowered / heavy helm</option>
-            <option value="cant_hold_lane">Can’t hold lane</option>
-            <option value="badair">Bad air</option>
-          </select>
-        </label>
+          <label className="space-y-1 col-span-2">
+            <div className="text-xs text-[color:var(--muted)]">Symptom</div>
+            <select
+              className="w-full rounded-2xl bg-black/40 border border-[color:var(--divider)] p-3"
+              value={symptom}
+              onChange={(e) => setSymptom(e.target.value as MainSymptom)}
+            >
+              <option value="normal">Normal / General</option>
+              <option value="slow">Slow</option>
+              <option value="pinching">Pinching</option>
+              <option value="overpowered">Overpowered</option>
+              <option value="cant_hold_lane">Can’t hold lane</option>
+              <option value="badair">Bad air</option>
+            </select>
+          </label>
 
-        <label className="block space-y-2">
-          <div className="text-sm opacity-80">Telltales (what are you seeing?)</div>
-          <select
-            className="w-full rounded-xl bg-black/40 border border-white/10 p-3"
-            value={telltales}
-            onChange={(e) => setTelltales(e.target.value as TelltaleRead)}
-          >
-            <option value="unknown">Not sure / not looking</option>
-            <option value="all_streaming">All telltales streaming aft</option>
-            <option value="leeward_lifting">Leeward telltales lifting</option>
-            <option value="windward_lifting">Windward telltales lifting</option>
-            <option value="leech_stalling">Leech telltales stalling/sucking</option>
-          </select>
-        </label>
+          <div className="col-span-2 grid grid-cols-2 gap-3">
+            <Btn
+              tone={gpsOn ? "amber" : "neutral"}
+              onClick={() => setGpsOn((v) => !v)}
+            >
+              {gpsOn ? "GPS ON" : "GPS OFF"}
+            </Btn>
+            <Btn
+              tone="neutral"
+              onClick={() => {
+                if (windDir === "" || gps.cogDeg == null) return;
+                const suggestion = inferMode(gps.cogDeg, windDir);
+                if (suggestion) setSailMode(suggestion);
+              }}
+            >
+              Set Up/Down
+            </Btn>
+          </div>
 
-        <div className="text-xs opacity-60">
-          Tip: Telltales override the recommendation with the fastest “fix the flow” move.  [oai_citation:1‡Practical Sailor](https://www.practical-sailor.com/sails-rigging-deckgear/reading-the-telltales-on-your-sails)
-        </div>
-      </div>
-
-      {/* Answer */}
-      <div className="rounded-2xl bg-white/5 border border-white/10 overflow-hidden">
-        <div className="px-5 py-4">
-          <div className="text-xs uppercase tracking-wide opacity-60">Recommendation</div>
-          <div className="text-sm opacity-80 mt-1">
-            {sailMode === "upwind"
-              ? `Upwind · ${titleCase(boatMode)} · ${titleCase(symptom)}`
-              : `Downwind · ${titleCase(symptom)}`}
-            {windSpd !== "" ? ` · Wind ${windSpd} kt` : ""}
+          <div className="col-span-2 text-xs text-[color:var(--muted)]">
+            Downwind reminder: vang is mostly OFF on the Cal 25.
           </div>
         </div>
+      </Panel>
 
-        <div className="border-t border-white/10" />
-
-        <section className="px-5 py-4 space-y-4">
-          <div className="border-l-4 border-blue-400/70 pl-4">
-            <div className="text-xs font-semibold tracking-wide text-blue-300">CALL</div>
-            <div className="text-sm opacity-90 mt-1 leading-relaxed whitespace-pre-line">
-              {recommendation.call}
+      <Panel title="Answer">
+        <div className="space-y-3">
+          <div className="rounded-2xl border border-[color:var(--divider)] bg-black/30 p-4">
+            <div className="text-xs tracking-widest text-[color:var(--teal)] uppercase">
+              Call
+            </div>
+            <div className="mt-2 text-sm leading-relaxed opacity-90 whitespace-pre-line">
+              {computed.call}
             </div>
           </div>
 
-          <div className="border-l-4 border-white/20 pl-4">
-            <div className="text-xs font-semibold tracking-wide text-white/60">WHY</div>
-            <div className="text-sm opacity-80 mt-1 leading-relaxed">
-              {recommendation.why}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="rounded-2xl border border-[color:var(--divider)] bg-black/20 p-4">
+              <div className="text-xs tracking-widest text-[color:var(--muted)] uppercase">
+                Why
+              </div>
+              <div className="mt-2 text-sm opacity-80 leading-relaxed">
+                {computed.why}
+              </div>
+            </div>
+            <div className="rounded-2xl border border-[color:var(--divider)] bg-black/20 p-4">
+              <div className="text-xs tracking-widest text-[color:var(--muted)] uppercase">
+                Do next
+              </div>
+              <div className="mt-2 text-sm opacity-80 leading-relaxed">
+                {computed.next}
+              </div>
             </div>
           </div>
 
-          <div className="border-l-4 border-green-400/70 pl-4">
-            <div className="text-xs font-semibold tracking-wide text-green-300">DO NEXT</div>
-            <div className="text-sm opacity-80 mt-1 leading-relaxed">
-              {recommendation.next}
+          <div className="rounded-2xl border border-[color:var(--divider)] bg-black/20 p-4">
+            <div className="text-xs tracking-widest text-[color:var(--muted)] uppercase">
+              If / Then
+            </div>
+            <div className="mt-2 text-sm opacity-80 leading-relaxed">
+              {computed.ifthen}
             </div>
           </div>
+        </div>
+      </Panel>
 
-          <div className="border-l-4 border-amber-400/70 pl-4">
-            <div className="text-xs font-semibold tracking-wide text-amber-300">IF / THEN</div>
-            <div className="text-sm opacity-80 mt-1 leading-relaxed">
-              {recommendation.ifthen}
-            </div>
-          </div>
-        </section>
+      <div className="grid grid-cols-2 gap-3">
+        <BtnLink href="/troubleshoot/slow" tone="amber">
+          I’M SLOW
+        </BtnLink>
+        <BtnLink href="/logs" tone="neutral">
+          Logs
+        </BtnLink>
       </div>
 
-      {/* Links */}
-      <div className="grid grid-cols-1 gap-3">
-        <a
-          href="/trim"
-          className="block rounded-2xl bg-white text-black py-4 px-4 font-semibold shadow active:scale-[0.98] transition"
-        >
-          Back to Trim
-        </a>
-
-        <a
-          href="/"
-          className="block rounded-2xl bg-white text-black py-4 px-4 font-semibold shadow active:scale-[0.98] transition"
-        >
-          Back to Home
-        </a>
-      </div>
-    </div>
+      <BtnLink href="/trim" tone="neutral">
+        Back to Trim
+      </BtnLink>
+    </main>
   );
 }

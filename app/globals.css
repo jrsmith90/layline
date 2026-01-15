@@ -1,26 +1,37 @@
 @import "tailwindcss";
 
+/* Layline Instrument Palette */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg: #0b0f14;
+  --text: #eaecef;
+  --muted: #9ca3af;
+
+  --panel: #111827;
+  --divider: #1f2933;
+
+  --blue: #3b82f6;   /* instrument blue */
+  --amber: #f59e0b;  /* safety amber */
+  --red: #d71920;    /* your alert red */
+  --green: #22c55e;  /* confirmed good */
+  --advisory: #60a5fa;
+  --teal: #00aca2;   /* your accent teal */
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html,
+body {
+  height: 100%;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+
+/* Make taps feel more app-like */
+button, a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--blue) 25%, transparent);
 }
