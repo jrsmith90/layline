@@ -29,6 +29,6 @@
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts",
     "**/*.mts"
-  ],
+, "app/sail-selection/page.txs"  ],
   "exclude": ["node_modules"]
 }
