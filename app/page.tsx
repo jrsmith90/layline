@@ -1,84 +1,133 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Panel } from "@/components/panel";
-import { formatMainChoice, formatHeadsailChoice, formatSpinChoice } from "@/lib/sail-utils";
+import { Compass, Flag, Sailboat, Wind, Waves, Route, Wrench, Notebook } from "lucide-react";
 
-export default function SailSelectionPage() {
-  const [result, setResult] = useState({
-    mainChoice: "reef1",
-    headsailChoice: "jib1",
-    spinnakerChoice: "no_spinnaker",
-  });
+export default function HomePage() {
+  const [raceMode, setRaceMode] = useState(false);
 
-  // ... existing logic and UI code ...
+  useEffect(() => {
+    const saved = localStorage.getItem("race-mode");
+    if (saved === "true") setRaceMode(true);
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem("race-mode", raceMode ? "true" : "false");
+  }, [raceMode]);
 
   return (
     <main className="space-y-5 px-4 pb-6 max-w-md mx-auto">
-      {/* ... other content ... */}
-
-      <Panel title="Recommendation">
-        <div className="space-y-4">
-          {/* existing content */}
-          <div className="card">
-            <h3 className="font-semibold">What Would Change the Call</h3>
-            <p className="text-sm opacity-70">
-              {/* existing explanation text */}
-            </p>
-          </div>
-
-            <div className="grid gap-3 md:grid-cols-2">
-              <a
-                href="/trim/main"
-                className="block rounded-lg bg-red-500 text-white p-4 font-semibold shadow active:scale-[0.98] transition"
-              >
-                Go to Mainsail Trim
-                <div className="text-sm font-normal opacity-90">
-                  Apply the {formatMainChoice(result.mainChoice)} call
-                </div>
-              </a>
-
-              {result.headsailChoice && (
-                <a
-                  href="/trim/jib"
-                  className="block rounded-lg bg-orange-500 text-white p-4 font-semibold shadow active:scale-[0.98] transition"
-                >
-                  Go to Headsail Trim
-                  <div className="text-sm font-normal opacity-90">
-                    Trim the {formatHeadsailChoice(result.headsailChoice)}
-                  </div>
-                </a>
-              )}
-
-              {result.spinnakerChoice && result.spinnakerChoice !== "no_spinnaker" && (
-                <a
-                  href="/trim/spin"
-                  className="block rounded-lg bg-blue-600 text-white p-4 font-semibold shadow active:scale-[0.98] transition md:col-span-2"
-                >
-                  Go to Spinnaker Trim
-                  <div className="text-sm font-normal opacity-90">
-                    Trim the {formatSpinChoice(result.spinnakerChoice)}
-                  </div>
-                </a>
-              )}
-            </div>
+      <header className="space-y-1">
+        <h1 className="text-2xl font-bold tracking-tight">Layline</h1>
+        <p className="text-sm opacity-70">
+          Sailing decision support for starts, trim, and tactics.
+        </p>
+        <div className="mt-3 flex items-center justify-between">
+          <span className="text-sm opacity-70">Mode</span>
+          <button
+            onClick={() => setRaceMode((v) => !v)}
+            className={`px-3 py-1 rounded-full text-sm font-semibold transition ${
+              raceMode ? "bg-red-500 text-white" : "bg-gray-700 text-white"
+            }`}
+          >
+            {raceMode ? "Race Mode" : "Learning Mode"}
+          </button>
         </div>
-      </Panel>
+      </header>
 
-      {/* ... other content ... */}
-
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid gap-3">
         <a
-          href="/"
-          className="block w-full text-center rounded-lg bg-gray-700 text-white py-3 px-4 font-semibold shadow active:scale-[0.98] transition"
+          href="/sail-selection"
+          className="block rounded-lg bg-white text-black p-4 font-semibold shadow active:scale-[0.98] transition"
         >
-          Return Home
+          <div className="flex items-center gap-2">
+            <Compass size={18} /> Sail Selection
+          </div>
+          <div className="text-sm font-normal opacity-90">
+            {raceMode ? "Quick sail + reef call" : "Pre-race setup, sail choice, reef calls"}
+          </div>
         </a>
+
         <a
-          href="/trim"
-          className="block w-full text-center rounded-lg bg-black text-white py-3 px-4 font-semibold shadow active:scale-[0.98] transition"
+          href="/start"
+          className="block rounded-lg bg-purple-500 text-white p-4 font-semibold shadow active:scale-[0.98] transition"
         >
-          Go to Trim Hub
+          <div className="flex items-center gap-2">
+            <Flag size={18} /> Start
+          </div>
+          <div className="text-sm font-normal opacity-90">
+            {raceMode ? "Lane + pressure" : "Lane, pressure, and bailout logic"}
+          </div>
+        </a>
+
+        <a
+          href="/trim/main"
+          className="block rounded-lg bg-red-500 text-white p-4 font-semibold shadow active:scale-[0.98] transition"
+        >
+          <div className="flex items-center gap-2">
+            <Sailboat size={18} /> Mainsail Trim
+          </div>
+          <div className="text-sm font-normal opacity-90">
+            {raceMode ? "Power + depower" : "Power, balance, and depower controls"}
+          </div>
+        </a>
+
+        <a
+          href="/trim/jib"
+          className="block rounded-lg bg-orange-500 text-white p-4 font-semibold shadow active:scale-[0.98] transition"
+        >
+          <div className="flex items-center gap-2">
+            <Wind size={18} /> Headsail Trim
+          </div>
+          <div className="text-sm font-normal opacity-90">
+            {raceMode ? "Trim + flow" : "Lead, sheet, and telltale flow"}
+          </div>
+        </a>
+
+        <a
+          href="/trim/spin"
+          className="block rounded-lg bg-blue-600 text-white p-4 font-semibold shadow active:scale-[0.98] transition"
+        >
+          <div className="flex items-center gap-2">
+            <Waves size={18} /> Spinnaker Trim
+          </div>
+          <div className="text-sm font-normal opacity-90">
+            {raceMode ? "Downwind control" : "Downwind trim and control"}
+          </div>
+        </a>
+
+        <a
+          href="/tactics"
+          className="block rounded-lg bg-gray-700 text-white p-4 font-semibold shadow active:scale-[0.98] transition"
+        >
+          <div className="flex items-center gap-2">
+            <Route size={18} /> Tactics
+          </div>
+          <div className="text-sm font-normal opacity-90">
+            {raceMode ? "Decisions" : "Upwind and downwind decisions"}
+          </div>
+        </a>
+
+        <a
+          href="/troubleshoot"
+          className="block rounded-lg bg-yellow-500 text-black p-4 font-semibold shadow active:scale-[0.98] transition"
+        >
+          <div className="flex items-center gap-2">
+            <Wrench size={18} /> Troubleshoot
+          </div>
+          <div className="text-sm font-normal opacity-90">
+            {raceMode ? "Fix fast" : "Fix speed, control, and trim issues"}
+          </div>
+        </a>
+
+        <a
+          href="/notes"
+          className="block rounded-lg bg-white/10 text-white p-4 font-semibold shadow active:scale-[0.98] transition"
+        >
+          <div className="flex items-center gap-2">
+            <Notebook size={18} /> Notes
+          </div>
+          <div className="text-sm font-normal opacity-70">Logs and learning</div>
         </a>
       </div>
     </main>
