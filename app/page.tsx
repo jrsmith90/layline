@@ -39,9 +39,9 @@ export default function HomePage() {
       <div className="grid gap-3">
         <a
           href="/sail-selection"
-          className="block rounded-lg bg-blue-500 text-white p-4 font-semibold shadow active:scale-[0.98] transition"
+          className="block rounded-lg bg-white text-black p-4 font-semibold shadow active:scale-[0.98] transition"
         >
-          Sail Selection
+          ⚪ Sail Selection
           <div className="text-sm font-normal opacity-90">
             {raceMode
               ? "Quick sail + reef call"
@@ -53,7 +53,7 @@ export default function HomePage() {
           href="/start"
           className="block rounded-lg bg-purple-500 text-white p-4 font-semibold shadow active:scale-[0.98] transition"
         >
-          Start
+          🟣 Start
           <div className="text-sm font-normal opacity-90">
             {raceMode
               ? "Lane + pressure"
@@ -65,7 +65,7 @@ export default function HomePage() {
           href="/trim/main"
           className="block rounded-lg bg-red-500 text-white p-4 font-semibold shadow active:scale-[0.98] transition"
         >
-          Mainsail Trim
+          🔴 Mainsail Trim
           <div className="text-sm font-normal opacity-90">
             {raceMode
               ? "Power + depower"
@@ -75,9 +75,9 @@ export default function HomePage() {
 
         <a
           href="/trim/jib"
-          className="block rounded-lg bg-black text-white p-4 font-semibold shadow active:scale-[0.98] transition"
+          className="block rounded-lg bg-orange-500 text-white p-4 font-semibold shadow active:scale-[0.98] transition"
         >
-          Headsail Trim
+          🟠 Headsail Trim
           <div className="text-sm font-normal opacity-90">
             {raceMode
               ? "Trim + flow"
@@ -89,7 +89,7 @@ export default function HomePage() {
           href="/trim/spin"
           className="block rounded-lg bg-blue-600 text-white p-4 font-semibold shadow active:scale-[0.98] transition"
         >
-          Spinnaker Trim
+          🔵 Spinnaker Trim
           <div className="text-sm font-normal opacity-90">
             {raceMode
               ? "Downwind control"
@@ -101,7 +101,7 @@ export default function HomePage() {
           href="/tactics"
           className="block rounded-lg bg-gray-700 text-white p-4 font-semibold shadow active:scale-[0.98] transition"
         >
-          Tactics
+          ⚫ Tactics
           <div className="text-sm font-normal opacity-90">
             {raceMode
               ? "Decisions"
@@ -113,7 +113,7 @@ export default function HomePage() {
           href="/troubleshoot"
           className="block rounded-lg bg-yellow-500 text-black p-4 font-semibold shadow active:scale-[0.98] transition"
         >
-          Troubleshoot
+          🟡 Troubleshoot
           <div className="text-sm font-normal opacity-90">
             {raceMode
               ? "Fix fast"
@@ -125,7 +125,7 @@ export default function HomePage() {
           href="/notes"
           className="block rounded-lg bg-white/10 text-white p-4 font-semibold shadow active:scale-[0.98] transition"
         >
-          Notes
+          📝 Notes
           <div className="text-sm font-normal opacity-70">
             Logs and learning
           </div>
