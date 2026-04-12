@@ -1,69 +1,54 @@
-import { Panel } from "@/components/ui/Panel";
-import { BtnLink } from "@/components/ui/Btn";
-import { Chip } from "@/components/ui/Chip";
-
-export default function Home() {
+export default function HomePage() {
   return (
-    <main className="space-y-5">
-      {/* Header */}
-      <header className="flex items-end justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Layline</h1>
-          <p className="text-sm text-[color:var(--muted)]">
-            A Cal 25 Sailing Guide
-          </p>
-        </div>
-        <div className="text-xs text-[color:var(--muted)]">
-          v1
-        </div>
-      </header>
-
-      {/* Instrument bar */}
-      <Panel title="Instruments" right={<span className="text-xs text-[color:var(--muted)]">Tap into Trim for live values</span>}>
-        <div className="grid grid-cols-2 gap-3">
-          <Chip label="Mode" value="Upwind" accent="blue" />
-          <Chip label="Wind" value="— kt" accent="teal" />
-          <Chip label="Car" value="—" accent="neutral" />
-          <Chip label="GPS" value="Off" accent="neutral" />
-        </div>
-      </Panel>
-
-      {/* Panic */}
-      <Panel title="Quick Fix">
-        <BtnLink href="/troubleshoot/slow" tone="amber" className="text-lg">
-          I’M SLOW
-        </BtnLink>
-        <p className="mt-2 text-xs text-[color:var(--muted)]">
-          Fast checklist to stabilize speed before you start tweaking.
+    <div className="space-y-6 p-4">
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">Layline</h1>
+        <p className="text-sm opacity-70">
+          Sailing decision support for starts, trim, and tactics.
         </p>
-      </Panel>
+      </div>
 
-      {/* Navigation */}
-      <Panel title="Sections">
-        <div className="grid grid-cols-2 gap-3">
-          <BtnLink href="/trim" tone="primary">
-            Trim
-          </BtnLink>
-          <BtnLink href="/start" tone="neutral">
-            Start
-          </BtnLink>
-          <BtnLink href="/tactics" tone="neutral">
-            Tactics
-          </BtnLink>
-          <BtnLink href="/troubleshoot" tone="neutral">
-            Troubleshoot
-          </BtnLink>
-          <BtnLink href="/logs" tone="neutral">
-            Logs
-          </BtnLink>
-          <BtnLink href="/notes" tone="neutral">
-            Notes
-          </BtnLink>
-        </div>
-      </Panel>
+      <div className="grid gap-4 md:grid-cols-2">
+        <a
+          href="/start"
+          className="block rounded-2xl border border-white/10 bg-white/5 p-5 hover:bg-white/10 transition"
+        >
+          <div className="text-lg font-semibold">Start</div>
+          <div className="mt-1 text-sm opacity-70">
+            Final-minute lane, pressure, and bailout logic.
+          </div>
+        </a>
 
-      {/* Accent bar */}
-      <div className="h-1 w-full rounded-full bg-[color:var(--teal)]/30" />
-    </main>
+        <a
+          href="/trim"
+          className="block rounded-2xl border border-white/10 bg-white/5 p-5 hover:bg-white/10 transition"
+        >
+          <div className="text-lg font-semibold">Trim</div>
+          <div className="mt-1 text-sm opacity-70">
+            Sail trim guidance and mode-based setup.
+          </div>
+        </a>
+
+        <a
+          href="/tactics"
+          className="block rounded-2xl border border-white/10 bg-white/5 p-5 hover:bg-white/10 transition"
+        >
+          <div className="text-lg font-semibold">Tactics</div>
+          <div className="mt-1 text-sm opacity-70">
+            Upwind and downwind decision modules.
+          </div>
+        </a>
+
+        <a
+          href="/notes"
+          className="block rounded-2xl border border-white/10 bg-white/5 p-5 hover:bg-white/10 transition"
+        >
+          <div className="text-lg font-semibold">Notes</div>
+          <div className="mt-1 text-sm opacity-70">
+            Logs, notes, and future learning tools.
+          </div>
+        </a>
+      </div>
+    </div>
   );
 }

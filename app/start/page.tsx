@@ -3,115 +3,232 @@
 import { useMemo, useState } from "react";
 import startUpwindLogic from "@/data/logic/startUpwindLogic";
 
-type UpwindLaneState = "OPEN" | "SHRINKING" | "MARGINAL" | "DEAD";
-type BoatMode = "speed" | "pointing" | "control";
-type UpwindMessageState = "stable" | "hold" | "prep_bail" | "bail_now";
+type ForwardEscape = "YES" | "MAYBE" | "NO";
+type WindwardThreat = "NONE" | "PRESENT" | "CONTROLLING";
+type LeewardPressure = "NONE" | "BUILDING" | "CLEAR";
+type MessageState = "hold" | "prep_bail" | "bail_now";
 
-type CongestionLevel = "LOW" | "MEDIUM" | "HIGH";
-type TackOption = "OPEN" | "LIMITED" | "BLOCKED";
+function getStartMessage(params: {
+  forwardEscape: ForwardEscape;
+  windwardThreat: WindwardThreat;
+  leewardPressure: LeewardPressure;
+  timeToStart: number;
+}): MessageState {
+  const { forwardEscape, windwardThreat, leewardPressure, timeToStart } = params;
 
-function getUpwindState(params: {
-  laneState: UpwindLaneState;
-  congestion: CongestionLevel;
-  tackOption: TackOption;
-}): UpwindMessageState {
-  const { laneState, congestion, tackOption } = params;
+  if (forwardEscape === "NO") return "bail_now";
 
-  if (laneState === "DEAD" || tackOption === "BLOCKED") return "bail_now";
-  if (laneState === "MARGINAL") return "prep_bail";
-  if (laneState === "SHRINKING" || congestion === "HIGH") return "hold";
-  return "stable";
+  const tierTwoThreat =
+    windwardThreat === "CONTROLLING" || leewardPressure === "CLEAR";
+
+  const anyPressure =
+    windwardThreat !== "NONE" || leewardPressure !== "NONE";
+
+  if (forwardEscape === "MAYBE") {
+    if (tierTwoThreat && timeToStart <= 20) return "bail_now";
+    return "prep_bail";
+  }
+
+  if (tierTwoThreat && timeToStart <= 20) return "bail_now";
+  if (anyPressure) return "prep_bail";
+
+  return "hold";
 }
 
-function getUpwindReason(params: {
-  laneState: UpwindLaneState;
-  boatMode: BoatMode;
-  congestion: CongestionLevel;
-  tackOption: TackOption;
+function getStartReason(params: {
+  forwardEscape: ForwardEscape;
+  windwardThreat: WindwardThreat;
+  leewardPressure: LeewardPressure;
+  timeToStart: number;
+  message: MessageState;
 }): string {
-  const { laneState, boatMode, congestion, tackOption } = params;
+  const {
+    forwardEscape,
+    windwardThreat,
+    leewardPressure,
+    timeToStart,
+    message,
+  } = params;
 
-  if (laneState === "DEAD" || tackOption === "BLOCKED") {
-    return "No forward option. Clear air and escape take priority over trim or tactics.";
+  if (message === "bail_now") {
+    if (forwardEscape === "NO") {
+      return "You do not have a forward lane anymore. Clear air and acceleration matter more than trying to salvage this exact hole.";
+    }
+
+    if (timeToStart <= 20) {
+      return "Inside 20 seconds, pressure compounds fast. A bad lane now usually gets worse, not better.";
+    }
+
+    return "Your exit options are collapsing. Reset before you get pinned and rolled off the line.";
   }
 
-  if (laneState === "MARGINAL") {
-    return "Your lane is close to collapsing. Preserve options before you get pinned going the wrong way.";
+  if (message === "prep_bail") {
+    if (windwardThreat === "CONTROLLING") {
+      return "The windward boat can squeeze you and kill your lane. Be ready to foot off or leave before you run out of room.";
+    }
+
+    if (leewardPressure === "CLEAR") {
+      return "The leeward boat is accelerating and can shut the door. Keep the boat free and prepare your escape.";
+    }
+
+    return "Your lane is still usable, but it is getting tighter. Stay loose enough to accelerate or leave cleanly.";
   }
 
-  if (laneState === "SHRINKING") {
-    return "Pressure is building, but the lane is still usable. Stay calm and avoid an unnecessary tactical move.";
-  }
-
-  if (congestion === "HIGH") {
-    return "Traffic is heavy. Keep the boat simple and protect space before forcing a strategic play.";
-  }
-
-  if (boatMode === "speed") {
-    return "Open lane. Prioritize pace and flow so you can keep your options open.";
-  }
-
-  if (boatMode === "pointing") {
-    return "You can press for height, but only if the boat still feels alive and the lane remains safe.";
-  }
-
-  return "Stability first. Depower enough to keep the boat under you and avoid turning a small problem into a tactical one.";
+  return "The lane is workable. Stay calm, preserve space, and keep the boat ready to accelerate.";
 }
 
-export default function UpwindTacticsPage() {
+function getStartHelmAction(params: {
+  message: MessageState;
+  timeToStart: number;
+}): string {
+  const { message, timeToStart } = params;
+
+  if (message === "bail_now") {
+    return "Bear off slightly, get the bow free, and accelerate into the nearest clear exit. Do not stay high and slow trying to save the original hole.";
+  }
+
+  if (message === "prep_bail") {
+    return timeToStart <= 20
+      ? "Keep the turn options open. Sail slightly lower if needed so you can accelerate, duck, or foot off without stalling."
+      : "Hold a loose groove and avoid over-committing high. Stay ready to foot off or reset before the lane closes.";
+  }
+
+  return "Hold your line, keep the bow moving, and avoid extra steering. Stay calm and focus on a clean acceleration path.";
+}
+
+function getStartJibAction(params: {
+  message: MessageState;
+}): string {
+  const { message } = params;
+
+  if (message === "bail_now") {
+    return "Ease the jib sheet 2–4 inches and, if needed, move the lead/car back slightly to open the leech. You want a forgiving setup that lets the boat accelerate immediately.";
+  }
+
+  if (message === "prep_bail") {
+    return "Ease the jib sheet a touch and keep the lead neutral or slightly aft. Open the leech enough that the sail breathes while you protect the option to foot off or duck.";
+  }
+
+  return "Trim the jib for flow, not max height. Keep the top telltale just on the edge of lifting so the boat stays lively and ready to launch.";
+}
+
+function getStartMainAction(params: {
+  message: MessageState;
+}): string {
+  const { message } = params;
+
+  if (message === "bail_now") {
+    return "Ease the mainsheet and drop the traveler slightly to reduce heel and helm. The priority is a fast, maneuverable boat, not a perfect line-up trim.";
+  }
+
+  if (message === "prep_bail") {
+    return "Ease the mainsheet slightly for twist and lower the traveler just enough to keep the boat stable. Keep speed on so you can still make a move.";
+  }
+
+  return "Keep enough mainsheet tension for response, but do not over-trim. A little twist and a stable traveler position will help you accelerate cleanly.";
+}
+
+function getStartWhy(params: {
+  message: MessageState;
+  sail: "helm" | "jib" | "main";
+}): string {
+  const { message, sail } = params;
+
+  if (message === "bail_now") {
+    if (sail === "helm") {
+      return "A small bear-off and quick acceleration are usually better than sitting high and getting rolled or pinned.";
+    }
+
+    if (sail === "jib") {
+      return "A more open jib makes it easier to accelerate and turn without choking the slot.";
+    }
+
+    return "A slightly easier main reduces helm load and gives you a more maneuverable boat when you need to escape fast.";
+  }
+
+  if (message === "prep_bail") {
+    if (sail === "helm") {
+      return "You are still in the fight, but only if the boat stays free enough to change plan quickly.";
+    }
+
+    if (sail === "jib") {
+      return "A breathing jib keeps the groove wider so you can foot off, duck, or launch without stalling.";
+    }
+
+    return "A stable main keeps speed on and reduces the risk of getting stuck high and slow.";
+  }
+
+  if (sail === "helm") {
+    return "Smooth steering preserves speed and keeps your timing under control in the final seconds.";
+  }
+
+  if (sail === "jib") {
+    return "A flowing jib is the fastest way to keep the boat lively and ready to accelerate at the gun.";
+  }
+
+  return "A settled main helps the boat feel predictable so you can focus on timing and space, not recovery.";
+}
+
+export default function StartPage() {
   const logic = startUpwindLogic;
+  const [forwardEscapeQuestion, windwardThreatQuestion, leewardPressureQuestion] =
+    logic.start.laneQuestions;
 
-  const [laneState, setLaneState] = useState<UpwindLaneState>("OPEN");
-  const [boatMode, setBoatMode] = useState<BoatMode>("speed");
-  const [congestion, setCongestion] = useState<CongestionLevel>("LOW");
-  const [tackOption, setTackOption] = useState<TackOption>("OPEN");
+  const [forwardEscape, setForwardEscape] = useState<ForwardEscape>("YES");
+  const [windwardThreat, setWindwardThreat] = useState<WindwardThreat>("NONE");
+  const [leewardPressure, setLeewardPressure] = useState<LeewardPressure>("NONE");
+  const [timeToStart, setTimeToStart] = useState(45);
 
-  const message = useMemo<UpwindMessageState>(
-    () => getUpwindState({ laneState, congestion, tackOption }),
-    [laneState, congestion, tackOption]
+  const message = useMemo<MessageState>(
+    () =>
+      getStartMessage({
+        forwardEscape,
+        windwardThreat,
+        leewardPressure,
+        timeToStart,
+      }),
+    [forwardEscape, windwardThreat, leewardPressure, timeToStart]
   );
 
-  const current =
-    message === "stable"
-      ? logic.messages.modes[boatMode]
-      : logic.messages[message];
-
-  const currentReason = getUpwindReason({
-    laneState,
-    boatMode,
-    congestion,
-    tackOption,
+  const current = logic.messages[message];
+  const currentReason = getStartReason({
+    forwardEscape,
+    windwardThreat,
+    leewardPressure,
+    timeToStart,
+    message,
   });
 
-  const alertClasses: Record<UpwindMessageState, string> = {
-    stable: "border-sky-500/30 bg-sky-500/10 text-sky-200",
+  const helmAction = getStartHelmAction({ message, timeToStart });
+  const jibAction = getStartJibAction({ message });
+  const mainAction = getStartMainAction({ message });
+  const helmWhy = getStartWhy({ message, sail: "helm" });
+  const jibWhy = getStartWhy({ message, sail: "jib" });
+  const mainWhy = getStartWhy({ message, sail: "main" });
+
+  const alertClasses: Record<MessageState, string> = {
     hold: "border-green-500/40 bg-green-500/10 text-green-300",
     prep_bail: "border-yellow-400/40 bg-yellow-400/10 text-yellow-200",
     bail_now: "border-red-500/50 bg-red-500/15 text-red-200",
   };
 
-  const toneDotClasses: Record<UpwindMessageState, string> = {
-    stable: "bg-sky-400",
+  const toneDotClasses: Record<MessageState, string> = {
     hold: "bg-green-500",
     prep_bail: "bg-yellow-400",
     bail_now: "bg-red-500",
   };
 
-  const jibIntent = logic.upwind.trimIntent.jib[boatMode];
-  const mainIntent = logic.upwind.trimIntent.main[boatMode];
-  const trimBlocked = message === "prep_bail" || message === "bail_now";
-
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-4">
       <div className="flex items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Upwind</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Start</h1>
           <p className="text-sm opacity-70">
-            Lane first. Mode second. Trim third.
+            Final minute logic built for quick, glance-only decisions.
           </p>
         </div>
         <div className="text-xs uppercase tracking-[0.2em] opacity-50">
-          Upwind Mode
+          Start Mode
         </div>
       </div>
 
@@ -119,27 +236,27 @@ export default function UpwindTacticsPage() {
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
           <div className="rounded-xl border border-white/10 bg-black/20 p-3">
             <div className="text-[11px] uppercase tracking-[0.2em] opacity-50">
-              Lane State
+              {forwardEscapeQuestion.prompt}
             </div>
-            <div className="mt-1 text-base font-semibold">{laneState}</div>
+            <div className="mt-1 text-base font-semibold">{forwardEscape}</div>
           </div>
           <div className="rounded-xl border border-white/10 bg-black/20 p-3">
             <div className="text-[11px] uppercase tracking-[0.2em] opacity-50">
-              Boat Mode
+              {windwardThreatQuestion.prompt}
             </div>
-            <div className="mt-1 text-base font-semibold">{boatMode.toUpperCase()}</div>
+            <div className="mt-1 text-base font-semibold">{windwardThreat}</div>
           </div>
           <div className="rounded-xl border border-white/10 bg-black/20 p-3">
             <div className="text-[11px] uppercase tracking-[0.2em] opacity-50">
-              Congestion
+              {leewardPressureQuestion.prompt}
             </div>
-            <div className="mt-1 text-base font-semibold">{congestion}</div>
+            <div className="mt-1 text-base font-semibold">{leewardPressure}</div>
           </div>
           <div className="rounded-xl border border-white/10 bg-black/20 p-3">
             <div className="text-[11px] uppercase tracking-[0.2em] opacity-50">
-              Tack Option
+              Time To Start
             </div>
-            <div className="mt-1 text-base font-semibold">{tackOption}</div>
+            <div className="mt-1 text-base font-semibold">{timeToStart}s</div>
           </div>
         </div>
 
@@ -150,10 +267,12 @@ export default function UpwindTacticsPage() {
           ].join(" ")}
         >
           <div className="mb-3 flex items-center justify-center gap-2 text-xs uppercase tracking-[0.25em] opacity-70">
-            <span className={[
-              "h-2.5 w-2.5 rounded-full",
-              toneDotClasses[message],
-            ].join(" ")} />
+            <span
+              className={[
+                "h-2.5 w-2.5 rounded-full",
+                toneDotClasses[message],
+              ].join(" ")}
+            />
             Current Call
           </div>
           <div className="text-3xl font-bold tracking-tight sm:text-4xl">
@@ -165,17 +284,19 @@ export default function UpwindTacticsPage() {
         <div className="grid gap-4 md:grid-cols-2">
           <div className="rounded-2xl border border-white/10 bg-black/20 p-4 space-y-3">
             <div className="text-xs uppercase tracking-[0.2em] opacity-50">
-              Upwind Inputs
+              Start Inputs
             </div>
 
             <label className="block space-y-1">
-              <span className="text-sm font-medium">Lane state</span>
+              <span className="text-sm font-medium">
+                {forwardEscapeQuestion.prompt}
+              </span>
               <select
-                value={laneState}
-                onChange={(e) => setLaneState(e.target.value as UpwindLaneState)}
+                value={forwardEscape}
+                onChange={(e) => setForwardEscape(e.target.value as ForwardEscape)}
                 className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2 outline-none"
               >
-                {logic.upwind.laneStates.map((option) => (
+                {forwardEscapeQuestion.options.map((option) => (
                   <option key={option} value={option}>
                     {option}
                   </option>
@@ -184,89 +305,147 @@ export default function UpwindTacticsPage() {
             </label>
 
             <label className="block space-y-1">
-              <span className="text-sm font-medium">Boat mode</span>
+              <span className="text-sm font-medium">
+                {windwardThreatQuestion.prompt}
+              </span>
               <select
-                value={boatMode}
-                onChange={(e) => setBoatMode(e.target.value as BoatMode)}
+                value={windwardThreat}
+                onChange={(e) => setWindwardThreat(e.target.value as WindwardThreat)}
                 className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2 outline-none"
               >
-                {logic.upwind.modes.map((option) => (
+                {windwardThreatQuestion.options.map((option) => (
                   <option key={option} value={option}>
-                    {option.toUpperCase()}
+                    {option}
                   </option>
                 ))}
               </select>
             </label>
 
             <label className="block space-y-1">
-              <span className="text-sm font-medium">Congestion</span>
+              <span className="text-sm font-medium">
+                {leewardPressureQuestion.prompt}
+              </span>
               <select
-                value={congestion}
-                onChange={(e) => setCongestion(e.target.value as CongestionLevel)}
+                value={leewardPressure}
+                onChange={(e) =>
+                  setLeewardPressure(e.target.value as LeewardPressure)
+                }
                 className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2 outline-none"
               >
-                <option value="LOW">LOW</option>
-                <option value="MEDIUM">MEDIUM</option>
-                <option value="HIGH">HIGH</option>
+                {leewardPressureQuestion.options.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
               </select>
             </label>
 
-            <label className="block space-y-1">
-              <span className="text-sm font-medium">Tack option</span>
-              <select
-                value={tackOption}
-                onChange={(e) => setTackOption(e.target.value as TackOption)}
-                className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2 outline-none"
-              >
-                <option value="OPEN">OPEN</option>
-                <option value="LIMITED">LIMITED</option>
-                <option value="BLOCKED">BLOCKED</option>
-              </select>
+            <label className="block space-y-2">
+              <div className="flex items-center justify-between text-sm font-medium">
+                <span>Time to start</span>
+                <span>{timeToStart}s</span>
+              </div>
+              <input
+                type="range"
+                min={0}
+                max={90}
+                step={5}
+                value={timeToStart}
+                onChange={(e) => setTimeToStart(Number(e.target.value))}
+                className="w-full"
+              />
             </label>
           </div>
 
           <div className="rounded-2xl border border-white/10 bg-black/20 p-4 space-y-3">
             <div className="text-xs uppercase tracking-[0.2em] opacity-50">
-              Trim Intent
+              Action Plan
             </div>
 
-            <div className="rounded-xl border border-white/10 bg-black/30 p-3">
+            <div className="rounded-xl border border-white/10 bg-black/30 p-4 space-y-3">
+              <div className="text-[11px] uppercase tracking-[0.2em] opacity-50">
+                Helm
+              </div>
+              <div>
+                <div className="text-xs uppercase tracking-[0.18em] opacity-50">
+                  Intent
+                </div>
+                <div className="mt-1 text-base font-semibold">{current.text}</div>
+              </div>
+              <div>
+                <div className="text-xs uppercase tracking-[0.18em] opacity-50">
+                  Do This
+                </div>
+                <div className="mt-1 text-sm opacity-90">{helmAction}</div>
+              </div>
+              <div>
+                <div className="text-xs uppercase tracking-[0.18em] opacity-50">
+                  Why
+                </div>
+                <div className="mt-1 text-sm opacity-75">{helmWhy}</div>
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-white/10 bg-black/30 p-4 space-y-3">
               <div className="text-[11px] uppercase tracking-[0.2em] opacity-50">
                 Jib
               </div>
-              <div className="mt-1 text-base font-semibold">
-                {trimBlocked ? "TRIM BLOCKED" : jibIntent}
+              <div>
+                <div className="text-xs uppercase tracking-[0.18em] opacity-50">
+                  Intent
+                </div>
+                <div className="mt-1 text-base font-semibold">
+                  Keep the jib flowing
+                </div>
+              </div>
+              <div>
+                <div className="text-xs uppercase tracking-[0.18em] opacity-50">
+                  Do This
+                </div>
+                <div className="mt-1 text-sm opacity-90">{jibAction}</div>
+              </div>
+              <div>
+                <div className="text-xs uppercase tracking-[0.18em] opacity-50">
+                  Why
+                </div>
+                <div className="mt-1 text-sm opacity-75">{jibWhy}</div>
               </div>
             </div>
 
-            <div className="rounded-xl border border-white/10 bg-black/30 p-3">
+            <div className="rounded-xl border border-white/10 bg-black/30 p-4 space-y-3">
               <div className="text-[11px] uppercase tracking-[0.2em] opacity-50">
                 Main
               </div>
-              <div className="mt-1 text-base font-semibold">
-                {trimBlocked ? "TRIM BLOCKED" : mainIntent}
+              <div>
+                <div className="text-xs uppercase tracking-[0.18em] opacity-50">
+                  Intent
+                </div>
+                <div className="mt-1 text-base font-semibold">
+                  Keep the platform stable
+                </div>
               </div>
-            </div>
-
-            <div className="rounded-xl border border-white/10 bg-black/30 p-3 text-sm opacity-80">
-              {message === "stable" &&
-                "Open lane: mode and trim can guide the boat because tactical risk is low."}
-              {message === "hold" &&
-                "Shrinking lane: keep trim simple and avoid an unnecessary move that costs distance."}
-              {message === "prep_bail" &&
-                "Marginal lane: trim is not the priority problem anymore. Protect the ability to escape."}
-              {message === "bail_now" &&
-                "Dead lane: clear air beats perfect trim. Get out first, optimize later."}
+              <div>
+                <div className="text-xs uppercase tracking-[0.18em] opacity-50">
+                  Do This
+                </div>
+                <div className="mt-1 text-sm opacity-90">{mainAction}</div>
+              </div>
+              <div>
+                <div className="text-xs uppercase tracking-[0.18em] opacity-50">
+                  Why
+                </div>
+                <div className="mt-1 text-sm opacity-75">{mainWhy}</div>
+              </div>
             </div>
           </div>
         </div>
       </div>
 
       <a
-        href="/tactics"
+        href="/"
         className="inline-block rounded-xl bg-white px-4 py-2 font-semibold text-black shadow transition active:scale-[0.98]"
       >
-        Back to Tactics
+        Back to Home
       </a>
     </div>
   );

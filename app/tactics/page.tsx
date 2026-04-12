@@ -3,15 +3,13 @@ export default function TacticsPage() {
     <div className="space-y-6 p-4">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Tactics</h1>
-        <p className="text-sm opacity-70">
-          Choose a tactics module to open.
-        </p>
+        <p className="text-sm opacity-70">Choose a tactics module.</p>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
         <a
           href="/tactics/upwind"
-          className="rounded-2xl border border-white/10 bg-white/5 p-5 block hover:bg-white/10 transition"
+          className="block rounded-2xl border border-white/10 bg-white/5 p-5 hover:bg-white/10 transition"
         >
           <div className="text-lg font-semibold">Upwind</div>
           <div className="mt-1 text-sm opacity-70">
@@ -21,12 +19,10 @@ export default function TacticsPage() {
 
         <a
           href="/tactics/downwind"
-          className="rounded-2xl border border-white/10 bg-white/5 p-5 block hover:bg-white/10 transition"
+          className="block rounded-2xl border border-white/10 bg-white/5 p-5 hover:bg-white/10 transition"
         >
           <div className="text-lg font-semibold">Downwind</div>
-          <div className="mt-1 text-sm opacity-70">
-            Downwind tactics module placeholder.
-          </div>
+          <div className="mt-1 text-sm opacity-70">Downwind tactics module.</div>
         </a>
       </div>
 

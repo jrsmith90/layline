@@ -57,6 +57,92 @@ function getUpwindReason(params: {
   return "Stability first. Depower enough to keep the boat under you and avoid turning a small problem into a tactical one.";
 }
 
+function getPracticalJibSuggestion(params: {
+  boatMode: BoatMode;
+  message: UpwindMessageState;
+}): string {
+  const { boatMode, message } = params;
+
+  if (message === "bail_now") {
+    return "Stop chasing perfect trim. Ease the jib sheet 2–4 inches, bear off slightly to build speed, and prioritize getting clear air before retrimming.";
+  }
+
+  if (message === "prep_bail") {
+    return "Ease the jib sheet slightly and move the lead/car back a touch to open the leech. Keep the groove wide and be ready to foot off or duck cleanly.";
+  }
+
+  if (boatMode === "speed") {
+    return "Ease the jib sheet slightly (1–2 inches) and keep the car neutral or slightly aft to open the leech. Focus on flow and acceleration before trying to point.";
+  }
+
+  if (boatMode === "pointing") {
+    return "Trim the jib in firmly and move the car slightly forward to tighten the leech. Watch for stall—if the top telltale dies, ease slightly.";
+  }
+
+  return "Ease the jib and move the car aft to depower. Open the leech so the boat stays balanced and you can maintain control in pressure or traffic.";
+}
+
+function getPracticalMainSuggestion(params: {
+  boatMode: BoatMode;
+  message: UpwindMessageState;
+}): string {
+  const { boatMode, message } = params;
+
+  if (message === "bail_now") {
+    return "Ease the mainsheet and traveler to reduce heel and helm. Keep the boat moving and prioritize turning and escaping over perfect trim.";
+  }
+
+  if (message === "prep_bail") {
+    return "Drop the traveler slightly and ease the mainsheet just enough to keep speed on. Keep the boat stable and ready to maneuver.";
+  }
+
+  if (boatMode === "speed") {
+    return "Keep the traveler up and ease the mainsheet slightly for twist. Maintain power and flow to build speed and acceleration.";
+  }
+
+  if (boatMode === "pointing") {
+    return "Trim the mainsheet harder and bring the traveler up to center. Reduce twist slightly, but ease if the boat stalls or helm loads up.";
+  }
+
+  return "Depower by dropping the traveler and easing the mainsheet. Add twist (vang off if needed) to keep the boat balanced and easy to steer.";
+}
+
+function getTrimWhy(params: {
+  boatMode: BoatMode;
+  message: UpwindMessageState;
+  sail: "jib" | "main";
+}): string {
+  const { boatMode, message, sail } = params;
+
+  if (message === "bail_now") {
+    return sail === "jib"
+      ? "Clear air and speed matter more than a perfect jib shape when you are trapped."
+      : "The goal is reducing helm and keeping speed on so the boat can turn and escape cleanly.";
+  }
+
+  if (message === "prep_bail") {
+    return sail === "jib"
+      ? "A slightly more open, forgiving jib makes it easier to accelerate, duck, or foot off without stalling."
+      : "A more stable main reduces stall and keeps the platform ready for the next maneuver.";
+  }
+
+  if (boatMode === "speed") {
+    return sail === "jib"
+      ? "An open leech and attached flow help the boat accelerate before you ask it to point higher."
+      : "A powered main with a little twist gives you pace and acceleration without choking the boat.";
+  }
+
+  if (boatMode === "pointing") {
+    return sail === "jib"
+      ? "A firmer jib entry and tighter leech support height, but only while the sail still flows cleanly."
+      : "A firmer leech and slightly flatter main help convert speed into height if the boat can carry it.";
+  }
+
+  return sail === "jib"
+    ? "A depowered, forgiving jib keeps the boat balanced and easier to steer in pressure or traffic."
+    : "More twist and less load make the boat easier to steer and less likely to get out of balance.";
+}
+
 export default function UpwindTacticsPage() {
   const logic = startUpwindLogic;
 
@@ -98,7 +184,10 @@ export default function UpwindTacticsPage() {
 
   const jibIntent = logic.upwind.trimIntent.jib[boatMode];
   const mainIntent = logic.upwind.trimIntent.main[boatMode];
-  const trimBlocked = message === "prep_bail" || message === "bail_now";
+  const practicalJibSuggestion = getPracticalJibSuggestion({ boatMode, message });
+  const practicalMainSuggestion = getPracticalMainSuggestion({ boatMode, message });
+  const jibWhy = getTrimWhy({ boatMode, message, sail: "jib" });
+  const mainWhy = getTrimWhy({ boatMode, message, sail: "main" });
 
   return (
     <div className="space-y-6 p-4">
@@ -231,33 +320,51 @@ export default function UpwindTacticsPage() {
               Trim Intent
             </div>
 
-            <div className="rounded-xl border border-white/10 bg-black/30 p-3">
+            <div className="rounded-xl border border-white/10 bg-black/30 p-4 space-y-3">
               <div className="text-[11px] uppercase tracking-[0.2em] opacity-50">
                 Jib
               </div>
-              <div className="mt-1 text-base font-semibold">
-                {trimBlocked ? "TRIM BLOCKED" : jibIntent}
+              <div>
+                <div className="text-xs uppercase tracking-[0.18em] opacity-50">Intent</div>
+                <div className="mt-1 text-base font-semibold">{jibIntent}</div>
+              </div>
+              <div>
+                <div className="text-xs uppercase tracking-[0.18em] opacity-50">Do This</div>
+                <div className="mt-1 text-sm opacity-90">{practicalJibSuggestion}</div>
+              </div>
+              <div>
+                <div className="text-xs uppercase tracking-[0.18em] opacity-50">Why</div>
+                <div className="mt-1 text-sm opacity-75">{jibWhy}</div>
               </div>
             </div>
 
-            <div className="rounded-xl border border-white/10 bg-black/30 p-3">
+            <div className="rounded-xl border border-white/10 bg-black/30 p-4 space-y-3">
               <div className="text-[11px] uppercase tracking-[0.2em] opacity-50">
                 Main
               </div>
-              <div className="mt-1 text-base font-semibold">
-                {trimBlocked ? "TRIM BLOCKED" : mainIntent}
+              <div>
+                <div className="text-xs uppercase tracking-[0.18em] opacity-50">Intent</div>
+                <div className="mt-1 text-base font-semibold">{mainIntent}</div>
+              </div>
+              <div>
+                <div className="text-xs uppercase tracking-[0.18em] opacity-50">Do This</div>
+                <div className="mt-1 text-sm opacity-90">{practicalMainSuggestion}</div>
+              </div>
+              <div>
+                <div className="text-xs uppercase tracking-[0.18em] opacity-50">Why</div>
+                <div className="mt-1 text-sm opacity-75">{mainWhy}</div>
               </div>
             </div>
 
             <div className="rounded-xl border border-white/10 bg-black/30 p-3 text-sm opacity-80">
               {message === "stable" &&
-                "Open lane: mode and trim can guide the boat because tactical risk is low."}
+                "Lane is open, so trim can help you press the right mode for the situation."}
               {message === "hold" &&
-                "Shrinking lane: keep trim simple and avoid an unnecessary move that costs distance."}
+                "The lane is still usable, but keep your adjustments simple and low-risk."}
               {message === "prep_bail" &&
-                "Marginal lane: trim is not the priority problem anymore. Protect the ability to escape."}
+                "Trim should support the escape plan now: stay fast enough to leave cleanly without stalling."}
               {message === "bail_now" &&
-                "Dead lane: clear air beats perfect trim. Get out first, optimize later."}
+                "At this point trim is only there to help the boat move and turn. Clear air matters more than perfect setup."}
             </div>
           </div>
         </div>
