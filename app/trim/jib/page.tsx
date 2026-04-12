@@ -879,8 +879,8 @@ export default function TrimJibPage() {
 
       <Panel title="Instruments">
         <div className="grid grid-cols-2 gap-3">
-          <Chip label="Mode" value={modeText} accent="blue" />
-          <Chip label="Wind" value={windText} accent="teal" />
+          <Chip label="Mode" value={modeText} accent="neutral" />
+          <Chip label="Wind" value={windText} accent="neutral" />
           <Chip label="Car" value={`${carPos} → ${computed.carSuggested}`} accent="neutral" />
           <Chip label="GPS" value={gpsText} accent={gpsOn ? "amber" : "neutral"} />
         </div>
@@ -1041,7 +1041,7 @@ export default function TrimJibPage() {
       <Panel title="Answer">
         <div className="space-y-3">
           <div className="rounded-2xl border border-[color:var(--divider)] bg-black/30 p-4">
-            <div className="text-xs tracking-widest text-[color:var(--teal)] uppercase">
+            <div className="text-xs tracking-widest text-white uppercase">
               Call
             </div>
             <div className="mt-2 text-sm leading-relaxed opacity-90 whitespace-pre-line">
@@ -1074,7 +1074,7 @@ export default function TrimJibPage() {
                 key={item.title}
                 className="rounded-2xl border border-[color:var(--divider)] bg-black/20 p-4 space-y-3"
               >
-                <div className="text-xs tracking-widest text-[color:var(--teal)] uppercase">
+                <div className="text-xs tracking-widest text-white uppercase">
                   {item.title}
                 </div>
                 <div>
@@ -1136,12 +1136,18 @@ export default function TrimJibPage() {
       </Panel>
 
       <div className="grid grid-cols-2 gap-3">
-        <BtnLink href="/" tone="neutral">
+        <a
+          href="/"
+          className="block w-full text-center rounded-lg bg-gray-700 text-white py-3 px-4 font-semibold shadow active:scale-[0.98] transition"
+        >
           Return Home
-        </BtnLink>
-        <BtnLink href="/trim" tone="neutral">
+        </a>
+        <a
+          href="/trim"
+          className="block w-full text-center rounded-lg bg-black text-white py-3 px-4 font-semibold shadow active:scale-[0.98] transition"
+        >
           Back to Trim
-        </BtnLink>
+        </a>
       </div>
 
       <div className="fixed bottom-0 left-0 right-0 border-t border-[color:var(--divider)] bg-[color:var(--bg)]/95 backdrop-blur">
