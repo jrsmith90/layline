@@ -95,8 +95,9 @@ function getJibActionPlan(params: {
   windSpd: number | "";
 }): ActionPlan {
   const { sailMode, boatMode, symptom, telltales, carPos, windSpd } = params;
-  const spd = windSpd === "" ? null : Number(windSpd);
-  const band = windBand(Number.isNaN(spd as number) ? null : spd);
+  const parsedWind = windSpd === "" ? null : Number(windSpd);
+  const spd = parsedWind == null || Number.isNaN(parsedWind) ? null : parsedWind;
+  const band = windBand(spd);
 
   if (sailMode === "downwind") {
     return {
@@ -1048,12 +1049,22 @@ export default function TrimJibPage() {
             </div>
           </div>
 
-          <div className="rounded-2xl border border-[color:var(--divider)] bg-black/20 p-4">
-            <div className="text-xs tracking-widest text-[color:var(--muted)] uppercase">
-              Focus
+          <div className="rounded-2xl border border-[color:var(--divider)] bg-black/20 p-4 space-y-3">
+            <div>
+              <div className="text-xs tracking-widest text-[color:var(--muted)] uppercase">
+                Headline
+              </div>
+              <div className="mt-2 text-sm opacity-90 leading-relaxed">
+                {actionPlan.headline}
+              </div>
             </div>
-            <div className="mt-2 text-sm opacity-80 leading-relaxed">
-              {actionPlan.focus}
+            <div>
+              <div className="text-xs tracking-widest text-[color:var(--muted)] uppercase">
+                Focus
+              </div>
+              <div className="mt-2 text-sm opacity-80 leading-relaxed">
+                {actionPlan.focus}
+              </div>
             </div>
           </div>
 
@@ -1124,9 +1135,14 @@ export default function TrimJibPage() {
         </div>
       </Panel>
 
-      <BtnLink href="/trim" tone="neutral">
-        Back to Trim
-      </BtnLink>
+      <div className="grid grid-cols-2 gap-3">
+        <BtnLink href="/" tone="neutral">
+          Return Home
+        </BtnLink>
+        <BtnLink href="/trim" tone="neutral">
+          Back to Trim
+        </BtnLink>
+      </div>
 
       <div className="fixed bottom-0 left-0 right-0 border-t border-[color:var(--divider)] bg-[color:var(--bg)]/95 backdrop-blur">
         <div className="mx-auto w-full max-w-md px-4 py-3">
