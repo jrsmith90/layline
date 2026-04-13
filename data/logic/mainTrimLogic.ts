@@ -14,12 +14,10 @@ import {
 import { Panel } from "@/components/ui/Panel";
 import { Btn, BtnLink } from "@/components/ui/Btn";
 import { Chip } from "@/components/ui/Chip";
-import {
-  getMainActionPlan,
+import getMainActionPlan, {
   type SailMode,
   type BoatMode,
   type Symptom,
-  type LeechState,
 } from "@/data/logic/mainTrimLogic";
 
 const MODE_KEY = "main-trim-mode";
