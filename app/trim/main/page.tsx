@@ -134,6 +134,7 @@ export default function MainTrimPage() {
     travelerPos,
     sheetTension,
     vangTension,
+    backstayTension,
     windSpd,
   });
 
@@ -294,6 +295,22 @@ export default function MainTrimPage() {
                   <div>On = boom held down more</div>
                 </div>
               </div>
+              <div className="grid grid-cols-3 gap-2">
+                {VANG_PRESETS.map((preset) => (
+                  <button
+                    key={`vang-${preset.label}`}
+                    type="button"
+                    onClick={() => setVangTension(preset.value)}
+                    className={`rounded-lg px-3 py-2 text-sm font-semibold transition ${
+                      vangLabel(vangTension) === preset.label
+                        ? "bg-red-500 text-white"
+                        : "bg-gray-800 text-white/80"
+                    }`}
+                  >
+                    {preset.label}
+                  </button>
+                ))}
+              </div>
               <div className="text-xs opacity-60">
                 {vangDescription(vangTension)}
               </div>
@@ -309,6 +326,22 @@ export default function MainTrimPage() {
                   <div>Off = fuller / more power</div>
                   <div>On = flatter / more depower</div>
                 </div>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                {BACKSTAY_PRESETS.map((preset) => (
+                  <button
+                    key={`backstay-${preset.label}`}
+                    type="button"
+                    onClick={() => setBackstayTension(preset.value)}
+                    className={`rounded-lg px-3 py-2 text-sm font-semibold transition ${
+                      backstayLabel(backstayTension) === preset.label
+                        ? "bg-red-500 text-white"
+                        : "bg-gray-800 text-white/80"
+                    }`}
+                  >
+                    {preset.label}
+                  </button>
+                ))}
               </div>
               <div className="text-xs opacity-60">
                 {backstayDescription(backstayTension)}
