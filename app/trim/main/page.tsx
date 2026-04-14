@@ -6,16 +6,42 @@ import getMainActionPlan from "@/data/logic/mainTrimLogic";
 
 export default function MainTrimPage() {
   const [boatMode, setBoatMode] = useState<"speed" | "pointing" | "control">("speed");
+  const [symptom, setSymptom] = useState<
+    | "normal"
+    | "slow"
+    | "pinching"
+    | "overpowered"
+    | "cant_hold_lane"
+    | "badair"
+    | "too_much_helm"
+    | "stalling"
+    | "cannot_point"
+  >("overpowered");
+  const [leechState, setLeechState] = useState<
+    | "unknown"
+    | "balanced"
+    | "too_closed"
+    | "too_open"
+    | "hooked"
+    | "twisty_then_stall"
+    | "erratic_waves"
+    | "erratic_dirty_air"
+    | "dead_unreliable"
+  >("balanced");
+  const [windSpd, setWindSpd] = useState<number>(15);
+  const [travelerPos, setTravelerPos] = useState<number>(5);
+  const [sheetTension, setSheetTension] = useState<number>(6);
+  const [vangTension, setVangTension] = useState<number>(4);
 
   const plan = getMainActionPlan({
     sailMode: "upwind",
     boatMode,
-    symptom: "overpowered",
-    leechState: "balanced",
-    travelerPos: 5,
-    sheetTension: 6,
-    vangTension: 4,
-    windSpd: 15,
+    symptom,
+    leechState,
+    travelerPos,
+    sheetTension,
+    vangTension,
+    windSpd,
   });
 
   return (
@@ -44,6 +70,100 @@ export default function MainTrimPage() {
           </button>
         ))}
       </div>
+
+      <Panel title="Inputs">
+        <div className="grid grid-cols-1 gap-4">
+          <div className="grid grid-cols-2 gap-3">
+            <label className="space-y-1">
+              <div className="text-xs uppercase opacity-60">Wind Speed</div>
+              <input
+                type="number"
+                min={0}
+                max={40}
+                value={windSpd}
+                onChange={(e) => setWindSpd(Number(e.target.value) || 0)}
+                className="w-full rounded-lg bg-gray-800 text-white px-3 py-2"
+              />
+            </label>
+
+            <label className="space-y-1">
+              <div className="text-xs uppercase opacity-60">Symptom</div>
+              <select
+                value={symptom}
+                onChange={(e) => setSymptom(e.target.value as typeof symptom)}
+                className="w-full rounded-lg bg-gray-800 text-white px-3 py-2"
+              >
+                <option value="normal">Normal</option>
+                <option value="slow">Slow</option>
+                <option value="pinching">Pinching</option>
+                <option value="overpowered">Overpowered</option>
+                <option value="cant_hold_lane">Can’t Hold Lane</option>
+                <option value="badair">Bad Air</option>
+                <option value="too_much_helm">Too Much Helm</option>
+                <option value="stalling">Stalling</option>
+                <option value="cannot_point">Cannot Point</option>
+              </select>
+            </label>
+          </div>
+
+          <label className="space-y-1">
+            <div className="text-xs uppercase opacity-60">Leech State</div>
+            <select
+              value={leechState}
+              onChange={(e) => setLeechState(e.target.value as typeof leechState)}
+              className="w-full rounded-lg bg-gray-800 text-white px-3 py-2"
+            >
+              <option value="unknown">Unknown</option>
+              <option value="balanced">Balanced</option>
+              <option value="too_closed">Too Closed</option>
+              <option value="too_open">Too Open</option>
+              <option value="hooked">Hooked</option>
+              <option value="twisty_then_stall">Twisty Then Stall</option>
+              <option value="erratic_waves">Erratic in Waves</option>
+              <option value="erratic_dirty_air">Erratic in Dirty Air</option>
+              <option value="dead_unreliable">Dead / Unreliable</option>
+            </select>
+          </label>
+
+          <div className="grid grid-cols-3 gap-3">
+            <label className="space-y-1">
+              <div className="text-xs uppercase opacity-60">Traveler</div>
+              <input
+                type="number"
+                min={0}
+                max={10}
+                value={travelerPos}
+                onChange={(e) => setTravelerPos(Number(e.target.value) || 0)}
+                className="w-full rounded-lg bg-gray-800 text-white px-3 py-2"
+              />
+            </label>
+
+            <label className="space-y-1">
+              <div className="text-xs uppercase opacity-60">Sheet</div>
+              <input
+                type="number"
+                min={0}
+                max={10}
+                value={sheetTension}
+                onChange={(e) => setSheetTension(Number(e.target.value) || 0)}
+                className="w-full rounded-lg bg-gray-800 text-white px-3 py-2"
+              />
+            </label>
+
+            <label className="space-y-1">
+              <div className="text-xs uppercase opacity-60">Vang</div>
+              <input
+                type="number"
+                min={0}
+                max={10}
+                value={vangTension}
+                onChange={(e) => setVangTension(Number(e.target.value) || 0)}
+                className="w-full rounded-lg bg-gray-800 text-white px-3 py-2"
+              />
+            </label>
+          </div>
+        </div>
+      </Panel>
 
       {/* Call */}
       <Panel title="Call">
