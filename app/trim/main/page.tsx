@@ -52,6 +52,50 @@ function backstayLabel(value: number): "Off" | "Set" | "On" {
   return "On";
 }
 
+function travelerDescription(value: number): string {
+  const label = travelerLabel(value);
+  if (label === "Down") {
+    return "Traveler down = safer, easier to keep the boat on its feet, and better when you need control more than angle.";
+  }
+  if (label === "Middle") {
+    return "Traveler middle = balanced base setting. Good when the boat is moving well and conditions are steady.";
+  }
+  return "Traveler up = supports more angle and pointing, but best only when the boat already has speed and feels settled.";
+}
+
+function sheetDescription(value: number): string {
+  const label = sheetLabel(value);
+  if (label === "Ease") {
+    return "Ease = opens the leech, makes the main more forgiving, and helps the boat accelerate or stay moving in unstable conditions.";
+  }
+  if (label === "Trim") {
+    return "Trim = balanced mainsheet setting. This is your normal all-around upwind mode when the boat feels good.";
+  }
+  return "Hard Trim = tighter leech for more pointing support, but only when the boat is already fast. Too much can make the sail sticky or stall the top.";
+}
+
+function vangDescription(value: number): string {
+  const label = vangLabel(value);
+  if (label === "Loose") {
+    return "Loose vang = boom can rise more, the top of the sail twists off, and the boat feels more open and forgiving.";
+  }
+  if (label === "Set") {
+    return "Set vang = balanced boom support. Good default when you want some leech control without locking the top of the sail too much.";
+  }
+  return "Vang on = boom held down more, leech stays firmer, and the upper part of the sail keeps more shape. Much more important downwind than upwind.";
+}
+
+function backstayDescription(value: number): string {
+  const label = backstayLabel(value);
+  if (label === "Off") {
+    return "Backstay off = fuller main, fuller jib entry, and more power. Best when you need punch and acceleration.";
+  }
+  if (label === "Set") {
+    return "Backstay set = balanced base setting. Good for normal conditions when you want a mix of power and control.";
+  }
+  return "Backstay on = flatter main, tighter headstay, and less overall power. Best when the boat is loaded and you need more control.";
+}
+
 export default function MainTrimPage() {
   const [boatMode, setBoatMode] = useState<"speed" | "pointing" | "control">("speed");
   const [symptom, setSymptom] = useState<
@@ -203,7 +247,7 @@ export default function MainTrimPage() {
                 ))}
               </div>
               <div className="text-xs opacity-60">
-                Think of traveler as boom position side-to-side. Lower is safer and more forgiving. Higher supports more angle when the boat is already moving well.
+                {travelerDescription(travelerPos)}
               </div>
             </label>
 
@@ -235,7 +279,7 @@ export default function MainTrimPage() {
                 ))}
               </div>
               <div className="text-xs opacity-60">
-                This is how hard the mainsheet is trimmed. Low opens the leech and makes the boat easier to steer. High supports pointing when the boat is already fast and settled.
+                {sheetDescription(sheetTension)}
               </div>
             </label>
 
@@ -250,35 +294,8 @@ export default function MainTrimPage() {
                   <div>On = boom held down more</div>
                 </div>
               </div>
-              <div className="grid grid-cols-3 gap-2">
-                {VANG_PRESETS.map((preset) => (
-                  <button
-                    key={`vang-${preset.label}`}
-                    type="button"
-                    onClick={() => setVangTension(preset.value)}
-                    className={`rounded-lg px-3 py-2 text-sm font-semibold transition ${
-                      vangLabel(vangTension) === preset.label
-                        ? "bg-red-500 text-white"
-                        : "bg-gray-800 text-white/80"
-                    }`}
-                  >
-                    {preset.label}
-                  </button>
-                ))}
-              </div>
-              <div className="text-xs opacity-60 space-y-1">
-                <div>
-                  Think of the vang as the control that holds the boom down and helps control how open or closed the top of the mainsail leech is.
-                </div>
-                <div>
-                  <strong>Low vang:</strong> boom is freer to rise, the top of the sail twists off more, and the boat feels more open and forgiving.
-                </div>
-                <div>
-                  <strong>High vang:</strong> boom is held down more, the leech stays firmer, and the sail keeps more shape up high.
-                </div>
-                <div>
-                  Upwind, vang is usually a secondary control. Downwind, it becomes much more important because it helps stop the boom from lifting and changing leech tension too much.
-                </div>
+              <div className="text-xs opacity-60">
+                {vangDescription(vangTension)}
               </div>
             </label>
 
@@ -293,35 +310,8 @@ export default function MainTrimPage() {
                   <div>On = flatter / more depower</div>
                 </div>
               </div>
-              <div className="grid grid-cols-3 gap-2">
-                {BACKSTAY_PRESETS.map((preset) => (
-                  <button
-                    key={`backstay-${preset.label}`}
-                    type="button"
-                    onClick={() => setBackstayTension(preset.value)}
-                    className={`rounded-lg px-3 py-2 text-sm font-semibold transition ${
-                      backstayLabel(backstayTension) === preset.label
-                        ? "bg-red-500 text-white"
-                        : "bg-gray-800 text-white/80"
-                    }`}
-                  >
-                    {preset.label}
-                  </button>
-                ))}
-              </div>
-              <div className="text-xs opacity-60 space-y-1">
-                <div>
-                  Think of backstay as the whole-rig flattening control. It bends the mast more and tightens the headstay as you turn it on.
-                </div>
-                <div>
-                  <strong>Off:</strong> fuller main, fuller jib entry, more power.
-                </div>
-                <div>
-                  <strong>Set:</strong> balanced base setting for normal conditions.
-                </div>
-                <div>
-                  <strong>On:</strong> flatter main, tighter headstay, less power, more control.
-                </div>
+              <div className="text-xs opacity-60">
+                {backstayDescription(backstayTension)}
               </div>
             </label>
           </div>
