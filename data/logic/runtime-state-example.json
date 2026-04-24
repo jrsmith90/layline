@@ -1,0 +1,34 @@
+{
+  "currentMode": "upwind",
+  "currentTack": null,
+  "currentMainState": "monitoring",
+  "currentRecommendation": null,
+  "currentConfidence": null,
+  "activeShiftType": null,
+  "activeTargetHeading": null,
+  "deviation": 0,
+  "isShiftActive": false,
+  "inputs": {
+    "rawHeading": null,
+    "smoothedHeading": null,
+    "rawCOG": null,
+    "smoothedCOG": null,
+    "rawSpeed": null,
+    "smoothedSpeed": null
+  },
+  "timers": {
+    "transitioningHoldSeconds": 3,
+    "postTackResumeDelaySeconds": 3,
+    "meaningfulShiftPersistSeconds": 10,
+    "shiftEndPersistSeconds": 3
+  },
+  "thresholds": {
+    "tackToleranceDegrees": 20,
+    "noiseThresholdDegrees": 3,
+    "meaningfulShiftDegrees": 7,
+    "shiftEndWithinDegrees": 5,
+    "majorSpeedDropPercent": 8,
+    "speedComparisonWindowSeconds": 15,
+    "detailBiasRollingAverageSeconds": 5
+  }
+}

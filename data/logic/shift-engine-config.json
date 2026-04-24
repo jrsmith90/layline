@@ -1,0 +1,181 @@
+{
+  "phase": "phase_1",
+  "module": "upwind_shift_engine",
+  "version": "1.0.0",
+  "scope": {
+    "activeMode": "upwind",
+    "supportedModes": [
+      "upwind",
+      "downwind"
+    ],
+    "downwindEnabled": false,
+    "adaptiveLogicEnabled": false,
+    "liveLogicType": "rule_based"
+  },
+  "inputs": {
+    "sources": {
+      "digitalCompass": true,
+      "speedPuck": true,
+      "mastheadWind": false,
+      "speedThroughWater": false,
+      "heelSensor": false
+    },
+    "signals": {
+      "heading": {
+        "raw": true,
+        "smoothed": true
+      },
+      "cog": {
+        "raw": true,
+        "smoothed": true
+      },
+      "speed": {
+        "raw": true,
+        "smoothed": true
+      }
+    }
+  },
+  "targets": {
+    "structure": {
+      "upwind": {
+        "port": null,
+        "starboard": null
+      },
+      "downwind": {
+        "port": null,
+        "starboard": null
+      }
+    },
+    "phase1Uses": "upwind_only",
+    "resetPolicy": {
+      "allowed": true,
+      "requiresConfirmation": true,
+      "resetType": "soft_reset",
+      "softResetBehavior": {
+        "clearActiveShiftDetection": true,
+        "keepTackState": true,
+        "resumeMonitoringFromNewTarget": true
+      }
+    }
+  },
+  "tackDetection": {
+    "mode": "hybrid",
+    "appGuessesTack": true,
+    "userCanForceTack": true,
+    "selectionRule": "closest_target_within_tolerance",
+    "toleranceDegrees": 20,
+    "noMatchBehavior": {
+      "holdLastKnownTackSeconds": 3,
+      "thenState": "transitioning"
+    },
+    "postSettleBehavior": {
+      "resumeShiftDetectionDelaySeconds": 3
+    }
+  },
+  "processing": {
+    "heading": {
+      "noiseThresholdDegrees": 3,
+      "smoothing": "light"
+    },
+    "detailScreenBiasTrend": {
+      "rollingAverageSeconds": 5,
+      "thresholdDegrees": 3
+    },
+    "speedDropCheck": {
+      "comparisonWindowSeconds": 15,
+      "majorDropPercent": 8
+    }
+  },
+  "shiftLogic": {
+    "deviationName": "deviation",
+    "meaningfulShift": {
+      "thresholdDegrees": 7,
+      "mustPersistSeconds": 10
+    },
+    "shiftEnd": {
+      "returnWithinDegrees": 5,
+      "mustPersistSeconds": 3
+    },
+    "alerting": {
+      "fireImmediatelyAtThreshold": true,
+      "repeatPolicy": "alert_once_then_update_on_change",
+      "updateTriggers": [
+        "confidence_changed",
+        "advice_changed"
+      ]
+    }
+  },
+  "classification": {
+    "primarySignal": "smoothed_heading_vs_target",
+    "confidenceInputs": [
+      "heading",
+      "cog",
+      "speed_trend"
+    ],
+    "confidenceLevels": [
+      "low",
+      "medium",
+      "high"
+    ]
+  },
+  "recommendations": {
+    "lift": {
+      "default": "Stay on lifted tack",
+      "withMajorSpeedDrop": "Hold and build speed"
+    },
+    "header": {
+      "default": "Tack candidate",
+      "withMajorSpeedDrop": "Regain speed first"
+    }
+  },
+  "ui": {
+    "mainStates": {
+      "steady": {
+        "port": "Port — steady",
+        "starboard": "Starboard — steady"
+      },
+      "monitoring": "Monitoring",
+      "transitioning": "Transitioning — settle on new tack"
+    },
+    "mainScreen": {
+      "showDeviation": false,
+      "showConfidence": true,
+      "confidenceStyle": "text_only"
+    },
+    "detailScreen": {
+      "showDeviation": true,
+      "showBiasTrend": true,
+      "biasTrendLabels": {
+        "aboveTarget": "Above target — pointing high",
+        "belowTarget": "Below target — footing low"
+      },
+      "showLastDetectedShiftAfterEnd": true,
+      "lastDetectedShiftPersistSeconds": 5
+    }
+  },
+  "logging": {
+    "enabled": true,
+    "sessionLog": {
+      "type": "full_session_log",
+      "reservedForFutureAdaptiveLogic": true,
+      "affectsLivePhase1Logic": false
+    },
+    "categories": [
+      "shift_events",
+      "tack_changes",
+      "target_resets",
+      "confidence",
+      "speed_effect"
+    ],
+    "shiftLifecycle": {
+      "storeFullLifecycle": true,
+      "exampleStages": [
+        "monitoring_began",
+        "shift_detected",
+        "confidence_changed",
+        "recommendation_changed",
+        "shift_ended"
+      ]
+    }
+  }
+}

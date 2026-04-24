@@ -1,0 +1,67 @@
+{
+  "eventFields": [
+    "event_type",
+    "event_stage",
+    "absolute_timestamp",
+    "elapsed_session_seconds",
+    "current_tack",
+    "active_target_heading",
+    "raw_heading",
+    "smoothed_heading",
+    "raw_cog",
+    "smoothed_cog",
+    "raw_speed",
+    "smoothed_speed",
+    "deviation",
+    "speed_effect",
+    "recommendation_text",
+    "confidence_text",
+    "main_state_text"
+  ],
+  "eventExamples": {
+    "shiftDetected": {
+      "event_type": "shift_event",
+      "event_stage": "shift_detected",
+      "absolute_timestamp": "2026-04-23T22:00:00Z",
+      "elapsed_session_seconds": 542,
+      "current_tack": "starboard",
+      "active_target_heading": 245,
+      "raw_heading": 237,
+      "smoothed_heading": 238,
+      "raw_cog": 241,
+      "smoothed_cog": 242,
+      "raw_speed": 5.62,
+      "smoothed_speed": 5.58,
+      "deviation": 7,
+      "speed_effect": {
+        "delta_percent_vs_15s_avg": -1.8,
+        "major_drop": false
+      },
+      "recommendation_text": "Stay on lifted tack",
+      "confidence_text": "High",
+      "main_state_text": "Starboard — steady"
+    },
+    "headerWithSpeedDrop": {
+      "event_type": "shift_event",
+      "event_stage": "recommendation_changed",
+      "absolute_timestamp": "2026-04-23T22:00:21Z",
+      "elapsed_session_seconds": 563,
+      "current_tack": "port",
+      "active_target_heading": 315,
+      "raw_heading": 324,
+      "smoothed_heading": 323,
+      "raw_cog": 320,
+      "smoothed_cog": 321,
+      "raw_speed": 4.82,
+      "smoothed_speed": 4.87,
+      "deviation": 8,
+      "speed_effect": {
+        "delta_percent_vs_15s_avg": -9.1,
+        "major_drop": true
+      },
+      "recommendation_text": "Regain speed first",
+      "confidence_text": "Medium",
+      "main_state_text": "Monitoring"
+    }
+  }
+}
