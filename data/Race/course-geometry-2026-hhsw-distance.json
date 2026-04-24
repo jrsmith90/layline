@@ -1,0 +1,383 @@
+{
+  "event": {
+    "name": "Helly Hansen Sailing World Regatta Series",
+    "location": "Annapolis, MD",
+    "dates": "2026-05-02 to 2026-05-03",
+    "source": "Distance Race Sailing Instructions"
+  },
+  "startFinishMark": "X",
+  "marks": {
+    "A": {
+      "id": "GC \"1\"",
+      "name": "Hackett Point Shoal Buoy 1",
+      "lat": 38.97,
+      "lon": -76.4145,
+      "characteristics": ""
+    },
+    "D": {
+      "id": "G \"91\"",
+      "name": "Chesapeake Channel - Lighted Buoy 91",
+      "lat": 38.98316666666667,
+      "lon": -76.38516666666666,
+      "characteristics": "Fl G 4s"
+    },
+    "E": {
+      "id": "R \"86\"",
+      "name": "Chesapeake Channel - Lighted Buoy 86",
+      "lat": 38.866166666666665,
+      "lon": -76.3925,
+      "characteristics": "Fl R 4s"
+    },
+    "G": {
+      "id": "G \"87\"",
+      "name": "Chesapeake Channel - Lighted Buoy WR87",
+      "lat": 38.932833333333335,
+      "lon": -76.3925,
+      "characteristics": "Q G"
+    },
+    "H": {
+      "id": "GR C \"SR\"",
+      "name": "South River - Junction Buoy SR",
+      "lat": 38.894333333333336,
+      "lon": -76.43116666666667,
+      "characteristics": ""
+    },
+    "X": {
+      "id": "R \"2\"",
+      "name": "Severn River - Lighted Buoy 2",
+      "lat": 38.94166666666667,
+      "lon": -76.42466666666667,
+      "characteristics": "Fl R 2.5s"
+    },
+    "Z": {
+      "id": "G \"1\"",
+      "name": "West River - Lighted Buoy 1",
+      "lat": 38.86416666666667,
+      "lon": -76.44983333333333,
+      "characteristics": "Fl G 4s"
+    },
+    "M": {
+      "id": "SG \"1AH\"",
+      "name": "Severn River - Light 1AH",
+      "lat": 38.935833333333335,
+      "lon": -76.43616666666667,
+      "characteristics": "Fl G 4s"
+    },
+    "N": {
+      "id": "R \"4\"",
+      "name": "Eastern Bay - Entrance Lighted Buoy 4",
+      "lat": 38.8765,
+      "lon": -76.25133333333333,
+      "characteristics": "Fl R 4s"
+    }
+  },
+  "courses": {
+    "1": {
+      "sequence": [
+        "X",
+        "A",
+        "G",
+        "X"
+      ],
+      "distanceNmSI": 6.9,
+      "distanceNmCalculated": 5.82,
+      "legs": [
+        {
+          "legNumber": 1,
+          "fromMark": "X",
+          "toMark": "A",
+          "bearingDeg": 15.6,
+          "distanceNmCalculated": 1.77
+        },
+        {
+          "legNumber": 2,
+          "fromMark": "A",
+          "toMark": "G",
+          "bearingDeg": 155.3,
+          "distanceNmCalculated": 2.46
+        },
+        {
+          "legNumber": 3,
+          "fromMark": "G",
+          "toMark": "X",
+          "bearingDeg": 289.5,
+          "distanceNmCalculated": 1.59
+        }
+      ]
+    },
+    "1R": {
+      "sequence": [
+        "X",
+        "G",
+        "A",
+        "X"
+      ],
+      "distanceNmSI": 5.9,
+      "distanceNmCalculated": 5.82,
+      "legs": [
+        {
+          "legNumber": 1,
+          "fromMark": "X",
+          "toMark": "G",
+          "bearingDeg": 109.4,
+          "distanceNmCalculated": 1.59
+        },
+        {
+          "legNumber": 2,
+          "fromMark": "G",
+          "toMark": "A",
+          "bearingDeg": 335.3,
+          "distanceNmCalculated": 2.46
+        },
+        {
+          "legNumber": 3,
+          "fromMark": "A",
+          "toMark": "X",
+          "bearingDeg": 195.6,
+          "distanceNmCalculated": 1.77
+        }
+      ]
+    },
+    "2": {
+      "sequence": [
+        "X",
+        "D",
+        "G",
+        "X"
+      ],
+      "distanceNmSI": 8.2,
+      "distanceNmCalculated": 7.73,
+      "legs": [
+        {
+          "legNumber": 1,
+          "fromMark": "X",
+          "toMark": "D",
+          "bearingDeg": 36.5,
+          "distanceNmCalculated": 3.1
+        },
+        {
+          "legNumber": 2,
+          "fromMark": "D",
+          "toMark": "G",
+          "bearingDeg": 186.5,
+          "distanceNmCalculated": 3.04
+        },
+        {
+          "legNumber": 3,
+          "fromMark": "G",
+          "toMark": "X",
+          "bearingDeg": 289.5,
+          "distanceNmCalculated": 1.59
+        }
+      ]
+    },
+    "2R": {
+      "sequence": [
+        "X",
+        "G",
+        "D",
+        "X"
+      ],
+      "distanceNmSI": 7.8,
+      "distanceNmCalculated": 7.73,
+      "legs": [
+        {
+          "legNumber": 1,
+          "fromMark": "X",
+          "toMark": "G",
+          "bearingDeg": 109.4,
+          "distanceNmCalculated": 1.59
+        },
+        {
+          "legNumber": 2,
+          "fromMark": "G",
+          "toMark": "D",
+          "bearingDeg": 6.5,
+          "distanceNmCalculated": 3.04
+        },
+        {
+          "legNumber": 3,
+          "fromMark": "D",
+          "toMark": "X",
+          "bearingDeg": 216.5,
+          "distanceNmCalculated": 3.1
+        }
+      ]
+    },
+    "3": {
+      "sequence": [
+        "X",
+        "G",
+        "E",
+        "X"
+      ],
+      "distanceNmSI": 9.8,
+      "distanceNmCalculated": 10.37,
+      "legs": [
+        {
+          "legNumber": 1,
+          "fromMark": "X",
+          "toMark": "G",
+          "bearingDeg": 109.4,
+          "distanceNmCalculated": 1.59
+        },
+        {
+          "legNumber": 2,
+          "fromMark": "G",
+          "toMark": "E",
+          "bearingDeg": 180.0,
+          "distanceNmCalculated": 4.0
+        },
+        {
+          "legNumber": 3,
+          "fromMark": "E",
+          "toMark": "X",
+          "bearingDeg": 341.7,
+          "distanceNmCalculated": 4.78
+        }
+      ]
+    },
+    "3R": {
+      "sequence": [
+        "X",
+        "E",
+        "G",
+        "X"
+      ],
+      "distanceNmSI": 8.9,
+      "distanceNmCalculated": 10.37,
+      "legs": [
+        {
+          "legNumber": 1,
+          "fromMark": "X",
+          "toMark": "E",
+          "bearingDeg": 161.6,
+          "distanceNmCalculated": 4.78
+        },
+        {
+          "legNumber": 2,
+          "fromMark": "E",
+          "toMark": "G",
+          "bearingDeg": 0.0,
+          "distanceNmCalculated": 4.0
+        },
+        {
+          "legNumber": 3,
+          "fromMark": "G",
+          "toMark": "X",
+          "bearingDeg": 289.5,
+          "distanceNmCalculated": 1.59
+        }
+      ]
+    },
+    "4": {
+      "sequence": [
+        "X",
+        "A",
+        "G",
+        "E",
+        "Z",
+        "X"
+      ],
+      "distanceNmSI": 14.0,
+      "distanceNmCalculated": 15.71,
+      "legs": [
+        {
+          "legNumber": 1,
+          "fromMark": "X",
+          "toMark": "A",
+          "bearingDeg": 15.6,
+          "distanceNmCalculated": 1.77
+        },
+        {
+          "legNumber": 2,
+          "fromMark": "A",
+          "toMark": "G",
+          "bearingDeg": 155.3,
+          "distanceNmCalculated": 2.46
+        },
+        {
+          "legNumber": 3,
+          "fromMark": "G",
+          "toMark": "E",
+          "bearingDeg": 180.0,
+          "distanceNmCalculated": 4.0
+        },
+        {
+          "legNumber": 4,
+          "fromMark": "E",
+          "toMark": "Z",
+          "bearingDeg": 267.5,
+          "distanceNmCalculated": 2.68
+        },
+        {
+          "legNumber": 5,
+          "fromMark": "Z",
+          "toMark": "X",
+          "bearingDeg": 14.2,
+          "distanceNmCalculated": 4.8
+        }
+      ]
+    },
+    "4R": {
+      "sequence": [
+        "X",
+        "Z",
+        "E",
+        "G",
+        "A",
+        "X"
+      ],
+      "distanceNmSI": 14.0,
+      "distanceNmCalculated": 15.71,
+      "legs": [
+        {
+          "legNumber": 1,
+          "fromMark": "X",
+          "toMark": "Z",
+          "bearingDeg": 194.2,
+          "distanceNmCalculated": 4.8
+        },
+        {
+          "legNumber": 2,
+          "fromMark": "Z",
+          "toMark": "E",
+          "bearingDeg": 87.4,
+          "distanceNmCalculated": 2.68
+        },
+        {
+          "legNumber": 3,
+          "fromMark": "E",
+          "toMark": "G",
+          "bearingDeg": 0.0,
+          "distanceNmCalculated": 4.0
+        },
+        {
+          "legNumber": 4,
+          "fromMark": "G",
+          "toMark": "A",
+          "bearingDeg": 335.3,
+          "distanceNmCalculated": 2.46
+        },
+        {
+          "legNumber": 5,
+          "fromMark": "A",
+          "toMark": "X",
+          "bearingDeg": 195.6,
+          "distanceNmCalculated": 1.77
+        }
+      ]
+    },
+    "99": {
+      "sequence": null,
+      "distanceNmSI": null,
+      "distanceNmCalculated": null,
+      "legs": [],
+      "custom": true,
+      "notes": "Custom course to be announced."
+    }
+  },
+  "specialRoutingNotes": [
+    "Government marks \"1AH\" (M), R \"4\" (N), Thomas Point Light, and the Bloody Point Bar Warning Light shall be passed on the channel side at all times."
+  ]
+}
