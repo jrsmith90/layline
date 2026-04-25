@@ -1,5 +1,5 @@
-
-
+import PreRaceRouteBiasForm from "@/app/components/race/PreRaceRouteBiasForm";
+import LiveRouteUpdateCard from "@/app/components/race/LiveRouteUpdateCard";
 "use client";
 
 import { useMemo, useState } from "react";
@@ -10,7 +10,7 @@ import {
   type OpeningLegType,
   type PressureSide,
   type WindTrend
-} from "@/data/race/getRouteBiasInputs";
+} from "@/data/Race/getRouteBiasInputs";
 
 type RouteBiasDecision =
   | "shore_first"
@@ -27,6 +27,24 @@ type RouteBiasResult = {
   bayScore: number;
   reasons: string[];
   warnings: string[];
+};
+
+type RouteBiasAnswers = {
+  courseId: string;
+  openingLegType: OpeningLegType;
+  windDirectionDeg: number;
+  windSpeedKt: number;
+  windTrend: WindTrend;
+  pressureSide: PressureSide;
+  currentSide: CurrentSide;
+  edgeStrength: EdgeStrength;
+};
+
+type PreRaceRouteBiasFormProps = {
+  onPlanReady?: (payload: {
+    result: RouteBiasResult;
+    answers: RouteBiasAnswers;
+  }) => void;
 };
 
 type FormValues = {
@@ -70,7 +88,7 @@ function formatConfidence(confidence: RouteBiasConfidence): string {
   return confidence.charAt(0).toUpperCase() + confidence.slice(1);
 }
 
-export default function PreRaceRouteBiasForm() {
+export default function PreRaceRouteBiasForm({ onPlanReady }: PreRaceRouteBiasFormProps) {
   const [values, setValues] = useState<FormValues>(initialValues);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [result, setResult] = useState<RouteBiasResult | null>(null);
@@ -138,6 +156,20 @@ export default function PreRaceRouteBiasForm() {
       }
 
       setResult(data as RouteBiasResult);
+
+      onPlanReady?.({
+        result: data as RouteBiasResult,
+        answers: {
+          courseId: values.courseId,
+          openingLegType: values.openingLegType,
+          windDirectionDeg: parsedWindDirectionDeg,
+          windSpeedKt: parsedWindSpeedKt,
+          windTrend: values.windTrend,
+          pressureSide: values.pressureSide,
+          currentSide: values.currentSide,
+          edgeStrength: values.edgeStrength
+        }
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error");
     } finally {

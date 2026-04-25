@@ -1,8 +1,59 @@
 import { NextResponse } from "next/server";
-import { scoreRouteBias } from "@/lib/race/scoreRouteBias";
+import {
+  scoreRouteBias,
+  type RouteBiasAnswers
+} from "@/lib/race/scoreRouteBias";
 
 function isNonEmptyString(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0;
+}
+
+function isOpeningLegType(
+  value: string
+): value is RouteBiasAnswers["openingLegType"] {
+  return [
+    "mostly_upwind",
+    "close_reach",
+    "beam_reach",
+    "broad_reach",
+    "unknown"
+  ].includes(value);
+}
+
+function isWindTrend(value: string): value is RouteBiasAnswers["windTrend"] {
+  return [
+    "building",
+    "fading",
+    "steady",
+    "oscillating",
+    "unstable",
+    "unknown"
+  ].includes(value);
+}
+
+function isPressureSide(
+  value: string
+): value is RouteBiasAnswers["pressureSide"] {
+  return ["shore", "bay", "even", "unclear"].includes(value);
+}
+
+function isCurrentSide(
+  value: string
+): value is RouteBiasAnswers["currentSide"] {
+  return [
+    "shore_less_adverse",
+    "bay_less_adverse",
+    "shore_more_favorable",
+    "bay_more_favorable",
+    "even",
+    "unclear"
+  ].includes(value);
+}
+
+function isEdgeStrength(
+  value: string
+): value is RouteBiasAnswers["edgeStrength"] {
+  return ["strong", "moderate", "weak", "unclear"].includes(value);
 }
 
 export async function POST(request: Request) {
@@ -37,6 +88,13 @@ export async function POST(request: Request) {
     if (!isNonEmptyString(openingLegType)) {
       return NextResponse.json(
         { error: "openingLegType is required." },
+        { status: 400 }
+      );
+    }
+
+    if (!isOpeningLegType(openingLegType)) {
+      return NextResponse.json(
+        { error: "openingLegType is invalid." },
         { status: 400 }
       );
     }
@@ -76,9 +134,23 @@ export async function POST(request: Request) {
       );
     }
 
+    if (!isWindTrend(windTrend)) {
+      return NextResponse.json(
+        { error: "windTrend is invalid." },
+        { status: 400 }
+      );
+    }
+
     if (!isNonEmptyString(pressureSide)) {
       return NextResponse.json(
         { error: "pressureSide is required." },
+        { status: 400 }
+      );
+    }
+
+    if (!isPressureSide(pressureSide)) {
+      return NextResponse.json(
+        { error: "pressureSide is invalid." },
         { status: 400 }
       );
     }
@@ -90,9 +162,23 @@ export async function POST(request: Request) {
       );
     }
 
+    if (!isCurrentSide(currentSide)) {
+      return NextResponse.json(
+        { error: "currentSide is invalid." },
+        { status: 400 }
+      );
+    }
+
     if (!isNonEmptyString(edgeStrength)) {
       return NextResponse.json(
         { error: "edgeStrength is required." },
+        { status: 400 }
+      );
+    }
+
+    if (!isEdgeStrength(edgeStrength)) {
+      return NextResponse.json(
+        { error: "edgeStrength is invalid." },
         { status: 400 }
       );
     }

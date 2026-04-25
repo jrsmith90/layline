@@ -73,12 +73,7 @@
   },
   "courses": {
     "1": {
-      "sequence": [
-        "X",
-        "A",
-        "G",
-        "X"
-      ],
+      "sequence": ["X", "A", "G", "X"],
       "distanceNmSI": 6.9,
       "distanceNmCalculated": 5.82,
       "legs": [
@@ -106,12 +101,7 @@
       ]
     },
     "1R": {
-      "sequence": [
-        "X",
-        "G",
-        "A",
-        "X"
-      ],
+      "sequence": ["X", "G", "A", "X"],
       "distanceNmSI": 5.9,
       "distanceNmCalculated": 5.82,
       "legs": [
@@ -139,12 +129,7 @@
       ]
     },
     "2": {
-      "sequence": [
-        "X",
-        "D",
-        "G",
-        "X"
-      ],
+      "sequence": ["X", "D", "G", "X"],
       "distanceNmSI": 8.2,
       "distanceNmCalculated": 7.73,
       "legs": [
@@ -172,12 +157,7 @@
       ]
     },
     "2R": {
-      "sequence": [
-        "X",
-        "G",
-        "D",
-        "X"
-      ],
+      "sequence": ["X", "G", "D", "X"],
       "distanceNmSI": 7.8,
       "distanceNmCalculated": 7.73,
       "legs": [
@@ -205,12 +185,7 @@
       ]
     },
     "3": {
-      "sequence": [
-        "X",
-        "G",
-        "E",
-        "X"
-      ],
+      "sequence": ["X", "G", "E", "X"],
       "distanceNmSI": 9.8,
       "distanceNmCalculated": 10.37,
       "legs": [
@@ -238,12 +213,7 @@
       ]
     },
     "3R": {
-      "sequence": [
-        "X",
-        "E",
-        "G",
-        "X"
-      ],
+      "sequence": ["X", "E", "G", "X"],
       "distanceNmSI": 8.9,
       "distanceNmCalculated": 10.37,
       "legs": [
@@ -271,14 +241,7 @@
       ]
     },
     "4": {
-      "sequence": [
-        "X",
-        "A",
-        "G",
-        "E",
-        "Z",
-        "X"
-      ],
+      "sequence": ["X", "A", "G", "E", "Z", "X"],
       "distanceNmSI": 14.0,
       "distanceNmCalculated": 15.71,
       "legs": [
@@ -320,14 +283,7 @@
       ]
     },
     "4R": {
-      "sequence": [
-        "X",
-        "Z",
-        "E",
-        "G",
-        "A",
-        "X"
-      ],
+      "sequence": ["X", "Z", "E", "G", "A", "X"],
       "distanceNmSI": 14.0,
       "distanceNmCalculated": 15.71,
       "legs": [
