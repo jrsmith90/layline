@@ -1,8 +1,7 @@
-import PreRaceRouteBiasForm from "@/app/components/race/PreRaceRouteBiasForm";
-import LiveRouteUpdateCard from "@/app/components/race/LiveRouteUpdateCard";
+
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 import {
   getRouteBiasInputs,
   type EdgeStrength,
@@ -103,7 +102,7 @@ export default function PreRaceRouteBiasForm({ onPlanReady }: PreRaceRouteBiasFo
     }));
   }
 
-  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setIsSubmitting(true);
     setError(null);
