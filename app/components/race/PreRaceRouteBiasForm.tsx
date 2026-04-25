@@ -10,7 +10,7 @@ import {
   type OpeningLegType,
   type PressureSide,
   type WindTrend
-} from "@/data/Race/getRouteBiasInputs";
+} from "@/data/race/getRouteBiasInputs";
 
 type RouteBiasDecision =
   | "shore_first"

@@ -8,7 +8,7 @@ import {
   type OpeningLegType,
   type PressureSide,
   type WindTrend
-} from "@/data/Race/getRouteBiasInputs";
+} from "@/data/race/getRouteBiasInputs";
 import PreRaceRouteBiasForm from "@/components/race/PreRaceRouteBiasForm";
 import LiveRouteUpdateCard from "@/components/race/LiveRouteUpdateCard";
 import { getLiveRouteUpdate } from "@/lib/race/getLiveRouteUpdate";
