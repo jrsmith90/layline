@@ -316,8 +316,7 @@ export default function PreRaceRouteBiasForm({ onPlanReady }: PreRaceRouteBiasFo
             <div>Course type: {config.courseType}</div>
             <div>First mark: {config.firstMark ?? "Unknown"}</div>
             <div>
-              First-leg bearing:{" "}
-              {config.firstLegBearingDeg != null ? `${config.firstLegBearingDeg}°` : "Unknown"}
+              First-leg bearing: {config.firstLegBearingDeg != null ? `${config.firstLegBearingDeg}°` : "Unknown"}
             </div>
             <div>
               Total distance: {config.totalDistanceNm != null ? `${config.totalDistanceNm} nm` : "Unknown"}
