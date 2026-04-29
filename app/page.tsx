@@ -1,9 +1,18 @@
-// TEST CHANGE RIGHT NOW
 "use client";
 
 import Link from "next/link";
 import { useState, useEffect } from "react";
-import { Compass, Flag, Sailboat, Wind, Waves, Route, Wrench, Notebook } from "lucide-react";
+import {
+  CloudSun,
+  Compass,
+  Flag,
+  Notebook,
+  Route,
+  Sailboat,
+  Waves,
+  Wind,
+  Wrench,
+} from "lucide-react";
 
 export default function HomePage() {
   const [raceMode, setRaceMode] = useState(() => {
@@ -58,6 +67,18 @@ export default function HomePage() {
           </div>
           <div className="text-sm font-normal opacity-90">
             {raceMode ? "Lane + pressure" : "Lane, pressure, and bailout logic"}
+          </div>
+        </Link>
+
+        <Link
+          href="/race/pre-race"
+          className="block rounded-lg bg-cyan-500 text-black p-4 font-semibold shadow active:scale-[0.98] transition"
+        >
+          <div className="flex items-center gap-2">
+            <CloudSun size={18} /> Weather
+          </div>
+          <div className="text-sm font-normal opacity-90">
+            {raceMode ? "Route bias check" : "Pre-race weather, pressure, current, and route bias"}
           </div>
         </Link>
 
