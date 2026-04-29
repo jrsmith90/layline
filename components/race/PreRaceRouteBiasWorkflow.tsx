@@ -2,8 +2,8 @@
 
 import { useMemo, useState } from "react";
 import { getRouteBiasInputs } from "@/data/race/getRouteBiasInputs";
-import PreRaceRouteBiasForm from "@/app/components/race/PreRaceRouteBiasForm";
-import LiveRouteUpdateCard from "@/app/components/race/LiveRouteUpdateCard";
+import PreRaceRouteBiasForm from "@/components/race/PreRaceRouteBiasForm";
+import LiveRouteUpdateCard from "@/components/race/LiveRouteUpdateCard";
 import { getLiveRouteUpdate } from "@/lib/race/getLiveRouteUpdate";
 import type { RouteBiasSnapshot } from "@/lib/race/checkPlanValidity";
 import type { RouteBiasAnswers } from "@/lib/race/scoreRouteBias";
