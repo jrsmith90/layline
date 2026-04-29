@@ -84,6 +84,8 @@ function safeUUID() {
 }
 
 export function getLogs(): LaylineLog[] {
+  if (typeof localStorage === "undefined") return [];
+
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return [];
@@ -96,6 +98,7 @@ export function getLogs(): LaylineLog[] {
 }
 
 export function saveLogs(logs: LaylineLog[]) {
+  if (typeof localStorage === "undefined") return;
   localStorage.setItem(STORAGE_KEY, JSON.stringify(logs));
 }
 
@@ -109,11 +112,13 @@ export function upsertLog(log: LaylineLog) {
 }
 
 export function setPendingLogId(id: string | null) {
+  if (typeof localStorage === "undefined") return;
   if (!id) localStorage.removeItem(PENDING_ID_KEY);
   else localStorage.setItem(PENDING_ID_KEY, id);
 }
 
 export function getPendingLogId(): string | null {
+  if (typeof localStorage === "undefined") return null;
   return localStorage.getItem(PENDING_ID_KEY);
 }
 

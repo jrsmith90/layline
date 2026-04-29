@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import startUpwindLogic from "@/data/logic/startUpwindLogic";
 
@@ -370,12 +371,12 @@ export default function UpwindTacticsPage() {
         </div>
       </div>
 
-      <a
+      <Link
         href="/tactics"
         className="inline-block rounded-xl bg-white px-4 py-2 font-semibold text-black shadow transition active:scale-[0.98]"
       >
         Back to Tactics
-      </a>
+      </Link>
     </div>
   );
 }

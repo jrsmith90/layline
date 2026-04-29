@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 export default function NotesPage() {
   return (
     <div className="space-y-6">
@@ -12,12 +14,12 @@ export default function NotesPage() {
         </p>
       </div>
 
-      <a
+      <Link
         href="/"
         className="inline-block rounded-xl bg-white text-black px-4 py-2 font-semibold shadow active:scale-[0.98] transition"
       >
         Back to Home
-      </a>
+      </Link>
     </div>
   );
 }

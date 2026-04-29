@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 export default function TacticsDownwindPage() {
   return (
     <div className="space-y-6">
@@ -9,12 +11,12 @@ export default function TacticsDownwindPage() {
         </p>
       </div>
 
-      <a
+      <Link
         href="/tactics"
         className="inline-block rounded-xl bg-white text-black px-4 py-2 font-semibold shadow active:scale-[0.98] transition"
       >
         Back to Tactics
-      </a>
+      </Link>
     </div>
   );
 }

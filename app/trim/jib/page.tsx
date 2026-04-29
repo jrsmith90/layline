@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useGpsCourse } from "@/lib/useGpsCourse";
 import {
@@ -481,48 +482,46 @@ function getJibActionPlan(params: {
 }
 
 export default function TrimJibPage() {
-  const [sailMode, setSailMode] = useState<SailMode>("upwind");
+  const [sailMode, setSailMode] = useState<SailMode>(() => {
+    if (typeof window === "undefined") return "upwind";
+    const savedMode = localStorage.getItem(MODE_KEY);
+    return savedMode === "upwind" || savedMode === "downwind" ? savedMode : "upwind";
+  });
 
   const [gpsOn, setGpsOn] = useState(false);
   const gps = useGpsCourse(gpsOn);
 
-  const [windDir, setWindDir] = useState<number | "">("");
-  const [windSpd, setWindSpd] = useState<number | "">("");
+  const [windDir, setWindDir] = useState<number | "">(() => {
+    if (typeof window === "undefined") return "";
+    const savedDir = localStorage.getItem(WIND_DIR_KEY);
+    if (!savedDir) return "";
+    const n = Number(savedDir);
+    return Number.isNaN(n) ? "" : wrap360(n);
+  });
+  const [windSpd, setWindSpd] = useState<number | "">(() => {
+    if (typeof window === "undefined") return "";
+    const savedSpd = localStorage.getItem(WIND_SPD_KEY);
+    if (!savedSpd) return "";
+    const n = Number(savedSpd);
+    return Number.isNaN(n) ? "" : n;
+  });
 
-  const [carPos, setCarPos] = useState<number>(1);
+  const [carPos, setCarPos] = useState<number>(() => {
+    if (typeof window === "undefined") return 1;
+    const savedCar = localStorage.getItem(CAR_POS_KEY);
+    if (!savedCar) return 1;
+    const n = Number(savedCar);
+    return Number.isNaN(n) ? 1 : clampCar(n);
+  });
   const [boatMode, setBoatMode] = useState<BoatMode>("speed");
   const [symptom, setSymptom] = useState<Symptom>("normal");
   const [telltales, setTelltales] = useState<Telltales>("unknown");
 
   const pendingTimerRef = useRef<number | null>(null);
-  const [pendingId, setPendingId] = useState<string | null>(null);
-
-  useEffect(() => {
-    const savedMode = localStorage.getItem(MODE_KEY);
-    if (savedMode === "upwind" || savedMode === "downwind") setSailMode(savedMode);
-
-    const savedDir = localStorage.getItem(WIND_DIR_KEY);
-    if (savedDir) {
-      const n = Number(savedDir);
-      if (!Number.isNaN(n)) setWindDir(wrap360(n));
-    }
-
-    const savedSpd = localStorage.getItem(WIND_SPD_KEY);
-    if (savedSpd) {
-      const n = Number(savedSpd);
-      if (!Number.isNaN(n)) setWindSpd(n);
-    }
-
-    const savedCar = localStorage.getItem(CAR_POS_KEY);
-    if (savedCar) {
-      const n = Number(savedCar);
-      if (!Number.isNaN(n)) setCarPos(clampCar(n));
-    } else {
-      setCarPos(1);
-    }
-
-    setPendingId(getPendingLogId());
-  }, []);
+  const [pendingId, setPendingId] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    return getPendingLogId();
+  });
 
   useEffect(() => localStorage.setItem(MODE_KEY, sailMode), [sailMode]);
 
@@ -538,14 +537,10 @@ export default function TrimJibPage() {
     localStorage.setItem(CAR_POS_KEY, String(clampCar(carPos)));
   }, [carPos]);
 
-  useEffect(() => {
-    if (!gpsOn) return;
-    if (windDir === "") return;
-    if (gps.cogDeg == null) return;
-
-    const suggestion = inferMode(gps.cogDeg, windDir);
-    if (suggestion) setSailMode(suggestion);
-  }, [gpsOn, gps.cogDeg, windDir]);
+  const activeSailMode = useMemo(() => {
+    if (!gpsOn || windDir === "" || gps.cogDeg == null) return sailMode;
+    return inferMode(gps.cogDeg, windDir) ?? sailMode;
+  }, [gpsOn, gps.cogDeg, sailMode, windDir]);
 
   const computed = useMemo(() => {
     const spd = windSpd === "" ? null : Number(windSpd);
@@ -663,7 +658,7 @@ export default function TrimJibPage() {
       return { call, why, next, ifthen, carSuggested: aft1 };
     }
 
-    if (sailMode === "downwind") {
+    if (activeSailMode === "downwind") {
       call =
         "Downwind jib: ease enough to keep it drawing through angle changes. Avoid overtrim and stall.";
       why = "Stability beats fiddling downwind.";
@@ -744,7 +739,7 @@ export default function TrimJibPage() {
     next = "Make one small change, then evaluate through a puff or wave set.";
     ifthen = "If control improves but pointing drops, regain with angle/steering—not overtrim.";
     return { call, why, next, ifthen, carSuggested };
-  }, [windSpd, telltales, sailMode, symptom, boatMode, carPos]);
+  }, [windSpd, telltales, activeSailMode, symptom, boatMode, carPos]);
 
   const confidence = useMemo(() => {
     const spd = windSpd === "" ? null : Number(windSpd);
@@ -756,7 +751,7 @@ export default function TrimJibPage() {
       const lBand = windBand(l.windSpeedKt ?? null);
       return (
         l.page === "/trim/jib" &&
-        l.sailMode === sailMode &&
+        l.sailMode === activeSailMode &&
         lBand === band &&
         l.telltales === telltales
       );
@@ -773,19 +768,19 @@ export default function TrimJibPage() {
     else if (n >= 4) label = "Medium";
 
     return { label, n, betterPct };
-  }, [windSpd, sailMode, telltales]);
+  }, [windSpd, activeSailMode, telltales]);
 
   const actionPlan = useMemo(
     () =>
       getJibActionPlan({
-        sailMode,
+        sailMode: activeSailMode,
         boatMode,
         symptom,
         telltales,
         carPos,
         windSpd,
       }),
-    [sailMode, boatMode, symptom, telltales, carPos, windSpd]
+    [activeSailMode, boatMode, symptom, telltales, carPos, windSpd]
   );
 
   useEffect(() => {
@@ -800,13 +795,13 @@ export default function TrimJibPage() {
 
       const log = createPendingLog({
         page: "/trim/jib",
-        sailMode,
+        sailMode: activeSailMode,
         windDirTrueFromDeg:
           windDirNum == null || Number.isNaN(windDirNum) ? null : wrap360(windDirNum),
         windSpeedKt:
           windSpdNum == null || Number.isNaN(windSpdNum) ? null : windSpdNum,
 
-        boatMode: sailMode === "upwind" ? boatMode : null,
+        boatMode: activeSailMode === "upwind" ? boatMode : null,
         symptom,
         telltales,
 
@@ -841,7 +836,7 @@ export default function TrimJibPage() {
 
     return () => window.clearTimeout(t);
   }, [
-    sailMode,
+    activeSailMode,
     windDir,
     windSpd,
     boatMode,
@@ -864,7 +859,7 @@ export default function TrimJibPage() {
     setPendingId(null);
   };
 
-  const modeText = sailMode === "upwind" ? "Upwind" : "Downwind";
+  const modeText = activeSailMode === "upwind" ? "Upwind" : "Downwind";
   const windText = windSpd === "" ? "— kt" : `${windSpd} kt`;
   const gpsText = gpsOn ? (gps.cogDeg == null ? "On" : `${Math.round(gps.cogDeg)}°`) : "Off";
 
@@ -891,14 +886,14 @@ export default function TrimJibPage() {
         right={
           <div className="flex gap-2">
             <Btn
-              tone={sailMode === "upwind" ? "primary" : "neutral"}
+              tone={activeSailMode === "upwind" ? "primary" : "neutral"}
               full={false}
               onClick={() => setSailMode("upwind")}
             >
               Up
             </Btn>
             <Btn
-              tone={sailMode === "downwind" ? "primary" : "neutral"}
+              tone={activeSailMode === "downwind" ? "primary" : "neutral"}
               full={false}
               onClick={() => setSailMode("downwind")}
             >
@@ -954,7 +949,7 @@ export default function TrimJibPage() {
             />
           </label>
 
-          {sailMode === "upwind" ? (
+          {activeSailMode === "upwind" ? (
             <label className="space-y-1">
               <div className="text-xs text-[color:var(--muted)]">Boat mode</div>
               <select
@@ -1136,18 +1131,18 @@ export default function TrimJibPage() {
       </Panel>
 
       <div className="grid grid-cols-2 gap-3">
-        <a
+        <Link
           href="/"
           className="block w-full text-center rounded-lg bg-gray-700 text-white py-3 px-4 font-semibold shadow active:scale-[0.98] transition"
         >
           Return Home
-        </a>
-        <a
+        </Link>
+        <Link
           href="/trim"
           className="block w-full text-center rounded-lg bg-black text-white py-3 px-4 font-semibold shadow active:scale-[0.98] transition"
         >
           Back to Trim
-        </a>
+        </Link>
       </div>
 
       <div className="fixed bottom-0 left-0 right-0 border-t border-[color:var(--divider)] bg-[color:var(--bg)]/95 backdrop-blur">

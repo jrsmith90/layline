@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import Link from "next/link";
+import { useReducer, useState } from "react";
 import {
   clearAllLogs,
   deleteLog,
@@ -35,24 +36,17 @@ function ratingLabel(r?: Rating) {
 }
 
 export default function LogsPage() {
-  const [refresh, setRefresh] = useState(0);
+  const [, refreshLogs] = useReducer((value: number) => value + 1, 0);
   const [filter, setFilter] = useState<"all" | "pending" | "unrated" | "rated">("unrated");
 
-  const logs = useMemo(() => {
-    const all = getLogs().slice().sort((a, b) => b.createdAtISO.localeCompare(a.createdAtISO));
-    if (filter === "all") return all;
-    return all.filter((l) => l.status === filter);
-  }, [refresh, filter]);
-
-  const counts = useMemo(() => {
-    const all = getLogs();
-    return {
-      all: all.length,
-      pending: all.filter((l) => l.status === "pending").length,
-      unrated: all.filter((l) => l.status === "unrated").length,
-      rated: all.filter((l) => l.status === "rated").length,
-    };
-  }, [refresh]);
+  const allLogs = getLogs().slice().sort((a, b) => b.createdAtISO.localeCompare(a.createdAtISO));
+  const logs = filter === "all" ? allLogs : allLogs.filter((l) => l.status === filter);
+  const counts = {
+    all: allLogs.length,
+    pending: allLogs.filter((l) => l.status === "pending").length,
+    unrated: allLogs.filter((l) => l.status === "unrated").length,
+    rated: allLogs.filter((l) => l.status === "rated").length,
+  };
 
   const btn =
     "rounded-xl bg-white text-black px-4 py-3 font-semibold shadow active:scale-[0.98] transition";
@@ -110,8 +104,8 @@ export default function LogsPage() {
           <button
             className={btnSoft}
             onClick={() => {
-              clearAllLogs();
-              setRefresh((x) => x + 1);
+                  clearAllLogs();
+                  refreshLogs();
             }}
           >
             Clear all logs
@@ -173,7 +167,7 @@ export default function LogsPage() {
                 className={btn}
                 onClick={() => {
                   rateLog(l.id, "better");
-                  setRefresh((x) => x + 1);
+                  refreshLogs();
                 }}
               >
                 ✅ Better
@@ -182,7 +176,7 @@ export default function LogsPage() {
                 className={btn}
                 onClick={() => {
                   rateLog(l.id, "same");
-                  setRefresh((x) => x + 1);
+                  refreshLogs();
                 }}
               >
                 ➖ Same
@@ -191,7 +185,7 @@ export default function LogsPage() {
                 className={btn}
                 onClick={() => {
                   rateLog(l.id, "worse");
-                  setRefresh((x) => x + 1);
+                  refreshLogs();
                 }}
               >
                 ❌ Worse
@@ -203,7 +197,7 @@ export default function LogsPage() {
                 className={btnSoft}
                 onClick={() => {
                   deleteLog(l.id);
-                  setRefresh((x) => x + 1);
+                  refreshLogs();
                 }}
               >
                 Delete log
@@ -213,12 +207,12 @@ export default function LogsPage() {
         ))}
       </div>
 
-      <a
+      <Link
         href="/"
         className="block rounded-2xl bg-white text-black py-4 px-4 font-semibold shadow active:scale-[0.98] transition"
       >
         Back to Home
-      </a>
+      </Link>
     </div>
   );
 }

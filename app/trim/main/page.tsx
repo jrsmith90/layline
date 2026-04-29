@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { Panel } from "@/components/ui/Panel";
 import getMainActionPlan from "@/data/logic/mainTrimLogic";
@@ -150,10 +151,10 @@ export default function MainTrimPage() {
 
       {/* Mode Selector */}
       <div className="grid grid-cols-3 gap-2">
-        {["speed", "pointing", "control"].map((mode) => (
+        {(["speed", "pointing", "control"] as const).map((mode) => (
           <button
             key={mode}
-            onClick={() => setBoatMode(mode as any)}
+            onClick={() => setBoatMode(mode)}
             className={`py-2 rounded-lg text-sm font-semibold transition ${
               boatMode === mode
                 ? "bg-red-500 text-white"
@@ -399,18 +400,18 @@ export default function MainTrimPage() {
 
       {/* Navigation */}
       <div className="grid grid-cols-2 gap-3">
-        <a
+        <Link
           href="/"
           className="block w-full text-center rounded-lg bg-gray-700 text-white py-3 px-4 font-semibold shadow active:scale-[0.98] transition"
         >
           Return Home
-        </a>
-        <a
+        </Link>
+        <Link
           href="/trim"
           className="block w-full text-center rounded-lg bg-red-500 text-white py-3 px-4 font-semibold shadow active:scale-[0.98] transition"
         >
           Back to Trim
-        </a>
+        </Link>
       </div>
     </main>
   );

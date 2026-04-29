@@ -1,4 +1,3 @@
-import LiveRouteUpdateCard from "@/app/components/race/LiveRouteUpdateCard";
 "use client";
 
 import { useMemo, useState, type FormEvent } from "react";

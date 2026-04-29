@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 export default function TroubleshootSlowPage() {
   return (
     <div className="space-y-6">
@@ -10,7 +12,7 @@ export default function TroubleshootSlowPage() {
         </div>
 
         <div className="grid grid-cols-1 gap-3">
-          <a
+          <Link
             href="/trim/main"
             className="block rounded-2xl bg-white text-black py-4 px-4 font-semibold shadow active:scale-[0.98] transition"
           >
@@ -18,9 +20,9 @@ export default function TroubleshootSlowPage() {
             <div className="text-sm font-normal opacity-70">
               backstay · outhaul · cunningham · sheet/traveler · vang
             </div>
-          </a>
+          </Link>
 
-          <a
+          <Link
             href="/trim/jib"
             className="block rounded-2xl bg-white text-black py-4 px-4 font-semibold shadow active:scale-[0.98] transition"
           >
@@ -28,7 +30,7 @@ export default function TroubleshootSlowPage() {
             <div className="text-sm font-normal opacity-70">
               halyard · lead · sheet · telltales
             </div>
-          </a>
+          </Link>
         </div>
       </div>
 
@@ -87,19 +89,19 @@ export default function TroubleshootSlowPage() {
 
       {/* Links */}
       <div className="grid grid-cols-1 gap-3">
-        <a
+        <Link
           href="/troubleshoot"
           className="block rounded-2xl bg-white text-black py-4 px-4 font-semibold shadow active:scale-[0.98] transition"
         >
           Back to Troubleshoot
-        </a>
+        </Link>
 
-        <a
+        <Link
           href="/"
           className="block rounded-2xl bg-white text-black py-4 px-4 font-semibold shadow active:scale-[0.98] transition"
         >
           Back to Home
-        </a>
+        </Link>
       </div>
     </div>
   );

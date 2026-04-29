@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import {
   getRaceSailPlan,
@@ -143,11 +144,7 @@ function getConfidenceLevel(
   return "High";
 }
 
-function getConfidenceReason(
-  confidence: "High" | "Medium" | "Low",
-  seaState: SeaState,
-  crewPowerScore: number
-): string {
+function getConfidenceReason(confidence: "High" | "Medium" | "Low"): string {
   if (confidence === "Low") {
     return "This is a crossover call because sea state and crew power push the transition earlier.";
   }
@@ -249,10 +246,7 @@ function buildFinalCall(params: {
   spin?: string;
   reef: string;
 }): string {
-  const { legType, main, headsail, spin, reef } = params;
-
-  const mainText = formatMainChoice(main);
-  const reefText = formatReefCall(reef);
+  const { legType, headsail, spin, reef } = params;
 
   if (legType === "upwind") {
     const hs = headsail ? formatHeadsailChoice(headsail) : "Headsail";
@@ -310,7 +304,7 @@ export default function SailSelectionPage() {
     : null;
 
   const confidenceReason = result && confidence
-    ? getConfidenceReason(confidence, seaState, result.crewPowerScore)
+    ? getConfidenceReason(confidence)
     : null;
 
   const callChangeTriggers = result
@@ -564,7 +558,7 @@ export default function SailSelectionPage() {
             </div>
 
             <div className="grid gap-3 md:grid-cols-2">
-              <a
+              <Link
                 href="/trim/main"
                 className="block rounded-lg bg-red-500 text-white p-4 font-semibold shadow active:scale-[0.98] transition"
               >
@@ -572,10 +566,10 @@ export default function SailSelectionPage() {
                 <div className="text-sm font-normal opacity-90">
                   Apply the {formatMainChoice(result.mainChoice)} call
                 </div>
-              </a>
+              </Link>
 
               {result.headsailChoice && (
-                <a
+                <Link
                   href="/trim/jib"
                   className="block rounded-lg bg-orange-500 text-white p-4 font-semibold shadow active:scale-[0.98] transition"
                 >
@@ -583,11 +577,11 @@ export default function SailSelectionPage() {
                   <div className="text-sm font-normal opacity-90">
                     Trim the {formatHeadsailChoice(result.headsailChoice)}
                   </div>
-                </a>
+                </Link>
               )}
 
               {result.spinnakerChoice && result.spinnakerChoice !== "no_spinnaker" && (
-                <a
+                <Link
                   href="/trim/spin"
                   className="block rounded-lg bg-blue-600 text-white p-4 font-semibold shadow active:scale-[0.98] transition md:col-span-2"
                 >
@@ -595,7 +589,7 @@ export default function SailSelectionPage() {
                   <div className="text-sm font-normal opacity-90">
                     Trim the {formatSpinChoice(result.spinnakerChoice)}
                   </div>
-                </a>
+                </Link>
               )}
             </div>
           </div>
@@ -603,18 +597,18 @@ export default function SailSelectionPage() {
       )}
 
       <div className="grid grid-cols-2 gap-3">
-        <a
+        <Link
           href="/"
           className="block w-full text-center rounded-lg bg-gray-700 text-white py-3 px-4 font-semibold shadow active:scale-[0.98] transition"
         >
           Return Home
-        </a>
-        <a
+        </Link>
+        <Link
           href="/trim"
           className="block w-full text-center rounded-lg bg-black text-white py-3 px-4 font-semibold shadow active:scale-[0.98] transition"
         >
           Go to Trim Hub
-        </a>
+        </Link>
       </div>
     </main>
   );

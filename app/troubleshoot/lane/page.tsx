@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 export default function TroubleshootLanePage() {
   return (
     <div className="space-y-6">
@@ -62,7 +64,7 @@ export default function TroubleshootLanePage() {
         </div>
 
         <div className="grid grid-cols-1 gap-3">
-          <a
+          <Link
             href="/trim/main"
             className="block rounded-2xl bg-white text-black py-4 px-4 font-semibold shadow active:scale-[0.98] transition"
           >
@@ -70,9 +72,9 @@ export default function TroubleshootLanePage() {
             <div className="text-sm font-normal opacity-70">
               backstay · outhaul · cunningham · sheet/traveler · vang
             </div>
-          </a>
+          </Link>
 
-          <a
+          <Link
             href="/trim/jib"
             className="block rounded-2xl bg-white text-black py-4 px-4 font-semibold shadow active:scale-[0.98] transition"
           >
@@ -80,16 +82,16 @@ export default function TroubleshootLanePage() {
             <div className="text-sm font-normal opacity-70">
               halyard · lead · sheet · telltales
             </div>
-          </a>
+          </Link>
         </div>
       </div>
 
-      <a
+      <Link
         href="/troubleshoot"
         className="inline-block rounded-xl bg-white text-black px-4 py-2 font-semibold shadow active:scale-[0.98] transition"
       >
         Back to Troubleshoot
-      </a>
+      </Link>
     </div>
   );
 }

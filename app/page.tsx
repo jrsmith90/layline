@@ -1,16 +1,16 @@
 // TEST CHANGE RIGHT NOW
 "use client";
 
+import Link from "next/link";
 import { useState, useEffect } from "react";
 import { Compass, Flag, Sailboat, Wind, Waves, Route, Wrench, Notebook } from "lucide-react";
 
 export default function HomePage() {
-  const [raceMode, setRaceMode] = useState(false);
-
-  useEffect(() => {
+  const [raceMode, setRaceMode] = useState(() => {
+    if (typeof window === "undefined") return false;
     const saved = localStorage.getItem("race-mode");
-    if (saved === "true") setRaceMode(true);
-  }, []);
+    return saved === "true";
+  });
 
   useEffect(() => {
     localStorage.setItem("race-mode", raceMode ? "true" : "false");
@@ -37,7 +37,7 @@ export default function HomePage() {
       </header>
 
       <div className="grid gap-3">
-        <a
+        <Link
           href="/sail-selection"
           className="block rounded-lg bg-white text-black p-4 font-semibold shadow active:scale-[0.98] transition"
         >
@@ -47,9 +47,9 @@ export default function HomePage() {
           <div className="text-sm font-normal opacity-90">
             {raceMode ? "Quick sail + reef call" : "Pre-race setup, sail choice, reef calls"}
           </div>
-        </a>
+        </Link>
 
-        <a
+        <Link
           href="/start"
           className="block rounded-lg bg-purple-500 text-white p-4 font-semibold shadow active:scale-[0.98] transition"
         >
@@ -59,9 +59,9 @@ export default function HomePage() {
           <div className="text-sm font-normal opacity-90">
             {raceMode ? "Lane + pressure" : "Lane, pressure, and bailout logic"}
           </div>
-        </a>
+        </Link>
 
-        <a
+        <Link
           href="/trim/main"
           className="block rounded-lg bg-red-500 text-white p-4 font-semibold shadow active:scale-[0.98] transition"
         >
@@ -71,9 +71,9 @@ export default function HomePage() {
           <div className="text-sm font-normal opacity-90">
             {raceMode ? "Power + depower" : "Power, balance, and depower controls"}
           </div>
-        </a>
+        </Link>
 
-        <a
+        <Link
           href="/trim/jib"
           className="block rounded-lg bg-orange-500 text-white p-4 font-semibold shadow active:scale-[0.98] transition"
         >
@@ -83,9 +83,9 @@ export default function HomePage() {
           <div className="text-sm font-normal opacity-90">
             {raceMode ? "Trim + flow" : "Lead, sheet, and telltale flow"}
           </div>
-        </a>
+        </Link>
 
-        <a
+        <Link
           href="/trim/spin"
           className="block rounded-lg bg-blue-600 text-white p-4 font-semibold shadow active:scale-[0.98] transition"
         >
@@ -95,9 +95,9 @@ export default function HomePage() {
           <div className="text-sm font-normal opacity-90">
             {raceMode ? "Downwind control" : "Downwind trim and control"}
           </div>
-        </a>
+        </Link>
 
-        <a
+        <Link
           href="/tactics"
           className="block rounded-lg bg-gray-700 text-white p-4 font-semibold shadow active:scale-[0.98] transition"
         >
@@ -107,9 +107,9 @@ export default function HomePage() {
           <div className="text-sm font-normal opacity-90">
             {raceMode ? "Decisions" : "Upwind and downwind decisions"}
           </div>
-        </a>
+        </Link>
 
-        <a
+        <Link
           href="/troubleshoot"
           className="block rounded-lg bg-yellow-500 text-black p-4 font-semibold shadow active:scale-[0.98] transition"
         >
@@ -119,9 +119,9 @@ export default function HomePage() {
           <div className="text-sm font-normal opacity-90">
             {raceMode ? "Fix fast" : "Fix speed, control, and trim issues"}
           </div>
-        </a>
+        </Link>
 
-        <a
+        <Link
           href="/notes"
           className="block rounded-lg bg-white/10 text-white p-4 font-semibold shadow active:scale-[0.98] transition"
         >
@@ -129,7 +129,7 @@ export default function HomePage() {
             <Notebook size={18} /> Notes
           </div>
           <div className="text-sm font-normal opacity-70">Logs and learning</div>
-        </a>
+        </Link>
       </div>
     </main>
   );
