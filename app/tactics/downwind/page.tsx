@@ -1,9 +1,12 @@
 import Link from "next/link";
+import { LiveInstrumentsPanel } from "@/components/gps/LiveInstrumentsPanel";
 
 export default function TacticsDownwindPage() {
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold">Tactics — Downwind</h1>
+
+      <LiveInstrumentsPanel context="downwind" />
 
       <div className="rounded-2xl bg-white/5 border border-white/10 p-5">
         <p className="text-sm opacity-80">

@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { getRouteBiasInputs } from "@/data/race/getRouteBiasInputs";
 import PreRaceRouteBiasForm from "@/components/race/PreRaceRouteBiasForm";
 import LiveRouteUpdateCard from "@/components/race/LiveRouteUpdateCard";
+import { LiveInstrumentsPanel } from "@/components/gps/LiveInstrumentsPanel";
 import { getLiveRouteUpdate } from "@/lib/race/getLiveRouteUpdate";
 import type { RouteBiasSnapshot } from "@/lib/race/checkPlanValidity";
 import type { RouteBiasAnswers } from "@/lib/race/scoreRouteBias";
@@ -155,6 +156,8 @@ export default function PreRaceRouteBiasWorkflow() {
 
   return (
     <div className="space-y-6">
+      <LiveInstrumentsPanel context="route" />
+
       <PreRaceRouteBiasForm onPlanReady={handleOriginalPlanReady} />
 
       {originalPlan && (

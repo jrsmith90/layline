@@ -41,6 +41,14 @@ const modules = [
     learn: "Pre-race weather, pressure, current, and route bias",
   },
   {
+    href: "/race/tracker",
+    label: "Course Tracker",
+    icon: Route,
+    accent: "var(--favorable)",
+    race: "Mark progress",
+    learn: "COG, VMG, layline, and tack timing",
+  },
+  {
     href: "/trim/main",
     label: "Mainsail Trim",
     icon: Sailboat,

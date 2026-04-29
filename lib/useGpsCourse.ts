@@ -5,11 +5,26 @@ import { useEffect, useRef, useState } from "react";
 type CourseState = {
   supported: boolean;
   permission: "unknown" | "granted" | "denied";
+  lat: number | null;
+  lon: number | null;
   cogDeg: number | null;
   sogMps: number | null;
   accuracyM: number | null;
   error?: string;
 };
+
+export type GpsTrackPoint = {
+  at: string;
+  lat: number;
+  lon: number;
+  cogDeg: number | null;
+  sogMps: number | null;
+  accuracyM: number | null;
+};
+
+const TRACK_STORAGE_KEY = "layline-phone-gps-track-v1";
+const MAX_TRACK_POINTS = 2000;
+const MIN_TRACK_INTERVAL_MS = 5000;
 
 function toRad(d: number) {
   return (d * Math.PI) / 180;
@@ -34,21 +49,56 @@ function bearingDeg(lat1: number, lon1: number, lat2: number, lon2: number) {
   return wrap360(toDeg(Math.atan2(y, x)));
 }
 
+function readStoredTrack(): GpsTrackPoint[] {
+  if (typeof window === "undefined") return [];
+
+  try {
+    const raw = localStorage.getItem(TRACK_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeStoredTrack(points: GpsTrackPoint[]) {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(TRACK_STORAGE_KEY, JSON.stringify(points));
+}
+
 export function useGpsCourse(enabled: boolean) {
+  const browserSupportsGeolocation =
+    typeof navigator !== "undefined" && "geolocation" in navigator;
+
   const [state, setState] = useState<CourseState>({
-    supported: typeof navigator !== "undefined" && "geolocation" in navigator,
+    supported: browserSupportsGeolocation,
     permission: "unknown",
+    lat: null,
+    lon: null,
     cogDeg: null,
     sogMps: null,
     accuracyM: null,
+    error: browserSupportsGeolocation
+      ? undefined
+      : "Geolocation is not available in this browser.",
   });
+  const [track, setTrack] = useState<GpsTrackPoint[]>(readStoredTrack);
 
   const watchIdRef = useRef<number | null>(null);
   const lastPosRef = useRef<{ lat: number; lon: number } | null>(null);
+  const lastTrackAtRef = useRef(0);
+
+  function clearTrack() {
+    setTrack([]);
+    writeStoredTrack([]);
+    lastTrackAtRef.current = 0;
+  }
 
   useEffect(() => {
-    if (!enabled) return;
-    if (!state.supported) return;
+    const supported = typeof navigator !== "undefined" && "geolocation" in navigator;
+
+    if (!enabled || !supported) return;
 
     const geo = navigator.geolocation;
 
@@ -67,16 +117,40 @@ export function useGpsCourse(enabled: boolean) {
           }
         }
 
-        lastPosRef.current = { lat: latitude, lon: longitude };
+	        lastPosRef.current = { lat: latitude, lon: longitude };
+        const now = Date.now();
 
         setState((s) => ({
           ...s,
           permission: "granted",
+          lat: latitude,
+          lon: longitude,
           cogDeg: cog,
           sogMps: typeof speed === "number" ? speed : null,
           accuracyM: typeof accuracy === "number" ? accuracy : null,
           error: undefined,
         }));
+
+        if (now - lastTrackAtRef.current >= MIN_TRACK_INTERVAL_MS) {
+          lastTrackAtRef.current = now;
+
+          setTrack((currentTrack) => {
+            const nextTrack = [
+              ...currentTrack,
+              {
+                at: new Date(now).toISOString(),
+                lat: latitude,
+                lon: longitude,
+                cogDeg: cog,
+                sogMps: typeof speed === "number" ? speed : null,
+                accuracyM: typeof accuracy === "number" ? accuracy : null,
+              },
+            ].slice(-MAX_TRACK_POINTS);
+
+            writeStoredTrack(nextTrack);
+            return nextTrack;
+          });
+        }
       },
       (err) => {
         setState((s) => ({
@@ -94,9 +168,13 @@ export function useGpsCourse(enabled: boolean) {
 
     return () => {
       if (watchIdRef.current !== null) geo.clearWatch(watchIdRef.current);
+      watchIdRef.current = null;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled]);
 
-  return state;
+  return {
+    ...state,
+    track,
+    clearTrack,
+  };
 }

@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useGpsCourse } from "@/lib/useGpsCourse";
 import {
   createPendingLog,
   getPendingLogId,
@@ -15,6 +14,7 @@ import {
 import { Panel } from "@/components/ui/Panel";
 import { Btn, BtnLink } from "@/components/ui/Btn";
 import { Chip } from "@/components/ui/Chip";
+import { usePhoneGps } from "@/components/gps/PhoneGpsProvider";
 
 type SailMode = "upwind" | "downwind";
 type BoatMode = "speed" | "pointing" | "control";
@@ -488,8 +488,7 @@ export default function TrimJibPage() {
     return savedMode === "upwind" || savedMode === "downwind" ? savedMode : "upwind";
   });
 
-  const [gpsOn, setGpsOn] = useState(false);
-  const gps = useGpsCourse(gpsOn);
+  const gps = usePhoneGps();
 
   const [windDir, setWindDir] = useState<number | "">(() => {
     if (typeof window === "undefined") return "";
@@ -538,9 +537,9 @@ export default function TrimJibPage() {
   }, [carPos]);
 
   const activeSailMode = useMemo(() => {
-    if (!gpsOn || windDir === "" || gps.cogDeg == null) return sailMode;
+    if (!gps.enabled || windDir === "" || gps.cogDeg == null) return sailMode;
     return inferMode(gps.cogDeg, windDir) ?? sailMode;
-  }, [gpsOn, gps.cogDeg, sailMode, windDir]);
+  }, [gps.enabled, gps.cogDeg, sailMode, windDir]);
 
   const computed = useMemo(() => {
     const spd = windSpd === "" ? null : Number(windSpd);
@@ -817,8 +816,8 @@ export default function TrimJibPage() {
         },
 
         gps: {
-          lat: null,
-          lon: null,
+          lat: gps.lat ?? null,
+          lon: gps.lon ?? null,
           cogDeg: gps.cogDeg ?? null,
           sogMps: gps.sogMps ?? null,
           accuracyM: gps.accuracyM ?? null,
@@ -848,6 +847,8 @@ export default function TrimJibPage() {
     computed.why,
     computed.next,
     computed.ifthen,
+    gps.lat,
+    gps.lon,
     gps.cogDeg,
     gps.sogMps,
     gps.accuracyM,
@@ -861,7 +862,7 @@ export default function TrimJibPage() {
 
   const modeText = activeSailMode === "upwind" ? "Upwind" : "Downwind";
   const windText = windSpd === "" ? "— kt" : `${windSpd} kt`;
-  const gpsText = gpsOn ? (gps.cogDeg == null ? "On" : `${Math.round(gps.cogDeg)}°`) : "Off";
+  const gpsText = gps.enabled ? (gps.cogDeg == null ? "On" : `${Math.round(gps.cogDeg)}°`) : "Off";
 
   return (
     <main className="space-y-5 pb-24">
@@ -877,7 +878,7 @@ export default function TrimJibPage() {
           <Chip label="Mode" value={modeText} accent="neutral" />
           <Chip label="Wind" value={windText} accent="neutral" />
           <Chip label="Car" value={`${carPos} → ${computed.carSuggested}`} accent="neutral" />
-          <Chip label="GPS" value={gpsText} accent={gpsOn ? "amber" : "neutral"} />
+          <Chip label="GPS" value={gpsText} accent={gps.enabled ? "amber" : "neutral"} />
         </div>
       </Panel>
 
@@ -1007,10 +1008,10 @@ export default function TrimJibPage() {
 
           <div className="col-span-2 grid grid-cols-2 gap-3">
             <Btn
-              tone={gpsOn ? "amber" : "neutral"}
-              onClick={() => setGpsOn((v) => !v)}
+              tone={gps.enabled ? "amber" : "neutral"}
+              onClick={gps.toggle}
             >
-              {gpsOn ? "GPS ON" : "GPS OFF"}
+              {gps.enabled ? "GPS ON" : "GPS OFF"}
             </Btn>
             <Btn
               tone="neutral"

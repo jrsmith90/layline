@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import startUpwindLogic from "@/data/logic/startUpwindLogic";
+import { LiveInstrumentsPanel } from "@/components/gps/LiveInstrumentsPanel";
 
 type ForwardEscape = "YES" | "MAYBE" | "NO";
 type WindwardThreat = "NONE" | "PRESENT" | "CONTROLLING";
@@ -232,6 +233,8 @@ export default function StartPage() {
           Start Mode
         </div>
       </div>
+
+      <LiveInstrumentsPanel context="start" />
 
       <div className="rounded-2xl border border-white/10 bg-white/5 p-5 space-y-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">

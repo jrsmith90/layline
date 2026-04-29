@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { PhoneGpsProvider } from "@/components/gps/PhoneGpsProvider";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -19,9 +20,11 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <div className="min-h-screen overflow-x-hidden">
-          {children}
-        </div>
+        <PhoneGpsProvider>
+          <div className="min-h-screen overflow-x-hidden pb-24">
+            {children}
+          </div>
+        </PhoneGpsProvider>
       </body>
     </html>
   );
