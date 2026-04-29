@@ -1,9 +1,10 @@
-import courseGeometry from "../../race/course-geometry-2026-hhsw-distance.json";
+import { getActiveCourseGeometry } from "./eventDatabase";
 
-type MarkId = keyof typeof courseGeometry.marks;
-type CourseId = keyof typeof courseGeometry.courses;
+const courseGeometry = getActiveCourseGeometry();
 
 type CourseGeometry = typeof courseGeometry;
+type MarkId = keyof CourseGeometry["marks"];
+type CourseId = keyof CourseGeometry["courses"];
 
 export type RaceMark = CourseGeometry["marks"][MarkId];
 

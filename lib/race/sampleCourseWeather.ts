@@ -1,5 +1,7 @@
-import courseGeometry from "@/race/course-geometry-2026-hhsw-distance.json";
+import { getActiveCourseGeometry } from "@/data/race/eventDatabase";
 import { getTempestForecastByLatLon, type TempestPointForecast } from "@/lib/weather/tempestClient";
+
+const courseGeometry = getActiveCourseGeometry();
 
 type MarkId = keyof typeof courseGeometry.marks;
 type CourseId = keyof typeof courseGeometry.courses;
