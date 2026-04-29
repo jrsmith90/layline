@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useState, useEffect } from "react";
 import {
   CloudSun,
@@ -102,23 +103,21 @@ export default function HomePage() {
 
   return (
     <main className="mx-auto max-w-md space-y-5 px-4 pb-8 pt-3">
-      <header className="layline-panel overflow-hidden p-5">
-        <div className="flex items-start justify-between gap-4">
-          <div className="space-y-2">
-            <div className="layline-kicker">Sailing Tactics App</div>
-            <h1 className="text-3xl font-black uppercase tracking-tight">Layline</h1>
-            <p className="max-w-[18rem] text-sm leading-5 text-[color:var(--text-soft)]">
-              Decision support for starts, trim, weather, and race-course tactics.
-            </p>
-          </div>
-
-          <div className="relative mt-1 h-16 w-16 shrink-0 rounded-2xl border border-[color:var(--divider)] bg-[color:var(--panel-muted)] shadow-inner">
-            <div className="absolute left-4 top-3 h-10 w-[2px] rotate-[-28deg] rounded-full bg-[color:var(--text)]" />
-            <div className="absolute left-7 top-4 h-7 w-5 skew-x-[-12deg] rounded-sm border-l border-t border-[color:var(--text)]" />
-            <div className="absolute bottom-4 left-4 h-[2px] w-10 rotate-[-28deg] rounded-full bg-[color:var(--favorable)]" />
-            <div className="absolute right-3 top-3 h-2 w-2 rounded-full bg-[color:var(--warning)]" />
-          </div>
+      <header className="layline-panel overflow-hidden p-4">
+        <div className="overflow-hidden rounded-xl border border-[color:var(--divider)] bg-[color:var(--bg-deep)]">
+          <Image
+            src="/laylinemain.png"
+            alt="Layline Sail Smarter"
+            width={1536}
+            height={1024}
+            priority
+            className="h-auto w-full"
+          />
         </div>
+        <h1 className="sr-only">Layline</h1>
+        <p className="mt-4 text-center text-sm leading-5 text-[color:var(--text-soft)]">
+          Decision support for starts, trim, weather, and race-course tactics.
+        </p>
 
         <div className="my-5 layline-rule" />
 
