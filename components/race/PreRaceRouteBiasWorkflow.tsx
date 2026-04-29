@@ -1,22 +1,13 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import {
-  getRouteBiasInputs,
-  type CurrentSide,
-  type EdgeStrength,
-  type OpeningLegType,
-  type PressureSide,
-  type WindTrend
-} from "@/data/race/getRouteBiasInputs";
-import PreRaceRouteBiasForm from "@/components/race/PreRaceRouteBiasForm";
-import LiveRouteUpdateCard from "@/components/race/LiveRouteUpdateCard";
+import { getRouteBiasInputs } from "@/data/race/getRouteBiasInputs";
+import PreRaceRouteBiasForm from "@/app/components/race/PreRaceRouteBiasForm";
+import LiveRouteUpdateCard from "@/app/components/race/LiveRouteUpdateCard";
 import { getLiveRouteUpdate } from "@/lib/race/getLiveRouteUpdate";
 import type { RouteBiasSnapshot } from "@/lib/race/checkPlanValidity";
 import type { RouteBiasAnswers } from "@/lib/race/scoreRouteBias";
-
-type RouteBiasDecision = "shore_first" | "bay_first" | "neutral" | "mixed_signal";
-type RouteBiasConfidence = "low" | "medium" | "high";
+import type { OpeningLegType, WindTrend, PressureSide, CurrentSide, EdgeStrength } from "@/data/race/getRouteBiasInputs";
 
 type RouteBiasResult = RouteBiasSnapshot;
 
@@ -42,7 +33,7 @@ const initialLatestValues: LatestConditionsValues = {
   edgeStrength: "unclear"
 };
 
-function formatDecision(decision: RouteBiasDecision): string {
+function formatDecision(decision: string): string {
   switch (decision) {
     case "shore_first":
       return "Favor shore early";
@@ -57,7 +48,7 @@ function formatDecision(decision: RouteBiasDecision): string {
   }
 }
 
-function formatConfidence(confidence: RouteBiasConfidence): string {
+function formatConfidence(confidence: string): string {
   return confidence.charAt(0).toUpperCase() + confidence.slice(1);
 }
 

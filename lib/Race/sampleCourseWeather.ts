@@ -75,8 +75,8 @@ export async function sampleCourseWeather(courseId: string): Promise<SampledCour
 
   const sampledLegs = await Promise.all(
     course.legs.map(async (leg) => {
-      const from = courseGeometry.marks[leg.fromMark];
-      const to = courseGeometry.marks[leg.toMark];
+      const from = courseGeometry.marks[leg.fromMark as MarkId];
+      const to = courseGeometry.marks[leg.toMark as MarkId];
       const mid = midpoint(from.lat, from.lon, to.lat, to.lon);
 
       const midpointForecast = await getTempestForecastByLatLon({
@@ -91,7 +91,7 @@ export async function sampleCourseWeather(courseId: string): Promise<SampledCour
         bearingDeg: leg.bearingDeg,
         distanceNmCalculated: leg.distanceNmCalculated,
         samples: [
-          sampledMarks[leg.fromMark],
+          sampledMarks[leg.fromMark as MarkId],
           {
             id: `${leg.fromMark}_${leg.toMark}_mid`,
             kind: "midpoint" as const,
@@ -99,9 +99,9 @@ export async function sampleCourseWeather(courseId: string): Promise<SampledCour
             lon: mid.lon,
             forecast: midpointForecast
           },
-          sampledMarks[leg.toMark]
+          sampledMarks[leg.toMark as MarkId]
         ]
-      };
+      } as SampledLeg;
     })
   );
 
@@ -109,7 +109,7 @@ export async function sampleCourseWeather(courseId: string): Promise<SampledCour
     courseId,
     sampledAt: new Date().toISOString(),
     startFinishMark: courseGeometry.startFinishMark as MarkId,
-    courseSequence: course.sequence,
+    courseSequence: course.sequence as MarkId[] | null,
     marks: sampledMarks,
     legs: sampledLegs
   };
