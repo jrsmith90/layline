@@ -9,7 +9,6 @@ import {
 } from "@/components/display/DisplayModeProvider";
 import {
   CloudSun,
-  Compass,
   Flag,
   Notebook,
   Route,
@@ -29,14 +28,6 @@ const modules = [
     learn: "Big-display course, VMG, and tack calls",
   },
   {
-    href: "/sail-selection",
-    label: "Sail Selection",
-    icon: Compass,
-    accent: "var(--advisory)",
-    race: "Quick sail + reef call",
-    learn: "Pre-race setup, sail choice, reef calls",
-  },
-  {
     href: "/start",
     label: "Start",
     icon: Flag,
@@ -46,11 +37,11 @@ const modules = [
   },
   {
     href: "/race/pre-race",
-    label: "Weather",
+    label: "Pre-Race",
     icon: CloudSun,
     accent: "var(--favorable)",
-    race: "Route bias check",
-    learn: "Pre-race weather, pressure, current, and route bias",
+    race: "Conditions + sail call",
+    learn: "Course conditions, route bias, and sail selection",
   },
   {
     href: "/race/tracker",
