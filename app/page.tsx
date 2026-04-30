@@ -4,6 +4,10 @@ import Link from "next/link";
 import Image from "next/image";
 import { useState, useEffect } from "react";
 import {
+  DisplayModeControl,
+  useDisplayMode,
+} from "@/components/display/DisplayModeProvider";
+import {
   CloudSun,
   Compass,
   Flag,
@@ -107,6 +111,7 @@ const modules = [
 ];
 
 export default function HomePage() {
+  const { effectiveMode } = useDisplayMode();
   const [raceMode, setRaceMode] = useState(() => {
     if (typeof window === "undefined") return false;
     const saved = localStorage.getItem("race-mode");
@@ -117,55 +122,76 @@ export default function HomePage() {
     localStorage.setItem("race-mode", raceMode ? "true" : "false");
   }, [raceMode]);
 
+  const isIpadLayout = effectiveMode === "ipad";
+
   return (
-    <main className="mx-auto max-w-md space-y-5 px-4 pb-8 pt-3">
+    <main
+      className={[
+        "mx-auto space-y-5 px-4 pb-8 pt-3",
+        isIpadLayout ? "max-w-5xl" : "max-w-md",
+      ].join(" ")}
+    >
       <header className="layline-panel overflow-hidden p-4">
-        <div className="overflow-hidden rounded-xl border border-[color:var(--divider)] bg-[color:var(--bg-deep)]">
-          <Image
-            src="/laylinemain.png"
-            alt="Layline Sail Smarter"
-            width={1536}
-            height={1024}
-            priority
-            className="h-auto w-full"
-          />
-        </div>
-        <h1 className="sr-only">Layline</h1>
-        <p className="mt-4 text-center text-sm leading-5 text-[color:var(--text-soft)]">
-          Decision support for starts, trim, weather, and race-course tactics.
-        </p>
-
-        <div className="my-5 layline-rule" />
-
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <div className="text-xs font-bold uppercase tracking-[0.18em] text-[color:var(--muted)]">
-              Active Mode
-            </div>
-            <div className="text-sm font-semibold text-[color:var(--text)]">
-              {raceMode ? "Race Mode" : "Learning Mode"}
-            </div>
+        <div
+          className={[
+            "grid gap-4",
+            isIpadLayout ? "items-center md:grid-cols-[1.15fr_0.85fr]" : "",
+          ].join(" ")}
+        >
+          <div className="overflow-hidden rounded-xl border border-[color:var(--divider)] bg-[color:var(--bg-deep)]">
+            <Image
+              src="/laylinemain.png"
+              alt="Layline Sail Smarter"
+              width={1536}
+              height={1024}
+              priority
+              className="h-auto w-full"
+            />
           </div>
 
-          <button
-            onClick={() => setRaceMode((v) => !v)}
-            className="layline-pill relative flex w-40 items-center justify-between p-1 text-xs font-bold uppercase tracking-wide transition active:scale-[0.98]"
-            aria-label="Toggle race mode"
-          >
-            <span
-              className={`absolute top-1 h-8 w-[4.65rem] rounded-full transition-all duration-200 ${
-                raceMode
-                  ? "left-[4.85rem] bg-[color:var(--unfavorable)]"
-                  : "left-1 bg-[color:var(--favorable)]"
-              }`}
-            />
-            <span className="relative z-10 flex h-8 w-[4.65rem] items-center justify-center text-white">
-              Learn
-            </span>
-            <span className="relative z-10 flex h-8 w-[4.65rem] items-center justify-center text-white">
-              Race
-            </span>
-          </button>
+          <div>
+            <h1 className="sr-only">Layline</h1>
+            <p className="text-center text-sm leading-5 text-[color:var(--text-soft)] md:text-left">
+              Decision support for starts, trim, weather, and race-course tactics.
+            </p>
+
+            <div className="my-5 layline-rule" />
+
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <div className="text-xs font-bold uppercase tracking-[0.18em] text-[color:var(--muted)]">
+                  Active Mode
+                </div>
+                <div className="text-sm font-semibold text-[color:var(--text)]">
+                  {raceMode ? "Race Mode" : "Learning Mode"}
+                </div>
+              </div>
+
+              <button
+                onClick={() => setRaceMode((v) => !v)}
+                className="layline-pill relative flex w-40 items-center justify-between p-1 text-xs font-bold uppercase tracking-wide transition active:scale-[0.98]"
+                aria-label="Toggle race mode"
+              >
+                <span
+                  className={`absolute top-1 h-8 w-[4.65rem] rounded-full transition-all duration-200 ${
+                    raceMode
+                      ? "left-[4.85rem] bg-[color:var(--unfavorable)]"
+                      : "left-1 bg-[color:var(--favorable)]"
+                  }`}
+                />
+                <span className="relative z-10 flex h-8 w-[4.65rem] items-center justify-center text-white">
+                  Learn
+                </span>
+                <span className="relative z-10 flex h-8 w-[4.65rem] items-center justify-center text-white">
+                  Race
+                </span>
+              </button>
+            </div>
+
+            <div className="mt-4">
+              <DisplayModeControl />
+            </div>
+          </div>
         </div>
       </header>
 
@@ -175,7 +201,12 @@ export default function HomePage() {
           <div className="text-xs text-[color:var(--muted)]">Tap to open</div>
         </div>
 
-        <div className="grid grid-cols-2 gap-2.5">
+        <div
+          className={[
+            "grid gap-2.5",
+            isIpadLayout ? "grid-cols-3 lg:grid-cols-4" : "grid-cols-2",
+          ].join(" ")}
+        >
           {modules.map((item) => {
             const Icon = item.icon;
 

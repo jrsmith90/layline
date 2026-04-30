@@ -3,10 +3,12 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { ArrowLeft, Home } from "lucide-react";
+import { useDisplayMode } from "@/components/display/DisplayModeProvider";
 
 export function AppNavigationButtons() {
   const pathname = usePathname();
   const router = useRouter();
+  const { effectiveMode } = useDisplayMode();
   const isHome = pathname === "/";
 
   if (isHome) return null;
@@ -22,7 +24,12 @@ export function AppNavigationButtons() {
 
   return (
     <nav className="sticky top-0 z-40 border-b border-[color:var(--divider)] bg-[color:var(--bg)]/88 px-4 py-3 backdrop-blur">
-      <div className="mx-auto flex max-w-3xl items-center justify-between gap-3">
+      <div
+        className={[
+          "mx-auto flex items-center justify-between gap-3",
+          effectiveMode === "ipad" ? "max-w-5xl" : "max-w-md",
+        ].join(" ")}
+      >
         <button
           type="button"
           onClick={goBack}

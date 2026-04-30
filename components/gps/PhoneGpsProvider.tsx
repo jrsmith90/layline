@@ -8,6 +8,7 @@ import {
   type ReactNode,
 } from "react";
 import { Navigation } from "lucide-react";
+import { useDisplayMode } from "@/components/display/DisplayModeProvider";
 import { useGpsCourse } from "@/lib/useGpsCourse";
 
 const GPS_ENABLED_KEY = "layline-phone-gps-enabled";
@@ -37,6 +38,7 @@ function formatSpeedKt(sogMps: number | null) {
 
 function FloatingGpsControl() {
   const gps = usePhoneGps();
+  const { effectiveMode } = useDisplayMode();
   const speedKt = formatSpeedKt(gps.sogMps);
 
   const statusText = !gps.supported
@@ -50,7 +52,12 @@ function FloatingGpsControl() {
         : "Off";
 
   return (
-    <div className="fixed inset-x-0 bottom-3 z-50 mx-auto w-full max-w-md px-4">
+    <div
+      className={[
+        "fixed inset-x-0 bottom-3 z-50 mx-auto w-full px-4",
+        effectiveMode === "ipad" ? "max-w-lg" : "max-w-md",
+      ].join(" ")}
+    >
       <button
         type="button"
         onClick={gps.toggle}
