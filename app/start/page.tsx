@@ -10,6 +10,7 @@ type WindwardThreat = "NONE" | "PRESENT" | "CONTROLLING";
 type LeewardPressure = "NONE" | "BUILDING" | "CLEAR";
 type MessageState = "hold" | "prep_bail" | "bail_now";
 type StartEnd = "committee" | "pin" | "even";
+type FleetSize = "small" | "medium" | "large";
 
 function normalizeDegrees(value: number) {
   return ((value % 360) + 360) % 360;
@@ -157,6 +158,76 @@ function getStartAreaCall(params: {
     reason:
       "Line bias and wind shift are pulling different ways. Start where you can win a clean lane and execute the first-leg plan.",
     toneClass: "border-orange-400/35 bg-orange-400/10 text-orange-100",
+  };
+}
+
+function getTargetZone(params: {
+  call: string;
+  lineBiasDeg: number;
+  shiftDeg: number;
+  fleetSize: FleetSize;
+}): {
+  target: string;
+  reason: string;
+} {
+  const strongestSignal = Math.max(
+    Math.abs(params.lineBiasDeg),
+    Math.abs(params.shiftDeg)
+  );
+  const heavyTraffic = params.fleetSize === "large";
+  const moderateTraffic = params.fleetSize === "medium";
+  const mentionsEnd =
+    params.call.includes("committee") || params.call.includes("pin");
+
+  if (!mentionsEnd || strongestSignal < 5) {
+    return {
+      target: "Middle third",
+      reason:
+        "The signal is modest, so a clean middle-third lane keeps both first-shift options open.",
+    };
+  }
+
+  if (strongestSignal >= 15 && !heavyTraffic) {
+    return {
+      target: params.call.includes("committee")
+        ? "Upper third, close to committee"
+        : "Lower third, close to pin",
+      reason:
+        "The signal is strong enough to move toward the favored end, but still leave an escape lane.",
+    };
+  }
+
+  if (heavyTraffic || moderateTraffic) {
+    return {
+      target: params.call.includes("committee")
+        ? "One-third down from committee"
+        : "One-third up from pin",
+      reason:
+        "The favored end is likely crowded. Starting just off it lowers the pileup risk while keeping most of the advantage.",
+    };
+  }
+
+  return {
+    target: params.call.includes("committee") ? "Committee half" : "Pin half",
+    reason:
+      "The bias matters, but lane quality still beats winning the exact end and getting trapped.",
+  };
+}
+
+function getApproachScript(params: {
+  approachTravelSeconds: number;
+  tackAllowanceSeconds: number;
+  targetSetupSeconds: number;
+}) {
+  const leaveAt =
+    params.approachTravelSeconds +
+    params.tackAllowanceSeconds +
+    params.targetSetupSeconds;
+
+  return {
+    leaveAt,
+    tackBy: params.targetSetupSeconds,
+    text: `Leave the reference end with about ${leaveAt}s to go, allowing ${params.approachTravelSeconds}s to reach the hole, ${params.tackAllowanceSeconds}s for the tack/setup, and aiming to be on starboard by ${params.targetSetupSeconds}s.`,
   };
 }
 
@@ -334,6 +405,10 @@ export default function StartPage() {
   const [pinToCommitteeBearing, setPinToCommitteeBearing] = useState(30);
   const [referenceWindDeg, setReferenceWindDeg] = useState(300);
   const [currentWindDeg, setCurrentWindDeg] = useState(300);
+  const [fleetSize, setFleetSize] = useState<FleetSize>("medium");
+  const [approachTravelSeconds, setApproachTravelSeconds] = useState(40);
+  const [tackAllowanceSeconds, setTackAllowanceSeconds] = useState(12);
+  const [targetSetupSeconds, setTargetSetupSeconds] = useState(60);
 
   const lineBias = useMemo(
     () =>
@@ -362,6 +437,27 @@ export default function StartPage() {
         shiftDeg: windShiftBias.shiftDeg,
       }),
     [lineBias.favoredEnd, lineBias.lineBiasDeg, windShiftBias.favoredEnd, windShiftBias.shiftDeg]
+  );
+
+  const targetZone = useMemo(
+    () =>
+      getTargetZone({
+        call: startAreaCall.call,
+        lineBiasDeg: lineBias.lineBiasDeg,
+        shiftDeg: windShiftBias.shiftDeg,
+        fleetSize,
+      }),
+    [fleetSize, lineBias.lineBiasDeg, startAreaCall.call, windShiftBias.shiftDeg]
+  );
+
+  const approachScript = useMemo(
+    () =>
+      getApproachScript({
+        approachTravelSeconds,
+        tackAllowanceSeconds,
+        targetSetupSeconds,
+      }),
+    [approachTravelSeconds, tackAllowanceSeconds, targetSetupSeconds]
   );
 
   const message = useMemo<MessageState>(
@@ -566,6 +662,112 @@ export default function StartPage() {
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+
+        <div className="mt-5 grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
+          <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+            <div className="text-xs uppercase tracking-[0.2em] opacity-50">
+              Target zone
+            </div>
+            <div className="mt-2 text-2xl font-bold">{targetZone.target}</div>
+            <p className="mt-2 text-sm leading-6 opacity-75">{targetZone.reason}</p>
+
+            <label className="mt-4 block">
+              <span className="mb-1 block text-xs font-semibold uppercase tracking-wide opacity-60">
+                Fleet size / traffic
+              </span>
+              <select
+                value={fleetSize}
+                onChange={(event) => setFleetSize(event.target.value as FleetSize)}
+                className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2 outline-none"
+              >
+                <option value="small">Small fleet / open line</option>
+                <option value="medium">Medium fleet</option>
+                <option value="large">Large fleet / crowded end</option>
+              </select>
+            </label>
+          </div>
+
+          <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+            <div className="text-xs uppercase tracking-[0.2em] opacity-50">
+              Approach script
+            </div>
+            <div className="mt-2 text-sm leading-6 opacity-80">
+              {approachScript.text}
+            </div>
+
+            <div className="mt-4 grid grid-cols-3 gap-3">
+              <label className="block">
+                <span className="mb-1 block text-[11px] font-semibold uppercase tracking-wide opacity-60">
+                  Travel
+                </span>
+                <input
+                  type="number"
+                  min={0}
+                  value={approachTravelSeconds}
+                  onChange={(event) =>
+                    setApproachTravelSeconds(Number(event.target.value))
+                  }
+                  className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2 outline-none"
+                />
+              </label>
+
+              <label className="block">
+                <span className="mb-1 block text-[11px] font-semibold uppercase tracking-wide opacity-60">
+                  Tack
+                </span>
+                <input
+                  type="number"
+                  min={0}
+                  value={tackAllowanceSeconds}
+                  onChange={(event) =>
+                    setTackAllowanceSeconds(Number(event.target.value))
+                  }
+                  className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2 outline-none"
+                />
+              </label>
+
+              <label className="block">
+                <span className="mb-1 block text-[11px] font-semibold uppercase tracking-wide opacity-60">
+                  Set
+                </span>
+                <input
+                  type="number"
+                  min={0}
+                  value={targetSetupSeconds}
+                  onChange={(event) =>
+                    setTargetSetupSeconds(Number(event.target.value))
+                  }
+                  className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2 outline-none"
+                />
+              </label>
+            </div>
+
+            <div className="mt-4 grid grid-cols-2 gap-3">
+              <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+                <div className="text-[11px] uppercase tracking-[0.18em] opacity-50">
+                  Leave reference end
+                </div>
+                <div className="mt-1 text-lg font-semibold">
+                  -{approachScript.leaveAt}s
+                </div>
+              </div>
+              <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+                <div className="text-[11px] uppercase tracking-[0.18em] opacity-50">
+                  On starboard by
+                </div>
+                <div className="mt-1 text-lg font-semibold">
+                  -{approachScript.tackBy}s
+                </div>
+              </div>
+            </div>
+
+            <ul className="mt-4 space-y-2 text-sm leading-6 opacity-75">
+              <li>Keep water moving over the foils; dead slow removes your steering options.</li>
+              <li>If you are early, head up to slow down before burning the leeward hole.</li>
+              <li>In the final 15-20 seconds, match the boats to weather and preserve runway to leeward.</li>
+            </ul>
           </div>
         </div>
       </div>
