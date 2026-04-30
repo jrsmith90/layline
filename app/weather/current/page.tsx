@@ -3,6 +3,7 @@
 import CurrentSetupCard from "@/components/weather/CurrentSetupCard"
 import CurrentSourcePicker from "@/components/weather/CurrentSourcePicker"
 import TideSourcePicker from "@/components/weather/TideSourcePicker"
+import { TroubleshootLiveContextPanel } from "@/components/troubleshoot/TroubleshootLiveContextPanel"
 import {
   DEFAULT_CURRENT_REFERENCE_ID,
   DEFAULT_TIDE_REFERENCE_ID,
@@ -57,6 +58,10 @@ export default function WeatherCurrentPage() {
           tideReading={tideReading}
           windDirectionDeg={210}
         />
+
+        <div className="mt-6">
+          <TroubleshootLiveContextPanel />
+        </div>
 
         <section className="mt-6 rounded-2xl border border-slate-800 bg-slate-900/40 p-5">
           <h2 className="text-lg font-semibold text-white">How to use it</h2>

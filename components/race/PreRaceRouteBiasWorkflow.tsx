@@ -1,16 +1,44 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { getRouteBiasInputs } from "@/data/race/getRouteBiasInputs";
 import PreRaceRouteBiasForm from "@/components/race/PreRaceRouteBiasForm";
 import LiveRouteUpdateCard from "@/components/race/LiveRouteUpdateCard";
 import { LiveInstrumentsPanel } from "@/components/gps/LiveInstrumentsPanel";
+import { TroubleshootLiveContextPanel } from "@/components/troubleshoot/TroubleshootLiveContextPanel";
 import { getLiveRouteUpdate } from "@/lib/race/getLiveRouteUpdate";
 import type { RouteBiasSnapshot } from "@/lib/race/checkPlanValidity";
 import type { RouteBiasAnswers } from "@/lib/race/scoreRouteBias";
 import type { OpeningLegType, WindTrend, PressureSide, CurrentSide, EdgeStrength } from "@/data/race/getRouteBiasInputs";
 
 type RouteBiasResult = RouteBiasSnapshot;
+
+type LiveWeatherSource = {
+  windAvgKt?: number;
+  windGustKt?: number;
+  windDirectionDeg?: number;
+  trend?: {
+    trend: "building" | "easing" | "steady" | "unknown";
+  };
+};
+
+type LiveWeatherContext = {
+  stationName?: string;
+  windAvgKt?: number;
+  windGustKt?: number;
+  windDirectionDeg?: number;
+  thomasPoint?: LiveWeatherSource & {
+    stationName?: string;
+  };
+  cbibsAnnapolis?: LiveWeatherSource & {
+    platformName?: string;
+    waveHeightFt?: number;
+    wavePeriodSec?: number;
+  };
+  historyTrend?: {
+    trend: "building" | "easing" | "steady" | "unknown";
+  };
+};
 
 type LatestConditionsValues = {
   courseId: string;
@@ -53,16 +81,99 @@ function formatConfidence(confidence: string): string {
   return confidence.charAt(0).toUpperCase() + confidence.slice(1);
 }
 
+function mapLiveTrendToRouteTrend(
+  trend?: "building" | "easing" | "steady" | "unknown"
+): WindTrend {
+  if (trend === "building") return "building";
+  if (trend === "easing") return "fading";
+  if (trend === "steady") return "steady";
+  return "unknown";
+}
+
+function getPrimaryLiveWind(context: LiveWeatherContext | null) {
+  if (!context) return null;
+
+  if (context.thomasPoint?.windAvgKt != null) {
+    return {
+      label: context.thomasPoint.stationName ?? "Thomas Point",
+      windAvgKt: context.thomasPoint.windAvgKt,
+      windGustKt: context.thomasPoint.windGustKt,
+      windDirectionDeg: context.thomasPoint.windDirectionDeg,
+      trend: context.thomasPoint.trend?.trend,
+    };
+  }
+
+  if (context.cbibsAnnapolis?.windAvgKt != null) {
+    return {
+      label: context.cbibsAnnapolis.platformName ?? "Annapolis buoy",
+      windAvgKt: context.cbibsAnnapolis.windAvgKt,
+      windGustKt: context.cbibsAnnapolis.windGustKt,
+      windDirectionDeg: context.cbibsAnnapolis.windDirectionDeg,
+      trend: context.historyTrend?.trend,
+    };
+  }
+
+  if (context.windAvgKt != null) {
+    return {
+      label: context.stationName ?? "KNAK",
+      windAvgKt: context.windAvgKt,
+      windGustKt: context.windGustKt,
+      windDirectionDeg: context.windDirectionDeg,
+      trend: context.historyTrend?.trend,
+    };
+  }
+
+  return null;
+}
+
 export default function PreRaceRouteBiasWorkflow() {
   const [originalPlan, setOriginalPlan] = useState<RouteBiasResult | null>(null);
   const [latestValues, setLatestValues] = useState<LatestConditionsValues>(initialLatestValues);
   const [liveUpdate, setLiveUpdate] = useState<ReturnType<typeof getLiveRouteUpdate> | null>(null);
   const [latestError, setLatestError] = useState<string | null>(null);
+  const [liveWeather, setLiveWeather] = useState<LiveWeatherContext | null>(null);
+  const [liveWeatherError, setLiveWeatherError] = useState<string | null>(null);
 
   const latestConfig = useMemo(
     () => getRouteBiasInputs(latestValues.courseId),
     [latestValues.courseId]
   );
+  const primaryLiveWind = useMemo(() => getPrimaryLiveWind(liveWeather), [liveWeather]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadLiveWeather() {
+      try {
+        setLiveWeatherError(null);
+        const response = await fetch("/api/weather/noaa-wind", {
+          cache: "no-store",
+        });
+        const data = (await response.json()) as LiveWeatherContext & { error?: string };
+
+        if (cancelled) return;
+
+        if (!response.ok || data.error) {
+          setLiveWeatherError(data.error ?? "Live weather unavailable.");
+          setLiveWeather(null);
+          return;
+        }
+
+        setLiveWeather(data);
+      } catch (error) {
+        if (!cancelled) {
+          setLiveWeatherError(error instanceof Error ? error.message : "Live weather unavailable.");
+          setLiveWeather(null);
+        }
+      }
+    }
+
+    loadLiveWeather();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   function updateLatestField<K extends keyof LatestConditionsValues>(
     key: K,
@@ -154,9 +265,28 @@ export default function PreRaceRouteBiasWorkflow() {
     }
   }
 
+  function applyLiveWindToLatest() {
+    if (!primaryLiveWind) {
+      setLatestError("No live wind source is available yet.");
+      return;
+    }
+
+    setLatestError(null);
+    setLatestValues((prev) => ({
+      ...prev,
+      windDirectionDeg:
+        primaryLiveWind.windDirectionDeg == null
+          ? prev.windDirectionDeg
+          : String(Math.round(primaryLiveWind.windDirectionDeg)),
+      windSpeedKt: String(primaryLiveWind.windAvgKt.toFixed(1)),
+      windTrend: mapLiveTrendToRouteTrend(primaryLiveWind.trend),
+    }));
+  }
+
   return (
     <div className="space-y-6">
       <LiveInstrumentsPanel context="route" />
+      <TroubleshootLiveContextPanel />
 
       <PreRaceRouteBiasForm onPlanReady={handleOriginalPlanReady} />
 
@@ -183,6 +313,29 @@ export default function PreRaceRouteBiasWorkflow() {
           </div>
 
           <form onSubmit={handleLatestSubmit} className="mt-5 space-y-5">
+            <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <div className="text-xs uppercase tracking-wide text-white/50">
+                    Live route seed
+                  </div>
+                  <p className="mt-1 text-sm text-white/75">
+                    {primaryLiveWind
+                      ? `${primaryLiveWind.label}: ${primaryLiveWind.windAvgKt.toFixed(1)} kt${primaryLiveWind.windGustKt != null ? `, gust ${primaryLiveWind.windGustKt.toFixed(1)} kt` : ""}${primaryLiveWind.windDirectionDeg != null ? ` from ${Math.round(primaryLiveWind.windDirectionDeg)} deg` : ""}`
+                      : liveWeatherError ?? "Loading live wind context..."}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={applyLiveWindToLatest}
+                  disabled={!primaryLiveWind}
+                  className="rounded-md bg-white px-4 py-2 text-sm font-medium text-slate-900 disabled:opacity-40"
+                >
+                  Use live wind
+                </button>
+              </div>
+            </div>
+
             <div className="grid gap-4 md:grid-cols-2">
               <label className="block">
                 <span className="mb-1 block text-sm font-medium">Which course is active now?</span>
