@@ -11,6 +11,7 @@ type LeewardPressure = "NONE" | "BUILDING" | "CLEAR";
 type MessageState = "hold" | "prep_bail" | "bail_now";
 type StartEnd = "committee" | "pin" | "even";
 type FleetSize = "small" | "medium" | "large";
+type WindStability = "steady" | "oscillating" | "shifty";
 
 function normalizeDegrees(value: number) {
   return ((value % 360) + 360) % 360;
@@ -231,6 +232,83 @@ function getApproachScript(params: {
   };
 }
 
+function getCommitteeIntentRead(params: {
+  lineBiasDeg: number;
+  shiftDeg: number;
+  firstLegSquareOffsetDeg: number;
+  lineLengthBoatLengths: number;
+  fleetBoats: number;
+  windStability: WindStability;
+}): {
+  title: string;
+  risk: string;
+  confidence: "High" | "Medium" | "Low";
+  notes: string[];
+} {
+  const lineBias = Math.abs(params.lineBiasDeg);
+  const shift = Math.abs(params.shiftDeg);
+  const firstLegOffset = Math.abs(params.firstLegSquareOffsetDeg);
+  const boatsPerLineLength =
+    params.lineLengthBoatLengths > 0
+      ? params.fleetBoats / params.lineLengthBoatLengths
+      : 1;
+  const notes: string[] = [];
+
+  if (lineBias < 5 && firstLegOffset < 10) {
+    notes.push("The line looks close to the race-committee target: square to wind and generally square to the first leg.");
+  } else if (lineBias >= 10 || firstLegOffset >= 15) {
+    notes.push("The line/course setup is far enough off square that one end may attract traffic quickly.");
+  } else {
+    notes.push("The setup is a little off square. Treat it as a useful signal, not an automatic end start.");
+  }
+
+  if (params.windStability === "shifty") {
+    notes.push("The wind is moving around enough that a favored end may be temporary.");
+  } else if (params.windStability === "oscillating") {
+    notes.push("Oscillating breeze lowers confidence in a hard end commitment.");
+  } else {
+    notes.push("Steadier breeze makes the geometry read more trustworthy.");
+  }
+
+  if (boatsPerLineLength > 0.28) {
+    notes.push("The line is short for the fleet. Avoid being lured into a packed favored end unless the signal is very strong.");
+  } else if (boatsPerLineLength > 0.18) {
+    notes.push("Line length is workable but traffic still matters. Plan a second-row escape before choosing an end.");
+  } else {
+    notes.push("There appears to be enough line length to prioritize the best tactical lane.");
+  }
+
+  if (lineBias >= 8 && shift >= 8 && Math.sign(params.lineBiasDeg) !== Math.sign(params.shiftDeg)) {
+    notes.push("Race committee geometry and wind shift disagree. Sail the first beat plan more than the exact line bias.");
+  }
+
+  const confidence =
+    params.windStability === "shifty" || boatsPerLineLength > 0.28
+      ? "Low"
+      : lineBias >= 10 || shift >= 10
+        ? "Medium"
+        : "High";
+
+  return {
+    title:
+      confidence === "High"
+        ? "Committee likely set a fair line"
+        : confidence === "Medium"
+          ? "Useful signal, traffic-sensitive"
+          : "Low-confidence line read",
+    risk:
+      boatsPerLineLength > 0.28
+        ? "Short-line crowd risk"
+        : params.windStability === "shifty"
+          ? "Shifty-wind risk"
+          : firstLegOffset >= 15
+            ? "Course-square risk"
+            : "Normal start risk",
+    confidence,
+    notes: notes.slice(0, 4),
+  };
+}
+
 function getStartMessage(params: {
   forwardEscape: ForwardEscape;
   windwardThreat: WindwardThreat;
@@ -409,6 +487,9 @@ export default function StartPage() {
   const [approachTravelSeconds, setApproachTravelSeconds] = useState(40);
   const [tackAllowanceSeconds, setTackAllowanceSeconds] = useState(12);
   const [targetSetupSeconds, setTargetSetupSeconds] = useState(60);
+  const [lineLengthBoatLengths, setLineLengthBoatLengths] = useState(45);
+  const [fleetBoats, setFleetBoats] = useState(9);
+  const [windStability, setWindStability] = useState<WindStability>("oscillating");
 
   const lineBias = useMemo(
     () =>
@@ -458,6 +539,29 @@ export default function StartPage() {
         targetSetupSeconds,
       }),
     [approachTravelSeconds, tackAllowanceSeconds, targetSetupSeconds]
+  );
+  const firstLegSquareOffsetDeg = useMemo(
+    () => signedAngleDiff(windwardMarkBearing, currentWindDeg),
+    [currentWindDeg, windwardMarkBearing]
+  );
+  const committeeIntentRead = useMemo(
+    () =>
+      getCommitteeIntentRead({
+        lineBiasDeg: lineBias.lineBiasDeg,
+        shiftDeg: windShiftBias.shiftDeg,
+        firstLegSquareOffsetDeg,
+        lineLengthBoatLengths,
+        fleetBoats,
+        windStability,
+      }),
+    [
+      firstLegSquareOffsetDeg,
+      fleetBoats,
+      lineBias.lineBiasDeg,
+      lineLengthBoatLengths,
+      windShiftBias.shiftDeg,
+      windStability,
+    ]
   );
 
   const message = useMemo<MessageState>(
@@ -661,6 +765,85 @@ export default function StartPage() {
                   Bigger signal drives the call.
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-5 grid gap-4 lg:grid-cols-[1fr_1.25fr]">
+          <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+            <div className="text-xs uppercase tracking-[0.2em] opacity-50">
+              Race committee read
+            </div>
+            <div className="mt-2 text-xl font-bold">{committeeIntentRead.title}</div>
+            <div className="mt-1 text-sm font-semibold opacity-75">
+              {committeeIntentRead.risk} · {committeeIntentRead.confidence} confidence
+            </div>
+
+            <div className="mt-4 grid grid-cols-2 gap-3">
+              <label className="block">
+                <span className="mb-1 block text-[11px] font-semibold uppercase tracking-wide opacity-60">
+                  Line length
+                </span>
+                <input
+                  type="number"
+                  min={1}
+                  value={lineLengthBoatLengths}
+                  onChange={(event) =>
+                    setLineLengthBoatLengths(Number(event.target.value))
+                  }
+                  className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2 outline-none"
+                />
+                <span className="mt-1 block text-xs opacity-55">boat lengths</span>
+              </label>
+
+              <label className="block">
+                <span className="mb-1 block text-[11px] font-semibold uppercase tracking-wide opacity-60">
+                  Fleet boats
+                </span>
+                <input
+                  type="number"
+                  min={1}
+                  value={fleetBoats}
+                  onChange={(event) => setFleetBoats(Number(event.target.value))}
+                  className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2 outline-none"
+                />
+              </label>
+            </div>
+
+            <label className="mt-3 block">
+              <span className="mb-1 block text-[11px] font-semibold uppercase tracking-wide opacity-60">
+                Wind stability
+              </span>
+              <select
+                value={windStability}
+                onChange={(event) =>
+                  setWindStability(event.target.value as WindStability)
+                }
+                className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2 outline-none"
+              >
+                <option value="steady">Steady</option>
+                <option value="oscillating">Oscillating</option>
+                <option value="shifty">Shifty / unstable</option>
+              </select>
+            </label>
+          </div>
+
+          <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+            <div className="text-xs uppercase tracking-[0.2em] opacity-50">
+              How to use the committee read
+            </div>
+            <ul className="mt-3 space-y-2 text-sm leading-6 opacity-80">
+              {committeeIntentRead.notes.map((note) => (
+                <li key={note} className="flex gap-3">
+                  <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-sky-300" />
+                  <span>{note}</span>
+                </li>
+              ))}
+            </ul>
+            <div className="mt-4 rounded-xl border border-white/10 bg-white/5 p-3 text-sm leading-6 opacity-75">
+              A race committee usually tries to set a fair, square, usable line.
+              If your calculator shows a big advantage, ask whether it is a real
+              opportunity, a temporary shift, or a traffic trap.
             </div>
           </div>
         </div>
