@@ -5,6 +5,7 @@ import { usePhoneGps } from "@/components/gps/PhoneGpsProvider"
 import CurrentReferenceCard from "@/components/weather/CurrentReferenceCard"
 import WindSourcePicker from "@/components/weather/WindSourcePicker"
 import { DEFAULT_WIND_REFERENCE_ID } from "@/lib/weather/config/currentLocations"
+import { readJsonResponse } from "@/lib/readJsonResponse"
 
 type WindSourceId =
   | "thomas_point_wind"
@@ -115,7 +116,7 @@ export default function WindSourcePanel() {
         const response = await fetch("/api/weather/noaa-wind", {
           cache: "no-store",
         })
-        const data = (await response.json()) as WeatherPayload
+        const data = await readJsonResponse<WeatherPayload>(response)
 
         if (cancelled) return
 
@@ -166,7 +167,7 @@ export default function WindSourcePanel() {
         const response = await fetch(`/api/weather/ship-reports?${params.toString()}`, {
           cache: "no-store",
         })
-        const data = (await response.json()) as NearbyPayload
+        const data = await readJsonResponse<NearbyPayload>(response)
 
         if (cancelled) return
 

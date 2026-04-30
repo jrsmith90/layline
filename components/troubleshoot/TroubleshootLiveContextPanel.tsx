@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { usePhoneGps } from "@/components/gps/PhoneGpsProvider";
+import { readJsonResponse } from "@/lib/readJsonResponse";
 import {
   buildTroubleshootContextCues,
   buildTroubleshootContextSummary,
@@ -232,7 +233,7 @@ export function TroubleshootLiveContextPanel() {
         const response = await fetch("/api/weather/noaa-wind", {
           cache: "no-store",
         });
-        const data = (await response.json()) as NoaaWind;
+        const data = await readJsonResponse<NoaaWind>(response);
 
         if (cancelled) return;
 
@@ -286,7 +287,7 @@ export function TroubleshootLiveContextPanel() {
         const response = await fetch(`/api/weather/ship-reports?${params.toString()}`, {
           cache: "no-store",
         });
-        const data = (await response.json()) as NearbyObservations;
+        const data = await readJsonResponse<NearbyObservations>(response);
 
         if (cancelled) return;
 

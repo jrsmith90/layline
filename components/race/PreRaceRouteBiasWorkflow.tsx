@@ -7,6 +7,7 @@ import LiveRouteUpdateCard from "@/components/race/LiveRouteUpdateCard";
 import { LiveInstrumentsPanel } from "@/components/gps/LiveInstrumentsPanel";
 import { TroubleshootLiveContextPanel } from "@/components/troubleshoot/TroubleshootLiveContextPanel";
 import { getLiveRouteUpdate } from "@/lib/race/getLiveRouteUpdate";
+import { readJsonResponse } from "@/lib/readJsonResponse";
 import type { RouteBiasSnapshot } from "@/lib/race/checkPlanValidity";
 import type { RouteBiasAnswers } from "@/lib/race/scoreRouteBias";
 import type { OpeningLegType, WindTrend, PressureSide, CurrentSide, EdgeStrength } from "@/data/race/getRouteBiasInputs";
@@ -149,7 +150,7 @@ export default function PreRaceRouteBiasWorkflow() {
         const response = await fetch("/api/weather/noaa-wind", {
           cache: "no-store",
         });
-        const data = (await response.json()) as LiveWeatherContext & { error?: string };
+        const data = await readJsonResponse<LiveWeatherContext & { error?: string }>(response);
 
         if (cancelled) return;
 

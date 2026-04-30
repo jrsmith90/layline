@@ -9,6 +9,7 @@ import {
   type PressureSide,
   type WindTrend
 } from "@/data/race/getRouteBiasInputs";
+import { readJsonResponse } from "@/lib/readJsonResponse";
 
 type RouteBiasDecision = "shore_first" | "bay_first" | "neutral" | "mixed_signal";
 type RouteBiasConfidence = "low" | "medium" | "high";
@@ -142,7 +143,7 @@ export default function PreRaceRouteBiasForm({ onPlanReady }: PreRaceRouteBiasFo
         })
       });
 
-      const data = await response.json();
+      const data = await readJsonResponse<RouteBiasResult & { details?: string; error?: string }>(response);
 
       if (!response.ok) {
         throw new Error(data?.details || data?.error || "Request failed");
