@@ -9,6 +9,156 @@ type ForwardEscape = "YES" | "MAYBE" | "NO";
 type WindwardThreat = "NONE" | "PRESENT" | "CONTROLLING";
 type LeewardPressure = "NONE" | "BUILDING" | "CLEAR";
 type MessageState = "hold" | "prep_bail" | "bail_now";
+type StartEnd = "committee" | "pin" | "even";
+
+function normalizeDegrees(value: number) {
+  return ((value % 360) + 360) % 360;
+}
+
+function signedAngleDiff(from: number, to: number) {
+  return ((to - from + 540) % 360) - 180;
+}
+
+function getLineBias(params: {
+  windwardMarkBearing: number;
+  pinToCommitteeBearing: number;
+}): {
+  idealPinToCommitteeBearing: number;
+  lineBiasDeg: number;
+  favoredEnd: StartEnd;
+  label: string;
+} {
+  const idealPinToCommitteeBearing = normalizeDegrees(
+    params.windwardMarkBearing + 90
+  );
+  const lineBiasDeg = signedAngleDiff(
+    idealPinToCommitteeBearing,
+    params.pinToCommitteeBearing
+  );
+
+  if (Math.abs(lineBiasDeg) < 5) {
+    return {
+      idealPinToCommitteeBearing,
+      lineBiasDeg,
+      favoredEnd: "even",
+      label: "Line is close to square",
+    };
+  }
+
+  if (lineBiasDeg < 0) {
+    return {
+      idealPinToCommitteeBearing,
+      lineBiasDeg,
+      favoredEnd: "committee",
+      label: "Committee end is higher",
+    };
+  }
+
+  return {
+    idealPinToCommitteeBearing,
+    lineBiasDeg,
+    favoredEnd: "pin",
+    label: "Pin end is higher",
+  };
+}
+
+function getWindShiftBias(params: {
+  referenceWindDeg: number;
+  currentWindDeg: number;
+}): {
+  shiftDeg: number;
+  favoredEnd: StartEnd;
+  label: string;
+} {
+  const shiftDeg = signedAngleDiff(params.referenceWindDeg, params.currentWindDeg);
+
+  if (Math.abs(shiftDeg) < 5) {
+    return {
+      shiftDeg,
+      favoredEnd: "even",
+      label: "Wind shift is small",
+    };
+  }
+
+  if (shiftDeg > 0) {
+    return {
+      shiftDeg,
+      favoredEnd: "committee",
+      label: "Right shift favors committee / right-side setup",
+    };
+  }
+
+  return {
+    shiftDeg,
+    favoredEnd: "pin",
+    label: "Left shift favors pin / left-side setup",
+  };
+}
+
+function getStartAreaCall(params: {
+  lineFavoredEnd: StartEnd;
+  windFavoredEnd: StartEnd;
+  lineBiasDeg: number;
+  shiftDeg: number;
+}): {
+  call: string;
+  reason: string;
+  toneClass: string;
+} {
+  const lineWeight = Math.abs(params.lineBiasDeg);
+  const windWeight = Math.abs(params.shiftDeg);
+  const lineMatters = lineWeight >= 5;
+  const windMatters = windWeight >= 5;
+
+  if (!lineMatters && !windMatters) {
+    return {
+      call: "Start central and flexible",
+      reason:
+        "Neither the line geometry nor the wind shift is strong enough to force an end. Prioritize lane quality, time-distance, and acceleration.",
+      toneClass: "border-sky-400/35 bg-sky-400/10 text-sky-100",
+    };
+  }
+
+  if (
+    params.lineFavoredEnd !== "even" &&
+    params.lineFavoredEnd === params.windFavoredEnd
+  ) {
+    const end = params.lineFavoredEnd === "committee" ? "committee" : "pin";
+    return {
+      call: `Favor the ${end} end`,
+      reason:
+        "Line bias and wind shift point the same way. If you can get clear air and avoid being trapped, that end has the strongest signal.",
+      toneClass: "border-green-400/35 bg-green-400/10 text-green-100",
+    };
+  }
+
+  if (lineWeight > windWeight + 2 && params.lineFavoredEnd !== "even") {
+    const end = params.lineFavoredEnd === "committee" ? "committee" : "pin";
+    return {
+      call: `Lean ${end}, but protect your lane`,
+      reason:
+        "The line setup is the stronger signal. Do not force the end if it is crowded or if you cannot launch cleanly.",
+      toneClass: "border-yellow-300/35 bg-yellow-300/10 text-yellow-100",
+    };
+  }
+
+  if (windWeight > lineWeight + 2 && params.windFavoredEnd !== "even") {
+    const end = params.windFavoredEnd === "committee" ? "committee" : "pin";
+    return {
+      call: `Lean ${end} for the wind shift`,
+      reason:
+        "The wind shift is stronger than the line geometry. Use the favored end only if it also sets up the first beat.",
+      toneClass: "border-yellow-300/35 bg-yellow-300/10 text-yellow-100",
+    };
+  }
+
+  return {
+    call: "Signals conflict",
+    reason:
+      "Line bias and wind shift are pulling different ways. Start where you can win a clean lane and execute the first-leg plan.",
+    toneClass: "border-orange-400/35 bg-orange-400/10 text-orange-100",
+  };
+}
 
 function getStartMessage(params: {
   forwardEscape: ForwardEscape;
@@ -180,6 +330,39 @@ export default function StartPage() {
   const [windwardThreat, setWindwardThreat] = useState<WindwardThreat>("NONE");
   const [leewardPressure, setLeewardPressure] = useState<LeewardPressure>("NONE");
   const [timeToStart, setTimeToStart] = useState(45);
+  const [windwardMarkBearing, setWindwardMarkBearing] = useState(300);
+  const [pinToCommitteeBearing, setPinToCommitteeBearing] = useState(30);
+  const [referenceWindDeg, setReferenceWindDeg] = useState(300);
+  const [currentWindDeg, setCurrentWindDeg] = useState(300);
+
+  const lineBias = useMemo(
+    () =>
+      getLineBias({
+        windwardMarkBearing,
+        pinToCommitteeBearing,
+      }),
+    [pinToCommitteeBearing, windwardMarkBearing]
+  );
+
+  const windShiftBias = useMemo(
+    () =>
+      getWindShiftBias({
+        referenceWindDeg,
+        currentWindDeg,
+      }),
+    [currentWindDeg, referenceWindDeg]
+  );
+
+  const startAreaCall = useMemo(
+    () =>
+      getStartAreaCall({
+        lineFavoredEnd: lineBias.favoredEnd,
+        windFavoredEnd: windShiftBias.favoredEnd,
+        lineBiasDeg: lineBias.lineBiasDeg,
+        shiftDeg: windShiftBias.shiftDeg,
+      }),
+    [lineBias.favoredEnd, lineBias.lineBiasDeg, windShiftBias.favoredEnd, windShiftBias.shiftDeg]
+  );
 
   const message = useMemo<MessageState>(
     () =>
@@ -235,6 +418,157 @@ export default function StartPage() {
       </div>
 
       <LiveInstrumentsPanel context="start" />
+
+      <div className="rounded-2xl border border-white/10 bg-white/5 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <div className="text-xs uppercase tracking-[0.2em] opacity-50">
+              Start Line Bias
+            </div>
+            <h2 className="mt-1 text-xl font-semibold">Line geometry + wind shift</h2>
+            <p className="mt-1 text-sm leading-6 opacity-70">
+              Use the line angle and the latest wind shift to decide whether the
+              committee end, pin end, or a central lane has the best risk/reward.
+            </p>
+          </div>
+          <div className="rounded-full border border-white/10 bg-black/20 px-3 py-1 text-xs font-semibold uppercase tracking-wide opacity-75">
+            5 deg threshold
+          </div>
+        </div>
+
+        <div className="mt-5 grid gap-4 md:grid-cols-2">
+          <div className="grid grid-cols-2 gap-3">
+            <label className="block">
+              <span className="mb-1 block text-xs font-semibold uppercase tracking-wide opacity-60">
+                Windward mark bearing
+              </span>
+              <input
+                type="number"
+                min={0}
+                max={359}
+                value={windwardMarkBearing}
+                onChange={(event) =>
+                  setWindwardMarkBearing(normalizeDegrees(Number(event.target.value)))
+                }
+                className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2 outline-none"
+              />
+            </label>
+
+            <label className="block">
+              <span className="mb-1 block text-xs font-semibold uppercase tracking-wide opacity-60">
+                Pin to committee bearing
+              </span>
+              <input
+                type="number"
+                min={0}
+                max={359}
+                value={pinToCommitteeBearing}
+                onChange={(event) =>
+                  setPinToCommitteeBearing(normalizeDegrees(Number(event.target.value)))
+                }
+                className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2 outline-none"
+              />
+            </label>
+
+            <label className="block">
+              <span className="mb-1 block text-xs font-semibold uppercase tracking-wide opacity-60">
+                Reference wind
+              </span>
+              <input
+                type="number"
+                min={0}
+                max={359}
+                value={referenceWindDeg}
+                onChange={(event) =>
+                  setReferenceWindDeg(normalizeDegrees(Number(event.target.value)))
+                }
+                className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2 outline-none"
+              />
+            </label>
+
+            <label className="block">
+              <span className="mb-1 block text-xs font-semibold uppercase tracking-wide opacity-60">
+                Current wind
+              </span>
+              <input
+                type="number"
+                min={0}
+                max={359}
+                value={currentWindDeg}
+                onChange={(event) =>
+                  setCurrentWindDeg(normalizeDegrees(Number(event.target.value)))
+                }
+                className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2 outline-none"
+              />
+            </label>
+          </div>
+
+          <div className="space-y-3">
+            <div className={["rounded-2xl border p-4", startAreaCall.toneClass].join(" ")}>
+              <div className="text-xs uppercase tracking-[0.2em] opacity-70">
+                Start area call
+              </div>
+              <div className="mt-1 text-2xl font-bold">{startAreaCall.call}</div>
+              <p className="mt-2 text-sm leading-6 opacity-85">
+                {startAreaCall.reason}
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="rounded-xl border border-white/10 bg-black/20 p-3">
+                <div className="text-[11px] uppercase tracking-[0.18em] opacity-50">
+                  Ideal line
+                </div>
+                <div className="mt-1 text-sm font-semibold">
+                  {Math.round(lineBias.idealPinToCommitteeBearing)} deg
+                </div>
+                <div className="mt-1 text-xs opacity-65">{lineBias.label}</div>
+              </div>
+
+              <div className="rounded-xl border border-white/10 bg-black/20 p-3">
+                <div className="text-[11px] uppercase tracking-[0.18em] opacity-50">
+                  Line bias
+                </div>
+                <div className="mt-1 text-sm font-semibold">
+                  {Math.abs(lineBias.lineBiasDeg).toFixed(1)} deg
+                </div>
+                <div className="mt-1 text-xs opacity-65">
+                  {lineBias.favoredEnd === "even"
+                    ? "Even"
+                    : `${lineBias.favoredEnd} favored`}
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-white/10 bg-black/20 p-3">
+                <div className="text-[11px] uppercase tracking-[0.18em] opacity-50">
+                  Wind shift
+                </div>
+                <div className="mt-1 text-sm font-semibold">
+                  {windShiftBias.shiftDeg > 0 ? "+" : ""}
+                  {windShiftBias.shiftDeg.toFixed(1)} deg
+                </div>
+                <div className="mt-1 text-xs opacity-65">{windShiftBias.label}</div>
+              </div>
+
+              <div className="rounded-xl border border-white/10 bg-black/20 p-3">
+                <div className="text-[11px] uppercase tracking-[0.18em] opacity-50">
+                  Priority
+                </div>
+                <div className="mt-1 text-sm font-semibold">
+                  {Math.abs(lineBias.lineBiasDeg) > Math.abs(windShiftBias.shiftDeg)
+                    ? "Line setup"
+                    : Math.abs(windShiftBias.shiftDeg) > Math.abs(lineBias.lineBiasDeg)
+                      ? "Wind shift"
+                      : "Balanced"}
+                </div>
+                <div className="mt-1 text-xs opacity-65">
+                  Bigger signal drives the call.
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
 
       <div className="rounded-2xl border border-white/10 bg-white/5 p-5 space-y-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
