@@ -55,7 +55,11 @@ function FloatingGpsControl() {
     <div
       className={[
         "fixed inset-x-0 bottom-3 z-50 mx-auto w-full px-4",
-        effectiveMode === "ipad" ? "max-w-lg" : "max-w-md",
+        effectiveMode === "desktop"
+          ? "max-w-xl"
+          : effectiveMode === "ipad"
+            ? "max-w-lg"
+            : "max-w-md",
       ].join(" ")}
     >
       <button

@@ -123,19 +123,25 @@ export default function HomePage() {
   }, [raceMode]);
 
   const isIpadLayout = effectiveMode === "ipad";
+  const isDesktopLayout = effectiveMode === "desktop";
+  const isWideLayout = isIpadLayout || isDesktopLayout;
 
   return (
     <main
       className={[
         "mx-auto space-y-5 px-4 pb-8 pt-3",
-        isIpadLayout ? "max-w-5xl" : "max-w-md",
+        isDesktopLayout ? "max-w-7xl" : isIpadLayout ? "max-w-5xl" : "max-w-md",
       ].join(" ")}
     >
       <header className="layline-panel overflow-hidden p-4">
         <div
           className={[
             "grid gap-4",
-            isIpadLayout ? "items-center md:grid-cols-[1.15fr_0.85fr]" : "",
+            isDesktopLayout
+              ? "items-center lg:grid-cols-[1.05fr_0.95fr]"
+              : isIpadLayout
+                ? "items-center md:grid-cols-[1.15fr_0.85fr]"
+                : "",
           ].join(" ")}
         >
           <div className="overflow-hidden rounded-xl border border-[color:var(--divider)] bg-[color:var(--bg-deep)]">
@@ -204,7 +210,11 @@ export default function HomePage() {
         <div
           className={[
             "grid gap-2.5",
-            isIpadLayout ? "grid-cols-3 lg:grid-cols-4" : "grid-cols-2",
+            isDesktopLayout
+              ? "grid-cols-4 xl:grid-cols-5"
+              : isWideLayout
+                ? "grid-cols-3 lg:grid-cols-4"
+                : "grid-cols-2",
           ].join(" ")}
         >
           {modules.map((item) => {

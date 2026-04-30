@@ -8,10 +8,10 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { MonitorSmartphone, Smartphone, Tablet } from "lucide-react";
+import { Laptop, MonitorSmartphone, Smartphone, Tablet } from "lucide-react";
 
-export type DisplayMode = "auto" | "phone" | "ipad";
-export type EffectiveDisplayMode = "phone" | "ipad";
+export type DisplayMode = "auto" | "phone" | "ipad" | "desktop";
+export type EffectiveDisplayMode = "phone" | "ipad" | "desktop";
 
 type DisplayModeContextValue = {
   mode: DisplayMode;
@@ -21,6 +21,7 @@ type DisplayModeContextValue = {
 
 const DISPLAY_MODE_KEY = "layline-display-mode";
 const IPAD_WIDTH_QUERY = "(min-width: 768px)";
+const DESKTOP_WIDTH_QUERY = "(min-width: 1180px)";
 
 const DisplayModeContext = createContext<DisplayModeContextValue | null>(null);
 
@@ -48,19 +49,29 @@ const displayOptions: Array<{
     description: "Wider dashboard view",
     icon: Tablet,
   },
+  {
+    mode: "desktop",
+    label: "Desktop",
+    description: "Full-width command view",
+    icon: Laptop,
+  },
 ];
 
 function readSavedMode(): DisplayMode {
   if (typeof window === "undefined") return "auto";
 
   const saved = localStorage.getItem(DISPLAY_MODE_KEY);
-  return saved === "phone" || saved === "ipad" || saved === "auto"
+  return saved === "phone" ||
+    saved === "ipad" ||
+    saved === "desktop" ||
+    saved === "auto"
     ? saved
     : "auto";
 }
 
 function getAutoDisplayMode(): EffectiveDisplayMode {
   if (typeof window === "undefined") return "phone";
+  if (window.matchMedia(DESKTOP_WIDTH_QUERY).matches) return "desktop";
   return window.matchMedia(IPAD_WIDTH_QUERY).matches ? "ipad" : "phone";
 }
 
@@ -83,7 +94,11 @@ export function DisplayModeControl() {
         <div>
           <div className="layline-kicker">Display</div>
           <div className="mt-1 text-sm font-semibold text-[color:var(--text)]">
-            {effectiveMode === "ipad" ? "iPad layout" : "Phone layout"}
+            {effectiveMode === "desktop"
+              ? "Desktop layout"
+              : effectiveMode === "ipad"
+                ? "iPad layout"
+                : "Phone layout"}
           </div>
         </div>
         <div className="text-right text-xs leading-5 text-[color:var(--muted)]">
@@ -91,7 +106,7 @@ export function DisplayModeControl() {
         </div>
       </div>
 
-      <div className="mt-3 grid grid-cols-3 gap-2">
+      <div className="mt-3 grid grid-cols-4 gap-2">
         {displayOptions.map((option) => {
           const Icon = option.icon;
           const selected = mode === option.mode;
@@ -131,16 +146,23 @@ export function DisplayModeProvider({ children }: { children: ReactNode }) {
   );
 
   useEffect(() => {
-    const mediaQuery = window.matchMedia(IPAD_WIDTH_QUERY);
+    const tabletQuery = window.matchMedia(IPAD_WIDTH_QUERY);
+    const desktopQuery = window.matchMedia(DESKTOP_WIDTH_QUERY);
 
     function syncAutoMode() {
-      setAutoMode(mediaQuery.matches ? "ipad" : "phone");
+      setAutoMode(
+        desktopQuery.matches ? "desktop" : tabletQuery.matches ? "ipad" : "phone"
+      );
     }
 
     syncAutoMode();
-    mediaQuery.addEventListener("change", syncAutoMode);
+    tabletQuery.addEventListener("change", syncAutoMode);
+    desktopQuery.addEventListener("change", syncAutoMode);
 
-    return () => mediaQuery.removeEventListener("change", syncAutoMode);
+    return () => {
+      tabletQuery.removeEventListener("change", syncAutoMode);
+      desktopQuery.removeEventListener("change", syncAutoMode);
+    };
   }, []);
 
   const effectiveMode: EffectiveDisplayMode =
