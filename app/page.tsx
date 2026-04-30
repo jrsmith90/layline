@@ -144,14 +144,15 @@ export default function HomePage() {
                 : "",
           ].join(" ")}
         >
-          <div className="overflow-hidden rounded-xl border border-[color:var(--divider)] bg-[color:var(--bg-deep)]">
+          <div className="relative overflow-hidden rounded-[1.6rem] bg-[radial-gradient(circle_at_50%_10%,rgba(0,168,168,0.22),transparent_52%),linear-gradient(180deg,rgba(23,51,79,0.68),rgba(7,22,37,0.16))] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
+            <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-white/18 to-transparent" />
             <Image
               src="/laylinemain.png"
               alt="Layline Sail Smarter"
               width={1536}
               height={1024}
               priority
-              className="h-auto w-full"
+              className="h-auto w-full rounded-[1.15rem]"
             />
           </div>
 
