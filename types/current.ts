@@ -1,5 +1,5 @@
     
-export type CurrentReferenceType = "current" | "tide"
+export type CurrentReferenceType = "current" | "tide" | "wind"
 
 export interface CurrentReferenceOption {
   id: string

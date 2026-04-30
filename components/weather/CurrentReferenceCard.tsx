@@ -27,7 +27,7 @@ export default function CurrentReferenceCard({
       >
         <h3 className="text-sm font-semibold text-white">{title}</h3>
         <p className="mt-2 text-sm text-slate-400">
-          Pick a current or tide source to see what it is best used for.
+          Pick a current, tide, or wind source to see what it is best used for.
         </p>
       </div>
     )

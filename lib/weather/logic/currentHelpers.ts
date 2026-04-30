@@ -22,6 +22,10 @@ export function getTideOptions(): CurrentReferenceOption[] {
   return CURRENT_REFERENCE_OPTIONS.filter((option) => option.type === "tide")
 }
 
+export function getWindOptions(): CurrentReferenceOption[] {
+  return CURRENT_REFERENCE_OPTIONS.filter((option) => option.type === "wind")
+}
+
 export function getDefaultCurrentSetup(): SelectedCurrentSetup {
   return {
     currentSourceId: DEFAULT_CURRENT_REFERENCE_ID,
@@ -56,6 +60,11 @@ export function isCurrentSource(sourceId?: string): boolean {
 export function isTideSource(sourceId?: string): boolean {
   if (!sourceId) return false
   return getCurrentReferenceById(sourceId)?.type === "tide"
+}
+
+export function isWindSource(sourceId?: string): boolean {
+  if (!sourceId) return false
+  return getCurrentReferenceById(sourceId)?.type === "wind"
 }
 
 export function formatCurrentDirection(direction?: string): string {

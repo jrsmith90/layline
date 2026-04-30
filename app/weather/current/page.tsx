@@ -4,6 +4,7 @@ import CurrentSetupCard from "@/components/weather/CurrentSetupCard"
 import CurrentSourcePicker from "@/components/weather/CurrentSourcePicker"
 import TideSourcePicker from "@/components/weather/TideSourcePicker"
 import { TroubleshootLiveContextPanel } from "@/components/troubleshoot/TroubleshootLiveContextPanel"
+import WindSourcePanel from "@/components/weather/WindSourcePanel"
 import {
   DEFAULT_CURRENT_REFERENCE_ID,
   DEFAULT_TIDE_REFERENCE_ID,
@@ -35,19 +36,30 @@ export default function WeatherCurrentPage() {
       <div className="mx-auto max-w-6xl">
         <div className="max-w-3xl">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sky-400">
-            Weather / Current
+            Weather / Course Conditions
           </p>
           <h1 className="mt-2 text-3xl font-semibold tracking-tight text-white sm:text-4xl">
-            Current and tide setup
+            Course conditions setup
           </h1>
           <p className="mt-3 text-sm leading-6 text-slate-400 sm:text-base">
-            Use this page to choose your current and tide references, then build a simple read of which side has better water and how meaningful that edge looks.
+            Choose wind, current, and tide references for the part of the course you are sailing, then build a simple read of pressure, water, and route bias.
           </p>
         </div>
 
-        <section className="mt-8 grid gap-4 rounded-2xl border border-slate-800 bg-slate-900/40 p-5 lg:grid-cols-2">
+        <section className="mt-8 grid gap-4 rounded-2xl border border-slate-800 bg-slate-900/40 p-5 lg:grid-cols-3">
           <CurrentSourcePicker value={DEFAULT_CURRENT_REFERENCE_ID} />
           <TideSourcePicker value={DEFAULT_TIDE_REFERENCE_ID} />
+          <div>
+            <p className="mb-2 block text-sm font-medium text-slate-200">
+              Wind source
+            </p>
+            <p className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white">
+              Select below
+            </p>
+            <p className="mt-2 text-xs text-slate-400">
+              Choose top, bottom, river, or nearby GPS-based wind in the wind setup panel.
+            </p>
+          </div>
         </section>
 
         <CurrentSetupCard
@@ -59,6 +71,8 @@ export default function WeatherCurrentPage() {
           windDirectionDeg={210}
         />
 
+        <WindSourcePanel />
+
         <div className="mt-6">
           <TroubleshootLiveContextPanel />
         </div>
@@ -67,23 +81,23 @@ export default function WeatherCurrentPage() {
           <h2 className="text-lg font-semibold text-white">How to use it</h2>
           <div className="mt-4 grid gap-4 md:grid-cols-3">
             <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
-              <h3 className="text-sm font-semibold text-white">1. Pick the reference</h3>
+              <h3 className="text-sm font-semibold text-white">1. Pick course-area references</h3>
               <p className="mt-2 text-sm text-slate-400">
-                Choose the current and tide source that best match the part of the course you care about most.
+                Use Thomas Point for open Bay/top-of-course wind, Annapolis buoy for the Severn mouth/bottom, and KNAK for river racing.
               </p>
             </div>
 
             <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
-              <h3 className="text-sm font-semibold text-white">2. Read the water</h3>
+              <h3 className="text-sm font-semibold text-white">2. Compare wind and water</h3>
               <p className="mt-2 text-sm text-slate-400">
-                Focus on flatter water, less chop, and whether the current setup may make one side friendlier.
+                Look for wind splits, gust spread, wave state, flatter water, and whether current makes one side friendlier.
               </p>
             </div>
 
             <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
-              <h3 className="text-sm font-semibold text-white">3. Judge the edge</h3>
+              <h3 className="text-sm font-semibold text-white">3. Feed the race plan</h3>
               <p className="mt-2 text-sm text-slate-400">
-                Small means just note it. Medium means it should influence the leg. Strong means it may deserve to shape the route.
+                Use the live read to seed pre-race route bias, troubleshoot trim, and decide whether the edge is small, medium, or route-shaping.
               </p>
             </div>
           </div>
