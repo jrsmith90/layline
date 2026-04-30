@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import type { TroubleshootGuide } from "@/data/logic/troubleshootLogic";
+import { TroubleshootLiveContextPanel } from "@/components/troubleshoot/TroubleshootLiveContextPanel";
 
 function InfoBlock({
   label,
@@ -26,6 +27,8 @@ export function TroubleshootGuidePage({ guide }: { guide: TroubleshootGuide }) {
         <h1 className="text-2xl font-bold tracking-tight">{guide.title}</h1>
         <p className="text-sm leading-6 opacity-75">{guide.summary}</p>
       </header>
+
+      <TroubleshootLiveContextPanel />
 
       <section className="rounded-2xl border border-white/10 bg-white/5 p-5 space-y-4">
         <div>

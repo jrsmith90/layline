@@ -29,6 +29,134 @@ export type TroubleshootGuide = {
   sailFixes: TroubleshootSailFix[];
 };
 
+export type TroubleshootLiveContext = {
+  windAvgKt?: number;
+  windGustKt?: number;
+  windDirectionDeg?: number;
+  currentDirection?: "flood" | "ebb" | "slack" | "unknown";
+  currentSpeedKt?: number;
+  tideStage?: "high" | "low" | "rising" | "falling";
+  sogKt?: number;
+  cogDeg?: number;
+  sourceNote?: string;
+};
+
+export type TroubleshootContextCue = {
+  label: string;
+  value: string;
+  guidance: string;
+  tone: "neutral" | "good" | "warning" | "danger";
+};
+
+function formatDeg(value?: number) {
+  return typeof value === "number" && Number.isFinite(value)
+    ? `${Math.round(value)} deg`
+    : "--";
+}
+
+function formatKt(value?: number) {
+  return typeof value === "number" && Number.isFinite(value)
+    ? `${value.toFixed(1)} kt`
+    : "--";
+}
+
+function getWindBand(windAvgKt?: number) {
+  if (typeof windAvgKt !== "number" || Number.isNaN(windAvgKt)) return "unknown";
+  if (windAvgKt < 8) return "light";
+  if (windAvgKt <= 14) return "medium";
+  return "heavy";
+}
+
+export function buildTroubleshootContextCues(
+  context: TroubleshootLiveContext
+): TroubleshootContextCue[] {
+  const windBand = getWindBand(context.windAvgKt);
+  const gustSpread =
+    typeof context.windAvgKt === "number" && typeof context.windGustKt === "number"
+      ? context.windGustKt - context.windAvgKt
+      : null;
+
+  const cues: TroubleshootContextCue[] = [
+    {
+      label: "Wind",
+      value:
+        context.windAvgKt == null
+          ? "--"
+          : `${formatKt(context.windAvgKt)} avg · ${formatKt(context.windGustKt)} gust · ${formatDeg(context.windDirectionDeg)}`,
+      guidance:
+        windBand === "heavy"
+          ? "Heavy-air context: depower first, open leeches, and prioritize control before pointing or soaking."
+          : windBand === "light"
+            ? "Light-air context: keep flow attached, avoid overtrimming, and treat speed as the first fix."
+            : windBand === "medium"
+              ? "Medium-air context: balance speed and mode; make one trim change, then compare."
+              : "No wind feed yet. Use visual pressure and sail behavior as the primary inputs.",
+      tone: windBand === "heavy" ? "warning" : "neutral",
+    },
+    {
+      label: "Gust spread",
+      value: gustSpread == null ? "--" : `${gustSpread.toFixed(1)} kt`,
+      guidance:
+        gustSpread != null && gustSpread >= 6
+          ? "Puffy setup: favor wider grooves, quicker mainsheet/vang response, and conservative spinnaker trim."
+          : "Gust spread does not look like the main driver from the available context.",
+      tone: gustSpread != null && gustSpread >= 6 ? "warning" : "neutral",
+    },
+    {
+      label: "Current / tide",
+      value: `${context.currentDirection ?? "unknown"} · ${formatKt(context.currentSpeedKt)} · ${context.tideStage ?? "unknown"}`,
+      guidance:
+        context.currentDirection === "slack"
+          ? "Slack or weak current: trim and pressure probably matter more than water relief."
+          : (context.currentSpeedKt ?? 0) >= 1
+            ? "Meaningful current: expect water setup to affect speed, lane choice, and whether chop makes fast mode smarter."
+            : "Current context is light or incomplete; keep it as a secondary check.",
+      tone: (context.currentSpeedKt ?? 0) >= 1 ? "warning" : "neutral",
+    },
+    {
+      label: "GPS",
+      value:
+        context.sogKt == null
+          ? `SOG -- · COG ${formatDeg(context.cogDeg)}`
+          : `SOG ${formatKt(context.sogKt)} · COG ${formatDeg(context.cogDeg)}`,
+      guidance:
+        context.sogKt != null && context.sogKt < 1.2
+          ? "SOG is low: acceleration and flow matter before tactical or trim precision."
+          : context.sogKt != null
+            ? "Use SOG/COG as the reality check after each trim change."
+            : "Turn on Phone GPS to include live SOG/COG in this troubleshoot read.",
+      tone: context.sogKt != null && context.sogKt < 1.2 ? "danger" : "good",
+    },
+  ];
+
+  return cues;
+}
+
+export function buildTroubleshootContextSummary(
+  context: TroubleshootLiveContext
+) {
+  const windBand = getWindBand(context.windAvgKt);
+  const currentStrong = (context.currentSpeedKt ?? 0) >= 1;
+
+  if (windBand === "heavy" && currentStrong) {
+    return "Heavy breeze plus meaningful current: start with control, flatter sails, wider grooves, and clean lanes before asking for height or depth.";
+  }
+
+  if (windBand === "light") {
+    return "Light-air read: protect flow. Avoid overtrimming main, jib, or spinnaker, and keep the boat moving before defending position.";
+  }
+
+  if (context.sogKt != null && context.sogKt < 1.2) {
+    return "Live SOG is low: treat this as an acceleration problem first, then decide whether trim or tactics caused it.";
+  }
+
+  if (currentStrong) {
+    return "Current is strong enough to affect the diagnosis. Check whether chop, set, or water relief is making a trim problem look worse.";
+  }
+
+  return "Use the live context as a sanity check, then follow the symptom cards below one change at a time.";
+}
+
 export const troubleshootGuides: TroubleshootGuide[] = [
   {
     slug: "slow",

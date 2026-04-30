@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { TroubleshootLiveContextPanel } from "@/components/troubleshoot/TroubleshootLiveContextPanel";
 import { troubleshootGuides } from "@/data/logic/troubleshootLogic";
 
 export default function TroubleshootPage() {
@@ -11,6 +12,8 @@ export default function TroubleshootPage() {
           spinnaker fixes in one place.
         </p>
       </header>
+
+      <TroubleshootLiveContextPanel />
 
       <div className="grid gap-3">
         {troubleshootGuides.map((item) => (
