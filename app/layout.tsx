@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { PhoneGpsProvider } from "@/components/gps/PhoneGpsProvider";
+import { AppNavigationButtons } from "@/components/navigation/AppNavigationButtons";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -22,6 +23,7 @@ export default function RootLayout({
       <body>
         <PhoneGpsProvider>
           <div className="min-h-screen overflow-x-hidden pb-24">
+            <AppNavigationButtons />
             {children}
           </div>
         </PhoneGpsProvider>

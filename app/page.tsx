@@ -175,7 +175,7 @@ export default function HomePage() {
           <div className="text-xs text-[color:var(--muted)]">Tap to open</div>
         </div>
 
-        <div className="grid gap-3">
+        <div className="grid grid-cols-2 gap-2.5">
           {modules.map((item) => {
             const Icon = item.icon;
 
@@ -183,33 +183,31 @@ export default function HomePage() {
               <Link
                 key={item.href}
                 href={item.href}
-                className="group layline-panel block p-4 transition duration-150 active:scale-[0.985]"
+                className="group layline-pill flex min-h-[5.35rem] items-center gap-2.5 px-3 py-3 transition duration-150 active:scale-[0.985]"
               >
-                <div className="flex items-center gap-3">
-                  <div
-                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border bg-[color:var(--panel-soft)] transition group-active:scale-95"
-                    style={{
-                      color: item.accent,
-                      borderColor: "color-mix(in srgb, var(--divider) 72%, transparent)",
-                    }}
-                  >
-                    <Icon size={20} strokeWidth={2.2} />
-                  </div>
+                <div
+                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border bg-[color:var(--panel-soft)] transition group-active:scale-95"
+                  style={{
+                    color: item.accent,
+                    borderColor: "color-mix(in srgb, var(--divider) 72%, transparent)",
+                  }}
+                >
+                  <Icon size={19} strokeWidth={2.2} />
+                </div>
 
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center justify-between gap-3">
-                      <h2 className="truncate text-sm font-extrabold uppercase tracking-wide text-[color:var(--text)]">
-                        {item.label}
-                      </h2>
-                      <div
-                        className="h-2 w-2 shrink-0 rounded-full"
-                        style={{ backgroundColor: item.accent }}
-                      />
-                    </div>
-                    <p className="mt-1 text-sm leading-5 text-[color:var(--muted)]">
-                      {raceMode ? item.race : item.learn}
-                    </p>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <h2 className="truncate text-[0.72rem] font-extrabold uppercase tracking-wide text-[color:var(--text)]">
+                      {item.label}
+                    </h2>
+                    <div
+                      className="h-1.5 w-1.5 shrink-0 rounded-full"
+                      style={{ backgroundColor: item.accent }}
+                    />
                   </div>
+                  <p className="mt-0.5 line-clamp-2 text-xs leading-4 text-[color:var(--muted)]">
+                    {raceMode ? item.race : item.learn}
+                  </p>
                 </div>
               </Link>
             );
