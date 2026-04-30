@@ -10,6 +10,12 @@ export default function Page() {
       >
         Pre-race route bias
       </Link>
+      <Link
+        href="/race/live"
+        className="ml-2 inline-flex rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm font-semibold transition active:scale-[0.98]"
+      >
+        Race live cockpit
+      </Link>
       <ActiveCourseTracker />
     </main>
   );

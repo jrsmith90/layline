@@ -13,6 +13,16 @@ export default function TacticsPage() {
 
       <div className="grid gap-4 md:grid-cols-2">
         <Link
+          href="/race/live"
+          className="block rounded-2xl border border-white/10 bg-white/5 p-5 transition hover:bg-white/10"
+        >
+          <div className="text-lg font-semibold">Race Live</div>
+          <div className="mt-1 text-sm opacity-70">
+            Cockpit display for mark progress, VMG, and tack calls.
+          </div>
+        </Link>
+
+        <Link
           href="/tactics/upwind"
           className="block rounded-2xl border border-white/10 bg-white/5 p-5 hover:bg-white/10 transition"
         >
@@ -28,6 +38,16 @@ export default function TacticsPage() {
         >
           <div className="text-lg font-semibold">Downwind</div>
           <div className="mt-1 text-sm opacity-70">Downwind tactics module.</div>
+        </Link>
+
+        <Link
+          href="/tactics/covering"
+          className="block rounded-2xl border border-white/10 bg-white/5 p-5 hover:bg-white/10 transition"
+        >
+          <div className="text-lg font-semibold">Covering</div>
+          <div className="mt-1 text-sm opacity-70">
+            Upwind and downwind defense to prevent passes.
+          </div>
         </Link>
 
         <Link

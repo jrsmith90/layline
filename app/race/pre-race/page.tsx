@@ -17,6 +17,12 @@ export default function Page() {
         >
           Active course tracker
         </Link>
+        <Link
+          href="/race/live"
+          className="inline-flex rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm font-semibold transition active:scale-[0.98]"
+        >
+          Race live cockpit
+        </Link>
       </div>
       <PreRaceRouteBiasWorkflow />
     </main>

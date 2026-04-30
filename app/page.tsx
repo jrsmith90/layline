@@ -17,6 +17,14 @@ import {
 
 const modules = [
   {
+    href: "/race/live",
+    label: "Race Live",
+    icon: Flag,
+    accent: "var(--warning)",
+    race: "Cockpit mode",
+    learn: "Big-display course, VMG, and tack calls",
+  },
+  {
     href: "/sail-selection",
     label: "Sail Selection",
     icon: Compass,

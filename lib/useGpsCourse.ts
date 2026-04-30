@@ -68,20 +68,14 @@ function writeStoredTrack(points: GpsTrackPoint[]) {
 }
 
 export function useGpsCourse(enabled: boolean) {
-  const browserSupportsGeolocation =
-    typeof navigator !== "undefined" && "geolocation" in navigator;
-
   const [state, setState] = useState<CourseState>({
-    supported: browserSupportsGeolocation,
+    supported: false,
     permission: "unknown",
     lat: null,
     lon: null,
     cogDeg: null,
     sogMps: null,
     accuracyM: null,
-    error: browserSupportsGeolocation
-      ? undefined
-      : "Geolocation is not available in this browser.",
   });
   const [track, setTrack] = useState<GpsTrackPoint[]>(readStoredTrack);
 
@@ -97,6 +91,14 @@ export function useGpsCourse(enabled: boolean) {
 
   useEffect(() => {
     const supported = typeof navigator !== "undefined" && "geolocation" in navigator;
+
+    window.setTimeout(() => {
+      setState((s) => ({
+        ...s,
+        supported,
+        error: supported ? s.error : "Geolocation is not available in this browser.",
+      }));
+    }, 0);
 
     if (!enabled || !supported) return;
 
