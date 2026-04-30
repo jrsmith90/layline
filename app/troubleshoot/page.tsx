@@ -1,27 +1,28 @@
-// force redeploy
 import Link from "next/link";
-
-const troubleshootLinks = [
-  { href: "/troubleshoot/slow", label: "Boat feels slow", tone: "bg-yellow-500 text-black" },
-  { href: "/troubleshoot/overpowered", label: "Overpowered", tone: "bg-red-500 text-white" },
-  { href: "/troubleshoot/pinching", label: "Pinching", tone: "bg-orange-500 text-white" },
-  { href: "/troubleshoot/lane", label: "Lane trouble", tone: "bg-blue-500 text-white" },
-  { href: "/troubleshoot/bad-air", label: "Bad air", tone: "bg-slate-600 text-white" },
-];
+import { troubleshootGuides } from "@/data/logic/troubleshootLogic";
 
 export default function TroubleshootPage() {
   return (
-    <div className="space-y-5 px-4 pb-6 max-w-md mx-auto">
-      <h1 className="text-2xl font-bold">Troubleshoot</h1>
+    <div className="mx-auto max-w-md space-y-5 px-4 pb-6">
+      <header className="space-y-1">
+        <h1 className="text-2xl font-bold">Troubleshoot</h1>
+        <p className="text-sm leading-6 opacity-70">
+          Diagnose the boat by symptom, then check mainsail, headsail, and
+          spinnaker fixes in one place.
+        </p>
+      </header>
 
       <div className="grid gap-3">
-        {troubleshootLinks.map((item) => (
+        {troubleshootGuides.map((item) => (
           <Link
-            key={item.href}
-            href={item.href}
-            className={`block rounded-lg p-4 font-semibold ${item.tone}`}
+            key={item.slug}
+            href={`/troubleshoot/${item.slug}`}
+            className={`block rounded-xl p-4 font-semibold shadow transition active:scale-[0.98] ${item.tone}`}
           >
-            {item.label}
+            {item.shortLabel}
+            <div className="mt-1 text-sm font-normal opacity-75">
+              {item.sailFixes.map((fix) => fix.system).join(" · ")}
+            </div>
           </Link>
         ))}
       </div>
@@ -31,4 +32,4 @@ export default function TroubleshootPage() {
       </Link>
     </div>
   );
-}// force redeploy Sun Apr 12 21:02:58 EDT 2026
+}
