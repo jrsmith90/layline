@@ -1,9 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import startUpwindLogic from "@/data/logic/startUpwindLogic";
 import { LiveInstrumentsPanel } from "@/components/gps/LiveInstrumentsPanel";
+import { usePhoneGps } from "@/components/gps/PhoneGpsProvider";
+import { readJsonResponse } from "@/lib/readJsonResponse";
 
 type ForwardEscape = "YES" | "MAYBE" | "NO";
 type WindwardThreat = "NONE" | "PRESENT" | "CONTROLLING";
@@ -12,6 +14,75 @@ type MessageState = "hold" | "prep_bail" | "bail_now";
 type StartEnd = "committee" | "pin" | "even";
 type FleetSize = "small" | "medium" | "large";
 type WindStability = "steady" | "oscillating" | "shifty";
+type WindSourceId =
+  | "thomas_point"
+  | "annapolis_buoy"
+  | "naval_academy"
+  | "nearby_gps";
+type WindTrend = "building" | "easing" | "steady" | "unknown";
+
+type LiveWeatherPayload = {
+  stationName?: string;
+  observedAt?: string;
+  windAvgKt?: number;
+  windGustKt?: number;
+  windDirectionDeg?: number;
+  historyTrend?: {
+    trend: WindTrend;
+    prevailingDirectionDeg?: number;
+  };
+  cbibsAnnapolis?: {
+    platformName?: string;
+    observedAt?: string;
+    windAvgKt?: number;
+    windGustKt?: number;
+    windDirectionDeg?: number;
+    waveHeightFt?: number;
+  };
+  thomasPoint?: {
+    stationName?: string;
+    observedAt?: string;
+    windAvgKt?: number;
+    windGustKt?: number;
+    windDirectionDeg?: number;
+    trend?: {
+      trend: WindTrend;
+      prevailingDirectionDeg?: number;
+    };
+  };
+  error?: string;
+};
+
+type NearbyPayload = {
+  reportCount: number;
+  avgWindKt?: number;
+  maxGustKt?: number;
+  trends: Array<{
+    id: string;
+    trend: WindTrend;
+    avgWindKt?: number;
+    speedDeltaKt?: number;
+  }>;
+  reports: Array<{
+    id: string;
+    observedAt: string;
+    distanceNm: number;
+    windAvgKt?: number;
+    windGustKt?: number;
+    windDirectionDeg?: number;
+  }>;
+  error?: string;
+};
+
+type LiveStartWind = {
+  label: string;
+  detail: string;
+  windAvgKt?: number;
+  windGustKt?: number;
+  windDirectionDeg?: number;
+  referenceDirectionDeg?: number;
+  trend?: WindTrend;
+};
 
 function normalizeDegrees(value: number) {
   return ((value % 360) + 360) % 360;
@@ -19,6 +90,84 @@ function normalizeDegrees(value: number) {
 
 function signedAngleDiff(from: number, to: number) {
   return ((to - from + 540) % 360) - 180;
+}
+
+function formatKt(value?: number) {
+  return typeof value === "number" ? `${value.toFixed(1)} kt` : "--";
+}
+
+function formatDeg(value?: number) {
+  return typeof value === "number" ? `${Math.round(value)} deg` : "--";
+}
+
+function formatTrend(trend?: WindTrend) {
+  if (!trend || trend === "unknown") return "Unclear";
+  return trend.charAt(0).toUpperCase() + trend.slice(1);
+}
+
+function mapWindTrendToStability(trend?: WindTrend, gustSpread?: number): WindStability {
+  if (gustSpread != null && gustSpread >= 6) return "shifty";
+  if (trend === "building" || trend === "easing") return "oscillating";
+  if (trend === "steady") return "steady";
+  return "oscillating";
+}
+
+function getLiveStartWind(params: {
+  sourceId: WindSourceId;
+  weather: LiveWeatherPayload | null;
+  nearby: NearbyPayload | null;
+}): LiveStartWind {
+  const { sourceId, weather, nearby } = params;
+
+  if (sourceId === "annapolis_buoy") {
+    return {
+      label: weather?.cbibsAnnapolis?.platformName ?? "Annapolis CBIBS Buoy",
+      detail: weather?.cbibsAnnapolis?.waveHeightFt == null
+        ? "Severn mouth / bottom-of-course wind and wave read."
+        : `Severn mouth / bottom-of-course read. Waves ${weather.cbibsAnnapolis.waveHeightFt.toFixed(2)} ft.`,
+      windAvgKt: weather?.cbibsAnnapolis?.windAvgKt,
+      windGustKt: weather?.cbibsAnnapolis?.windGustKt,
+      windDirectionDeg: weather?.cbibsAnnapolis?.windDirectionDeg,
+      referenceDirectionDeg: weather?.historyTrend?.prevailingDirectionDeg,
+      trend: weather?.historyTrend?.trend,
+    };
+  }
+
+  if (sourceId === "naval_academy") {
+    return {
+      label: weather?.stationName ?? "Naval Academy / KNAK",
+      detail: "River wind read. Useful for river starts, less reliable for open Bay starts.",
+      windAvgKt: weather?.windAvgKt,
+      windGustKt: weather?.windGustKt,
+      windDirectionDeg: weather?.windDirectionDeg,
+      referenceDirectionDeg: weather?.historyTrend?.prevailingDirectionDeg,
+      trend: weather?.historyTrend?.trend,
+    };
+  }
+
+  if (sourceId === "nearby_gps") {
+    const firstReport = nearby?.reports[0];
+    const firstTrend = nearby?.trends[0];
+
+    return {
+      label: "Nearby GPS observations",
+      detail: `${nearby?.reportCount ?? 0} NDBC observations within 5 nm over the last 6 hours.`,
+      windAvgKt: nearby?.avgWindKt ?? firstReport?.windAvgKt,
+      windGustKt: nearby?.maxGustKt ?? firstReport?.windGustKt,
+      windDirectionDeg: firstReport?.windDirectionDeg,
+      trend: firstTrend?.trend,
+    };
+  }
+
+  return {
+    label: weather?.thomasPoint?.stationName ?? "Thomas Point / TPLM2",
+    detail: "Open Bay / top-of-course wind truth source.",
+    windAvgKt: weather?.thomasPoint?.windAvgKt,
+    windGustKt: weather?.thomasPoint?.windGustKt,
+    windDirectionDeg: weather?.thomasPoint?.windDirectionDeg,
+    referenceDirectionDeg: weather?.thomasPoint?.trend?.prevailingDirectionDeg,
+    trend: weather?.thomasPoint?.trend?.trend,
+  };
 }
 
 function getLineBias(params: {
@@ -471,6 +620,7 @@ function getStartWhy(params: {
 }
 
 export default function StartPage() {
+  const gps = usePhoneGps();
   const logic = startUpwindLogic;
   const [forwardEscapeQuestion, windwardThreatQuestion, leewardPressureQuestion] =
     logic.start.laneQuestions;
@@ -490,6 +640,130 @@ export default function StartPage() {
   const [lineLengthBoatLengths, setLineLengthBoatLengths] = useState(45);
   const [fleetBoats, setFleetBoats] = useState(9);
   const [windStability, setWindStability] = useState<WindStability>("oscillating");
+  const [windSourceId, setWindSourceId] = useState<WindSourceId>("thomas_point");
+  const [liveWeather, setLiveWeather] = useState<LiveWeatherPayload | null>(null);
+  const [nearbyWind, setNearbyWind] = useState<NearbyPayload | null>(null);
+  const [liveWindError, setLiveWindError] = useState<string | null>(null);
+  const [nearbyWindError, setNearbyWindError] = useState<string | null>(null);
+  const [liveWindLoading, setLiveWindLoading] = useState(true);
+  const [nearbyWindLoading, setNearbyWindLoading] = useState(false);
+  const selectedLiveWind = useMemo(
+    () =>
+      getLiveStartWind({
+        sourceId: windSourceId,
+        weather: liveWeather,
+        nearby: nearbyWind,
+      }),
+    [liveWeather, nearbyWind, windSourceId]
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadLiveWind() {
+      try {
+        setLiveWindLoading(true);
+        setLiveWindError(null);
+        const response = await fetch("/api/weather/noaa-wind", {
+          cache: "no-store",
+        });
+        const data = await readJsonResponse<LiveWeatherPayload>(response);
+
+        if (cancelled) return;
+
+        if (!response.ok || data.error) {
+          setLiveWeather(null);
+          setLiveWindError(data.error ?? "Live wind feed unavailable.");
+          return;
+        }
+
+        setLiveWeather(data);
+      } catch (error) {
+        if (!cancelled) {
+          setLiveWeather(null);
+          setLiveWindError(
+            error instanceof Error ? error.message : "Live wind feed unavailable."
+          );
+        }
+      } finally {
+        if (!cancelled) setLiveWindLoading(false);
+      }
+    }
+
+    loadLiveWind();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (windSourceId !== "nearby_gps" || gps.lat == null || gps.lon == null) {
+      setNearbyWind(null);
+      setNearbyWindError(null);
+      setNearbyWindLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+
+    async function loadNearbyWind() {
+      try {
+        setNearbyWindLoading(true);
+        setNearbyWindError(null);
+        const params = new URLSearchParams({
+          lat: String(gps.lat),
+          lon: String(gps.lon),
+          radiusNm: "5",
+          hours: "6",
+        });
+        const response = await fetch(`/api/weather/ship-reports?${params.toString()}`, {
+          cache: "no-store",
+        });
+        const data = await readJsonResponse<NearbyPayload>(response);
+
+        if (cancelled) return;
+
+        if (!response.ok || data.error) {
+          setNearbyWind(null);
+          setNearbyWindError(data.error ?? "Nearby wind unavailable.");
+          return;
+        }
+
+        setNearbyWind(data);
+      } catch (error) {
+        if (!cancelled) {
+          setNearbyWind(null);
+          setNearbyWindError(
+            error instanceof Error ? error.message : "Nearby wind unavailable."
+          );
+        }
+      } finally {
+        if (!cancelled) setNearbyWindLoading(false);
+      }
+    }
+
+    loadNearbyWind();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [gps.lat, gps.lon, windSourceId]);
+
+  function applyLiveWindToStartLine() {
+    if (typeof selectedLiveWind.windDirectionDeg !== "number") return;
+
+    const referenceDirection =
+      selectedLiveWind.referenceDirectionDeg ?? selectedLiveWind.windDirectionDeg;
+    const gustSpread =
+      selectedLiveWind.windAvgKt != null && selectedLiveWind.windGustKt != null
+        ? selectedLiveWind.windGustKt - selectedLiveWind.windAvgKt
+        : undefined;
+
+    setCurrentWindDeg(normalizeDegrees(Math.round(selectedLiveWind.windDirectionDeg)));
+    setReferenceWindDeg(normalizeDegrees(Math.round(referenceDirection)));
+    setWindStability(mapWindTrendToStability(selectedLiveWind.trend, gustSpread));
+  }
 
   const lineBias = useMemo(
     () =>
@@ -634,6 +908,92 @@ export default function StartPage() {
           <div className="rounded-full border border-white/10 bg-black/20 px-3 py-1 text-xs font-semibold uppercase tracking-wide opacity-75">
             5 deg threshold
           </div>
+        </div>
+
+        <div className="mt-5 rounded-2xl border border-white/10 bg-black/20 p-4">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <div className="text-xs uppercase tracking-[0.2em] opacity-50">
+                Live wind feed
+              </div>
+              <div className="mt-1 text-lg font-semibold">{selectedLiveWind.label}</div>
+              <p className="mt-1 text-sm leading-6 opacity-70">
+                {selectedLiveWind.detail}
+              </p>
+              {liveWindError || nearbyWindError ? (
+                <p className="mt-2 text-sm text-amber-200">
+                  {liveWindError ?? nearbyWindError}
+                </p>
+              ) : null}
+            </div>
+
+            <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
+              <select
+                value={windSourceId}
+                onChange={(event) => setWindSourceId(event.target.value as WindSourceId)}
+                className="rounded-xl border border-white/10 bg-black/40 px-3 py-2 outline-none"
+              >
+                <option value="thomas_point">Thomas Point / TPLM2</option>
+                <option value="annapolis_buoy">Annapolis CBIBS Buoy</option>
+                <option value="naval_academy">Naval Academy / KNAK</option>
+                <option value="nearby_gps">Nearby GPS observations</option>
+              </select>
+
+              <button
+                type="button"
+                onClick={applyLiveWindToStartLine}
+                disabled={typeof selectedLiveWind.windDirectionDeg !== "number"}
+                className="rounded-xl bg-white px-4 py-2 text-sm font-semibold text-black shadow transition active:scale-[0.98] disabled:opacity-40"
+              >
+                Use live wind
+              </button>
+            </div>
+          </div>
+
+          <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
+            <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+              <div className="text-[11px] uppercase tracking-[0.18em] opacity-50">
+                Wind
+              </div>
+              <div className="mt-1 text-sm font-semibold">
+                {formatKt(selectedLiveWind.windAvgKt)}
+              </div>
+            </div>
+            <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+              <div className="text-[11px] uppercase tracking-[0.18em] opacity-50">
+                Gust
+              </div>
+              <div className="mt-1 text-sm font-semibold">
+                {formatKt(selectedLiveWind.windGustKt)}
+              </div>
+            </div>
+            <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+              <div className="text-[11px] uppercase tracking-[0.18em] opacity-50">
+                Direction
+              </div>
+              <div className="mt-1 text-sm font-semibold">
+                {formatDeg(selectedLiveWind.windDirectionDeg)}
+              </div>
+            </div>
+            <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+              <div className="text-[11px] uppercase tracking-[0.18em] opacity-50">
+                Trend
+              </div>
+              <div className="mt-1 text-sm font-semibold">
+                {formatTrend(selectedLiveWind.trend)}
+              </div>
+            </div>
+          </div>
+
+          {liveWindLoading || nearbyWindLoading ? (
+            <p className="mt-3 text-xs opacity-55">
+              Loading current wind and weather data...
+            </p>
+          ) : windSourceId === "nearby_gps" && gps.lat == null ? (
+            <p className="mt-3 text-xs opacity-55">
+              Turn on Phone GPS to use nearby 5 nm observations from the last 6 hours.
+            </p>
+          ) : null}
         </div>
 
         <div className="mt-5 grid gap-4 md:grid-cols-2">
