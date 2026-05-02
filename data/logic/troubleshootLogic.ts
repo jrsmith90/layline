@@ -33,6 +33,10 @@ export type TroubleshootLiveContext = {
   windAvgKt?: number;
   windGustKt?: number;
   windDirectionDeg?: number;
+  windTrend?: "building" | "easing" | "steady" | "unknown";
+  windSpeedDeltaKt?: number;
+  sensorWindSpreadKt?: number;
+  sensorDirectionSpreadDeg?: number;
   currentDirection?: "flood" | "ebb" | "slack" | "unknown";
   currentSpeedKt?: number;
   tideStage?: "high" | "low" | "rising" | "falling";
@@ -65,6 +69,21 @@ function getWindBand(windAvgKt?: number) {
   if (windAvgKt < 8) return "light";
   if (windAvgKt <= 14) return "medium";
   return "heavy";
+}
+
+function isNeEneSetup(windDirectionDeg?: number) {
+  return (
+    typeof windDirectionDeg === "number" &&
+    Number.isFinite(windDirectionDeg) &&
+    windDirectionDeg >= 15 &&
+    windDirectionDeg <= 100
+  );
+}
+
+function formatSpread(value?: number) {
+  return typeof value === "number" && Number.isFinite(value)
+    ? `${Math.abs(value).toFixed(1)} kt`
+    : "--";
 }
 
 export function buildTroubleshootContextCues(
@@ -103,6 +122,25 @@ export function buildTroubleshootContextCues(
       tone: gustSpread != null && gustSpread >= 6 ? "warning" : "neutral",
     },
     {
+      label: "Coastal setup",
+      value: `${formatDeg(context.windDirectionDeg)} · sensor split ${formatSpread(context.sensorWindSpreadKt)}`,
+      guidance: isNeEneSetup(context.windDirectionDeg)
+        ? context.windTrend === "building" || (context.windSpeedDeltaKt ?? 0) >= 3
+          ? "NE/ENE flow is building. Watch for a fast onshore acceleration; set up for puffs arriving before the average catches up."
+          : (context.sensorDirectionSpreadDeg ?? 0) >= 15 || (context.sensorWindSpreadKt ?? 0) >= 4
+            ? "NE/ENE flow with a sensor split: expect the open-water and river/shallow reads to disagree. Validate pressure by course section before changing mode."
+            : "NE/ENE flow can bend and accelerate locally. Keep checking the top and bottom course sensors for a sudden build or direction lean."
+        : "No NE/ENE coastal-breeze signal in the current feed. Keep using gust spread, trend, and course-section sensor differences.",
+      tone:
+        isNeEneSetup(context.windDirectionDeg) &&
+        (context.windTrend === "building" ||
+          (context.windSpeedDeltaKt ?? 0) >= 3 ||
+          (context.sensorDirectionSpreadDeg ?? 0) >= 15 ||
+          (context.sensorWindSpreadKt ?? 0) >= 4)
+          ? "warning"
+          : "neutral",
+    },
+    {
       label: "Current / tide",
       value: `${context.currentDirection ?? "unknown"} · ${formatKt(context.currentSpeedKt)} · ${context.tideStage ?? "unknown"}`,
       guidance:
@@ -137,6 +175,13 @@ export function buildTroubleshootContextSummary(
 ) {
   const windBand = getWindBand(context.windAvgKt);
   const currentStrong = (context.currentSpeedKt ?? 0) >= 1;
+  const coastalBuild =
+    isNeEneSetup(context.windDirectionDeg) &&
+    (context.windTrend === "building" || (context.windSpeedDeltaKt ?? 0) >= 3);
+
+  if (coastalBuild) {
+    return "NE/ENE flow is building: treat the breeze as locally accelerative. Expect puffs and direction changes to show first by course section, then in the average.";
+  }
 
   if (windBand === "heavy" && currentStrong) {
     return "Heavy breeze plus meaningful current: start with control, flatter sails, wider grooves, and clean lanes before asking for height or depth.";

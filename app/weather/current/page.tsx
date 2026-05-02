@@ -83,14 +83,14 @@ export default function WeatherCurrentPage() {
             <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
               <h3 className="text-sm font-semibold text-white">1. Pick course-area references</h3>
               <p className="mt-2 text-sm text-slate-400">
-                Use Thomas Point for open Bay/top-of-course wind, Annapolis buoy for the Severn mouth/bottom, and KNAK for river racing.
+                Use Thomas Point for bottom-of-course wind, Annapolis buoy for top-of-course wind and waves, and KNAK for river racing.
               </p>
             </div>
 
             <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
               <h3 className="text-sm font-semibold text-white">2. Compare wind and water</h3>
               <p className="mt-2 text-sm text-slate-400">
-                Look for wind splits, gust spread, wave state, flatter water, and whether current makes one side friendlier.
+                Look for wind splits, gust spread, wave state, NE/ENE acceleration risk, flatter water, and whether current makes one side friendlier.
               </p>
             </div>
 

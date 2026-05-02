@@ -45,18 +45,18 @@ export const CURRENT_REFERENCE_OPTIONS: CurrentReferenceOption[] = [
     label: "Thomas Point / TPLM2",
     stationId: "TPLM2",
     type: "wind",
-    shortUse: "Top of course / open Bay wind reference",
+    shortUse: "Bottom of course / open Bay wind reference",
     notes:
-      "Best default for Bay-facing course breeze, pressure, and trend. Use this when the windward mark or most of the course is in the open Bay.",
+      "Best default for the bottom of the course, Bay-facing breeze, pressure, and trend.",
   },
   {
     id: "annapolis_buoy_wind",
     label: "Annapolis CBIBS Buoy",
     stationId: "AN",
     type: "wind",
-    shortUse: "Bottom of course / Severn mouth wind and wave reference",
+    shortUse: "Top of course / Annapolis buoy wind and wave reference",
     notes:
-      "Use for Annapolis and Severn-mouth water state, local wind, wave height, and transition into or out of the river.",
+      "Use for the top of the course, Annapolis water state, local wind, wave height, and transition into or out of the river.",
   },
   {
     id: "naval_academy_wind",

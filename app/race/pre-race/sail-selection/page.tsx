@@ -102,9 +102,9 @@ function getPlanningWindFromTrend(windAvgKt?: number, trend?: WeatherTrend) {
 }
 
 function getCourseWindSourceId(courseId: string): CourseWindRead["sourceId"] {
-  if (courseId === "1" || courseId === "1R") return "annapolis_buoy_wind";
+  if (courseId === "1" || courseId === "1R") return "thomas_point_wind";
   if (courseId === "99") return "naval_academy_wind";
-  return "thomas_point_wind";
+  return "annapolis_buoy_wind";
 }
 
 function getCourseWindRead(
@@ -117,7 +117,7 @@ function getCourseWindRead(
     return {
       sourceId,
       sourceLabel: weather?.cbibsAnnapolis?.platformName ?? "Annapolis CBIBS Buoy",
-      courseFit: "Closest default for short local courses and the Severn-mouth / bottom-of-course read.",
+      courseFit: "Closest default for top-of-course pressure, Annapolis buoy wind, and wave state.",
       windAvgKt: weather?.cbibsAnnapolis?.windAvgKt,
       windGustKt: weather?.cbibsAnnapolis?.windGustKt,
       windDirectionDeg: weather?.cbibsAnnapolis?.windDirectionDeg,
@@ -141,7 +141,7 @@ function getCourseWindRead(
   return {
     sourceId,
     sourceLabel: weather?.thomasPoint?.stationName ?? "Thomas Point / TPLM2",
-    courseFit: "Closest default for open-Bay and longer course pressure at the top of the course.",
+    courseFit: "Closest default for bottom-of-course open-Bay pressure.",
     windAvgKt: weather?.thomasPoint?.windAvgKt,
     windGustKt: weather?.thomasPoint?.windGustKt,
     windDirectionDeg: weather?.thomasPoint?.windDirectionDeg,

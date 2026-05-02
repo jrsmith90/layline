@@ -94,16 +94,6 @@ function mapLiveTrendToRouteTrend(
 function getPrimaryLiveWind(context: LiveWeatherContext | null) {
   if (!context) return null;
 
-  if (context.thomasPoint?.windAvgKt != null) {
-    return {
-      label: context.thomasPoint.stationName ?? "Thomas Point",
-      windAvgKt: context.thomasPoint.windAvgKt,
-      windGustKt: context.thomasPoint.windGustKt,
-      windDirectionDeg: context.thomasPoint.windDirectionDeg,
-      trend: context.thomasPoint.trend?.trend,
-    };
-  }
-
   if (context.cbibsAnnapolis?.windAvgKt != null) {
     return {
       label: context.cbibsAnnapolis.platformName ?? "Annapolis buoy",
@@ -111,6 +101,16 @@ function getPrimaryLiveWind(context: LiveWeatherContext | null) {
       windGustKt: context.cbibsAnnapolis.windGustKt,
       windDirectionDeg: context.cbibsAnnapolis.windDirectionDeg,
       trend: context.historyTrend?.trend,
+    };
+  }
+
+  if (context.thomasPoint?.windAvgKt != null) {
+    return {
+      label: context.thomasPoint.stationName ?? "Thomas Point",
+      windAvgKt: context.thomasPoint.windAvgKt,
+      windGustKt: context.thomasPoint.windGustKt,
+      windDirectionDeg: context.thomasPoint.windDirectionDeg,
+      trend: context.thomasPoint.trend?.trend,
     };
   }
 

@@ -151,6 +151,13 @@ function formatDeg(value?: number) {
   return typeof value === "number" ? `${Math.round(value)} deg` : "--";
 }
 
+function angleDiffDeg(a?: number, b?: number) {
+  if (typeof a !== "number" || typeof b !== "number") return undefined;
+
+  const diff = Math.abs(((a - b + 540) % 360) - 180);
+  return Number(diff.toFixed(1));
+}
+
 function getTrendGuidance(trend?: NoaaWind["historyTrend"]) {
   if (!trend) return "Trend unavailable from NOAA history right now.";
 
@@ -321,21 +328,37 @@ export function TroubleshootLiveContextPanel() {
 
   const context = useMemo<TroubleshootLiveContext>(() => {
     const sogKt = gps.sogMps == null ? undefined : gps.sogMps * 1.943844;
+    const topWindAvgKt = noaaWind?.cbibsAnnapolis?.windAvgKt;
+    const bottomWindAvgKt = noaaWind?.thomasPoint?.windAvgKt;
 
     return {
       ...starterContext,
       windAvgKt:
-        noaaWind?.thomasPoint?.windAvgKt ??
-        noaaWind?.cbibsAnnapolis?.windAvgKt ??
+        topWindAvgKt ??
+        bottomWindAvgKt ??
         noaaWind?.windAvgKt,
       windGustKt:
-        noaaWind?.thomasPoint?.windGustKt ??
         noaaWind?.cbibsAnnapolis?.windGustKt ??
+        noaaWind?.thomasPoint?.windGustKt ??
         noaaWind?.windGustKt,
       windDirectionDeg:
-        noaaWind?.thomasPoint?.windDirectionDeg ??
         noaaWind?.cbibsAnnapolis?.windDirectionDeg ??
+        noaaWind?.thomasPoint?.windDirectionDeg ??
         noaaWind?.windDirectionDeg,
+      windTrend:
+        noaaWind?.historyTrend?.trend ??
+        noaaWind?.thomasPoint?.trend?.trend,
+      windSpeedDeltaKt:
+        noaaWind?.historyTrend?.speedDeltaKt ??
+        noaaWind?.thomasPoint?.trend?.speedDeltaKt,
+      sensorWindSpreadKt:
+        typeof topWindAvgKt === "number" && typeof bottomWindAvgKt === "number"
+          ? Number(Math.abs(topWindAvgKt - bottomWindAvgKt).toFixed(1))
+          : undefined,
+      sensorDirectionSpreadDeg: angleDiffDeg(
+        noaaWind?.cbibsAnnapolis?.windDirectionDeg,
+        noaaWind?.thomasPoint?.windDirectionDeg
+      ),
       sogKt,
       cogDeg: gps.cogDeg ?? undefined,
     };
@@ -354,14 +377,14 @@ export function TroubleshootLiveContextPanel() {
           <h2 className="mt-1 text-lg font-bold">Wind, Water, and Speed Check</h2>
           <p className="mt-1 text-xs leading-5 opacity-60">
             Wind source:{" "}
-            {noaaWind?.thomasPoint?.stationName ??
-              noaaWind?.cbibsAnnapolis?.platformName ??
+            {noaaWind?.cbibsAnnapolis?.platformName ??
+              noaaWind?.thomasPoint?.stationName ??
               noaaWind?.stationName ??
               "NOAA KNAK"}{" "}
-            {noaaWind?.thomasPoint?.observedAt
-              ? `· observed ${new Date(noaaWind.thomasPoint.observedAt).toLocaleTimeString()}`
-              : noaaWind?.cbibsAnnapolis?.observedAt
+            {noaaWind?.cbibsAnnapolis?.observedAt
               ? `· observed ${noaaWind.cbibsAnnapolis.observedAt}`
+              : noaaWind?.thomasPoint?.observedAt
+              ? `· observed ${new Date(noaaWind.thomasPoint.observedAt).toLocaleTimeString()}`
               : noaaWind?.observedAt
                 ? `· observed ${new Date(noaaWind.observedAt).toLocaleTimeString()}`
               : ""}

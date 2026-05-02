@@ -24,6 +24,7 @@ type WeatherPayload = {
     avgWindKt?: number
     maxGustKt?: number
     prevailingDirectionDeg?: number
+    speedDeltaKt?: number
   }
   cbibsAnnapolis?: {
     platformName: string
@@ -46,6 +47,7 @@ type WeatherPayload = {
       avgWindKt?: number
       maxGustKt?: number
       prevailingDirectionDeg?: number
+      speedDeltaKt?: number
     }
   }
   error?: string
@@ -92,6 +94,87 @@ function formatTime(value?: string) {
 function trendText(trend?: string) {
   if (!trend || trend === "unknown") return "Trend unclear"
   return trend.charAt(0).toUpperCase() + trend.slice(1)
+}
+
+function angleDiffDeg(a?: number, b?: number) {
+  if (typeof a !== "number" || typeof b !== "number") return undefined
+  return Math.abs(((a - b + 540) % 360) - 180)
+}
+
+function isNeEneSetup(windDirectionDeg?: number) {
+  return (
+    typeof windDirectionDeg === "number" &&
+    Number.isFinite(windDirectionDeg) &&
+    windDirectionDeg >= 15 &&
+    windDirectionDeg <= 100
+  )
+}
+
+function buildCoastalWindCue(weather: WeatherPayload | null) {
+  if (!weather) {
+    return {
+      label: "Coastal setup",
+      detail: "Loading top and bottom course sensors.",
+      tone: "neutral" as const,
+    }
+  }
+
+  const windDirectionDeg =
+    weather.cbibsAnnapolis?.windDirectionDeg ??
+    weather.thomasPoint?.windDirectionDeg ??
+    weather.windDirectionDeg
+  const trend =
+    weather.historyTrend?.trend ??
+    weather.thomasPoint?.trend?.trend
+  const speedDeltaKt =
+    weather.historyTrend?.speedDeltaKt ??
+    weather.thomasPoint?.trend?.speedDeltaKt
+  const windSpreadKt =
+    typeof weather.cbibsAnnapolis?.windAvgKt === "number" &&
+    typeof weather.thomasPoint?.windAvgKt === "number"
+      ? Math.abs(weather.cbibsAnnapolis.windAvgKt - weather.thomasPoint.windAvgKt)
+      : undefined
+  const directionSpreadDeg = angleDiffDeg(
+    weather.cbibsAnnapolis?.windDirectionDeg,
+    weather.thomasPoint?.windDirectionDeg,
+  )
+  const splitText =
+    windSpreadKt == null
+      ? "sensor split pending"
+      : `${windSpreadKt.toFixed(1)} kt top-bottom split`
+
+  if (isNeEneSetup(windDirectionDeg) && (trend === "building" || (speedDeltaKt ?? 0) >= 3)) {
+    return {
+      label: "NE/ENE acceleration watch",
+      detail: `Building NE/ENE flow can clock onshore and jump quickly. Treat ${splitText} as a course-section check before locking trim or start mode.`,
+      tone: "warning" as const,
+    }
+  }
+
+  if (
+    isNeEneSetup(windDirectionDeg) &&
+    ((windSpreadKt ?? 0) >= 4 || (directionSpreadDeg ?? 0) >= 15)
+  ) {
+    return {
+      label: "NE/ENE sensor split",
+      detail: `Top and bottom sensors disagree in NE/ENE flow. Expect deeper/open water and river/shallow water to feel different on course.`,
+      tone: "warning" as const,
+    }
+  }
+
+  if (isNeEneSetup(windDirectionDeg)) {
+    return {
+      label: "NE/ENE coastal setup",
+      detail: "NE/ENE flow can bend and accelerate locally. Keep comparing Annapolis buoy, Thomas Point, and what you see on the water.",
+      tone: "neutral" as const,
+    }
+  }
+
+  return {
+    label: "Coastal setup",
+    detail: "No NE/ENE acceleration signal in the current feed. Keep using gust spread, trend, and top-bottom sensor differences.",
+    tone: "neutral" as const,
+  }
 }
 
 export default function WindSourcePanel() {
@@ -206,7 +289,7 @@ export default function WindSourcePanel() {
         windGustKt: weather?.thomasPoint?.windGustKt,
         windDirectionDeg: weather?.thomasPoint?.windDirectionDeg,
         trend: weather?.thomasPoint?.trend?.trend,
-        detail: "Open Bay / top-of-course reference.",
+        detail: "Open Bay / bottom-of-course reference.",
       }
     }
 
@@ -220,8 +303,8 @@ export default function WindSourcePanel() {
         trend: undefined,
         detail:
           weather?.cbibsAnnapolis?.waveHeightFt == null
-            ? "Severn-mouth / bottom-of-course reference."
-            : `Severn-mouth reference. Waves ${weather.cbibsAnnapolis.waveHeightFt.toFixed(2)} ft at ${weather.cbibsAnnapolis.wavePeriodSec?.toFixed(1) ?? "--"} sec.`,
+            ? "Annapolis buoy / top-of-course reference."
+            : `Top-of-course Annapolis buoy reference. Waves ${weather.cbibsAnnapolis.waveHeightFt.toFixed(2)} ft at ${weather.cbibsAnnapolis.wavePeriodSec?.toFixed(1) ?? "--"} sec.`,
       }
     }
 
@@ -253,6 +336,7 @@ export default function WindSourcePanel() {
       detail: "River / Naval Academy reference.",
     }
   }, [gps.lat, gps.lon, nearby, sourceId, weather])
+  const coastalWindCue = useMemo(() => buildCoastalWindCue(weather), [weather])
 
   return (
     <section className="mt-6 rounded-2xl border border-slate-800 bg-slate-950/70 p-5 shadow-sm">
@@ -265,7 +349,7 @@ export default function WindSourcePanel() {
             Weather buoy and station read
           </h2>
           <p className="mt-2 max-w-2xl text-sm text-slate-400">
-            Pick the wind reference that matches the course area. Use Thomas Point for the Bay/top, Annapolis buoy for the Severn mouth/bottom, and nearby observations when Phone GPS is on.
+            Pick the wind reference that matches the course area. Use Thomas Point for the bottom, Annapolis buoy for the top, and nearby observations when Phone GPS is on.
           </p>
         </div>
 
@@ -333,6 +417,17 @@ export default function WindSourcePanel() {
         {nearbyError && sourceId === "nearby_radial_wind" ? (
           <p className="mt-3 text-sm text-amber-300">{nearbyError}</p>
         ) : null}
+      </div>
+
+      <div
+        className={`mt-4 rounded-xl border p-4 ${
+          coastalWindCue.tone === "warning"
+            ? "border-amber-300/35 bg-amber-300/10"
+            : "border-slate-800 bg-slate-900/60"
+        }`}
+      >
+        <h3 className="text-sm font-semibold text-white">{coastalWindCue.label}</h3>
+        <p className="mt-2 text-sm text-slate-300">{coastalWindCue.detail}</p>
       </div>
     </section>
   )

@@ -123,8 +123,8 @@ function getLiveStartWind(params: {
     return {
       label: weather?.cbibsAnnapolis?.platformName ?? "Annapolis CBIBS Buoy",
       detail: weather?.cbibsAnnapolis?.waveHeightFt == null
-        ? "Severn mouth / bottom-of-course wind and wave read."
-        : `Severn mouth / bottom-of-course read. Waves ${weather.cbibsAnnapolis.waveHeightFt.toFixed(2)} ft.`,
+        ? "Annapolis buoy / top-of-course wind and wave read."
+        : `Annapolis buoy / top-of-course read. Waves ${weather.cbibsAnnapolis.waveHeightFt.toFixed(2)} ft.`,
       windAvgKt: weather?.cbibsAnnapolis?.windAvgKt,
       windGustKt: weather?.cbibsAnnapolis?.windGustKt,
       windDirectionDeg: weather?.cbibsAnnapolis?.windDirectionDeg,
@@ -161,7 +161,7 @@ function getLiveStartWind(params: {
 
   return {
     label: weather?.thomasPoint?.stationName ?? "Thomas Point / TPLM2",
-    detail: "Open Bay / top-of-course wind truth source.",
+    detail: "Open Bay / bottom-of-course wind truth source.",
     windAvgKt: weather?.thomasPoint?.windAvgKt,
     windGustKt: weather?.thomasPoint?.windGustKt,
     windDirectionDeg: weather?.thomasPoint?.windDirectionDeg,
