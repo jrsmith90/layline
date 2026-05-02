@@ -35,6 +35,14 @@ function decisionTone(decision: RaceDecisionRecord) {
   return "border-amber-300/35 bg-amber-300/10";
 }
 
+function gradeLabel(grade: string) {
+  if (grade === "sharp") return "Sharp";
+  if (grade === "solid") return "Solid";
+  if (grade === "mixed") return "Mixed";
+  if (grade === "needs_work") return "Needs work";
+  return "Needs ratings";
+}
+
 export default function RaceReviewPage() {
   const [, refresh] = useReducer((value: number) => value + 1, 0);
   const sessions = getRaceSessions();
@@ -67,9 +75,9 @@ export default function RaceReviewPage() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <div className="layline-kicker">Post-race</div>
-          <h1 className="mt-1 text-3xl font-black tracking-tight">Race Review</h1>
+          <h1 className="mt-1 text-3xl font-black tracking-tight">After Action Report</h1>
           <p className="mt-2 max-w-2xl text-sm text-[color:var(--muted)]">
-            Recover the race from this phone, rate the choices, and keep the misses as coaching input.
+            Quantify the day, rate the calls, and turn misses into the next practice plan.
           </p>
         </div>
         <Link
@@ -167,6 +175,35 @@ export default function RaceReviewPage() {
           </section>
 
           <section className="layline-panel p-4">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h2 className="text-xl font-black">Decision Score</h2>
+                <p className="mt-1 text-sm text-[color:var(--muted)]">
+                  Rated against the goal: cross the finish line in the least time.
+                </p>
+              </div>
+              <div className="rounded-xl border border-[color:var(--favorable)] bg-[color:var(--favorable)]/15 px-4 py-3 text-right">
+                <div className="text-xs font-black uppercase tracking-[0.16em] text-[color:var(--muted)]">
+                  Overall
+                </div>
+                <div className="mt-1 text-2xl font-black">
+                  {review.decisionScorePct == null ? "--" : `${review.decisionScorePct}%`}
+                </div>
+                <div className="text-xs font-bold uppercase tracking-wide">
+                  {gradeLabel(review.decisionGrade)}
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
+              <Metric label="Good" value={String(review.goodDecisionCount)} />
+              <Metric label="Neutral" value={String(review.neutralDecisionCount)} />
+              <Metric label="Bad" value={String(review.badDecisionCount)} />
+              <Metric label="Unrated" value={String(review.unratedDecisionCount)} />
+            </div>
+          </section>
+
+          <section className="layline-panel p-4">
             <h2 className="text-xl font-black">Coaching Signals</h2>
             <div className="mt-3 grid gap-3 md:grid-cols-2">
               {review.coachingSignals.map((signal) => (
@@ -175,6 +212,20 @@ export default function RaceReviewPage() {
                   className="rounded-xl border border-amber-300/30 bg-amber-300/10 p-4 text-sm leading-6"
                 >
                   {signal}
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <section className="layline-panel p-4">
+            <h2 className="text-xl font-black">Work On Next</h2>
+            <div className="mt-3 grid gap-3 md:grid-cols-2">
+              {review.workOnNext.map((item) => (
+                <div
+                  key={item}
+                  className="rounded-xl border border-[color:var(--favorable)]/30 bg-[color:var(--favorable)]/10 p-4 text-sm leading-6"
+                >
+                  {item}
                 </div>
               ))}
             </div>

@@ -33,7 +33,7 @@ export default function Page() {
           href="/race/review"
           className="inline-flex rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm font-semibold transition active:scale-[0.98]"
         >
-          Post-race review
+          After Action Report
         </Link>
       </div>
       <PreRaceRouteBiasWorkflow />

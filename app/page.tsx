@@ -101,11 +101,11 @@ const modules = [
   },
   {
     href: "/race/review",
-    label: "Race Review",
+    label: "After Action Report",
     icon: Notebook,
     accent: "var(--blue)",
-    race: "Post-race coach",
-    learn: "Replay choices and outcomes",
+    race: "Good/bad/neutral calls",
+    learn: "Score the day and plan practice",
   },
 ];
 
@@ -204,17 +204,17 @@ export default function HomePage() {
       <section className="space-y-3">
         <div className="flex items-center justify-between px-1">
           <div className="layline-kicker">Modules</div>
-          <div className="text-xs text-[color:var(--muted)]">Tap to open</div>
+          <div className="text-xs text-[color:var(--muted)]">Icons</div>
         </div>
 
         <div
           className={[
-            "grid gap-2.5",
+            "grid justify-items-center gap-3",
             isDesktopLayout
-              ? "grid-cols-4 xl:grid-cols-5"
+              ? "grid-cols-8 xl:grid-cols-11"
               : isWideLayout
-                ? "grid-cols-3 lg:grid-cols-4"
-                : "grid-cols-2",
+                ? "grid-cols-7 lg:grid-cols-9"
+                : "grid-cols-5",
           ].join(" ")}
         >
           {modules.map((item) => {
@@ -224,31 +224,21 @@ export default function HomePage() {
               <Link
                 key={item.href}
                 href={item.href}
-                className="group layline-pill flex min-h-[5.35rem] items-center gap-2.5 px-3 py-3 transition duration-150 active:scale-[0.985]"
+                className="group flex h-14 w-14 items-center justify-center rounded-full border bg-[color:var(--panel)] shadow-sm transition duration-150 active:scale-95"
+                aria-label={`${item.label}: ${raceMode ? item.race : item.learn}`}
+                title={item.label}
+                style={{
+                  borderColor: "color-mix(in srgb, var(--divider) 72%, transparent)",
+                }}
               >
                 <div
-                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border bg-[color:var(--panel-soft)] transition group-active:scale-95"
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border bg-[color:var(--panel-soft)] transition group-active:scale-95"
                   style={{
                     color: item.accent,
                     borderColor: "color-mix(in srgb, var(--divider) 72%, transparent)",
                   }}
                 >
                   <Icon size={19} strokeWidth={2.2} />
-                </div>
-
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <h2 className="truncate text-[0.72rem] font-extrabold uppercase tracking-wide text-[color:var(--text)]">
-                      {item.label}
-                    </h2>
-                    <div
-                      className="h-1.5 w-1.5 shrink-0 rounded-full"
-                      style={{ backgroundColor: item.accent }}
-                    />
-                  </div>
-                  <p className="mt-0.5 line-clamp-2 text-xs leading-4 text-[color:var(--muted)]">
-                    {raceMode ? item.race : item.learn}
-                  </p>
                 </div>
               </Link>
             );

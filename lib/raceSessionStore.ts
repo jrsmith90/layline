@@ -70,6 +70,12 @@ export type RaceSessionReview = {
   gpsPointCount: number;
   weatherSampleCount: number;
   decisionCount: number;
+  goodDecisionCount: number;
+  neutralDecisionCount: number;
+  badDecisionCount: number;
+  unratedDecisionCount: number;
+  decisionScorePct: number | null;
+  decisionGrade: "needs_data" | "needs_work" | "mixed" | "solid" | "sharp";
   averageSogKt: number | null;
   maxSogKt: number | null;
   topBottomWindSpreadKt: number | null;
@@ -77,6 +83,7 @@ export type RaceSessionReview = {
   buildingWeather: boolean;
   incorrectChoices: RaceDecisionRecord[];
   coachingSignals: string[];
+  workOnNext: string[];
 };
 
 const SESSIONS_KEY = "layline-race-sessions-v1";
@@ -407,13 +414,47 @@ export function buildRaceSessionReview(session: RaceSession): RaceSessionReview 
   const incorrectChoices = session.decisions.filter(
     (decision) => decision.outcome === "worse" || decision.userAction === "ignored",
   );
+  const goodDecisionCount = session.decisions.filter(
+    (decision) => decision.outcome === "better" && decision.userAction !== "ignored",
+  ).length;
+  const badDecisionCount = session.decisions.filter(
+    (decision) => decision.outcome === "worse" || decision.userAction === "ignored",
+  ).length;
+  const neutralDecisionCount = session.decisions.filter(
+    (decision) => decision.outcome === "same" && decision.userAction !== "ignored",
+  ).length;
   const unratedChoices = session.decisions.filter((decision) => !decision.outcome);
+  const unratedDecisionCount = unratedChoices.length;
+  const ratedDecisionCount = goodDecisionCount + neutralDecisionCount + badDecisionCount;
+  const decisionScorePct =
+    ratedDecisionCount === 0
+      ? null
+      : Math.round(
+          ((goodDecisionCount + neutralDecisionCount * 0.5) / ratedDecisionCount) * 100,
+        );
+  const decisionGrade =
+    decisionScorePct == null
+      ? "needs_data"
+      : decisionScorePct < 45
+        ? "needs_work"
+        : decisionScorePct < 65
+          ? "mixed"
+          : decisionScorePct < 82
+            ? "solid"
+            : "sharp";
   const coachingSignals: string[] = [];
+  const workOnNext: string[] = [];
 
   if (incorrectChoices.length) {
     coachingSignals.push(
       `${incorrectChoices.length} choice${incorrectChoices.length === 1 ? "" : "s"} need review because they were ignored or marked worse.`,
     );
+    const badRouteChoices = incorrectChoices.filter((decision) =>
+      ["route", "tack", "mark", "start"].includes(decision.kind),
+    );
+    if (badRouteChoices.length) {
+      workOnNext.push("Before changing course, confirm the live call, layline degrees, and next-tack heading out loud.");
+    }
   }
 
   if (unratedChoices.length) {
@@ -426,24 +467,36 @@ export function buildRaceSessionReview(session: RaceSession): RaceSessionReview 
     coachingSignals.push(
       `Top and bottom course wind differed by ${topBottomWindSpreadKt.toFixed(1)} kt. Future calls should name the course section before picking a mode.`,
     );
+    workOnNext.push("Call which wind source owns the decision: top, bottom, river, or nearest marker.");
   }
 
   if (topBottomDirectionSpreadDeg != null && topBottomDirectionSpreadDeg >= 15) {
     coachingSignals.push(
       `Top and bottom course wind direction differed by ${topBottomDirectionSpreadDeg.toFixed(0)} deg. Treat sensor choice as a tactical input, not background weather.`,
     );
+    workOnNext.push("Practice comparing wind direction by course section before committing to a side.");
   }
 
   if (buildingWeather) {
     coachingSignals.push(
       "At least one sample showed building breeze. Review whether depower and sail changes happened before or after control became expensive.",
     );
+    workOnNext.push("When breeze is building, make depower and lane-control calls earlier.");
   }
 
   if (session.trimLogs.some((log) => log.status !== "rated")) {
     coachingSignals.push(
       "Some trim logs are unrated. Rating them better/same/worse will make future recommendations more personal.",
     );
+    workOnNext.push("Rate trim changes immediately after racing so the app can learn what actually helped.");
+  }
+
+  if (decisionScorePct != null && decisionScorePct < 65) {
+    workOnNext.push("Reduce decision churn: make one clear call, hold long enough to measure SOG/VMG, then adjust.");
+  }
+
+  if (session.gpsTrack.length < 10) {
+    workOnNext.push("Start the Race Recorder earlier so the after-action report has enough GPS data.");
   }
 
   if (!coachingSignals.length) {
@@ -452,12 +505,22 @@ export function buildRaceSessionReview(session: RaceSession): RaceSessionReview 
     );
   }
 
+  if (!workOnNext.length) {
+    workOnNext.push("Keep recording and rating decisions; the next gains will come from cleaner comparisons.");
+  }
+
   return {
     session,
     durationMin,
     gpsPointCount: session.gpsTrack.length,
     weatherSampleCount: session.weatherSamples.length,
     decisionCount: session.decisions.length,
+    goodDecisionCount,
+    neutralDecisionCount,
+    badDecisionCount,
+    unratedDecisionCount,
+    decisionScorePct,
+    decisionGrade,
     averageSogKt: average(sogValues),
     maxSogKt: sogValues.length ? Math.max(...sogValues) : null,
     topBottomWindSpreadKt,
@@ -465,6 +528,7 @@ export function buildRaceSessionReview(session: RaceSession): RaceSessionReview 
     buildingWeather,
     incorrectChoices,
     coachingSignals,
+    workOnNext,
   };
 }
 
