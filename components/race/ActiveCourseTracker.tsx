@@ -20,7 +20,13 @@ type StoredTrackerState = {
 };
 
 function readStoredTrackerState(): StoredTrackerState {
-  if (typeof window === "undefined") return {};
+  if (
+    typeof window === "undefined" ||
+    typeof localStorage === "undefined" ||
+    typeof localStorage.getItem !== "function"
+  ) {
+    return {};
+  }
 
   try {
     const raw = localStorage.getItem(TRACKER_STORAGE_KEY);
@@ -82,6 +88,12 @@ export default function ActiveCourseTracker() {
   const safeLegIndex = Math.min(legIndex, Math.max(courseData.course.legs.length - 1, 0));
 
   useEffect(() => {
+    if (
+      typeof localStorage === "undefined" ||
+      typeof localStorage.setItem !== "function"
+    ) {
+      return;
+    }
     localStorage.setItem(
       TRACKER_STORAGE_KEY,
       JSON.stringify({

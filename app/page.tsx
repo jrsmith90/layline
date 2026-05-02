@@ -99,6 +99,14 @@ const modules = [
     race: "Review later",
     learn: "Logs and learning",
   },
+  {
+    href: "/race/review",
+    label: "Race Review",
+    icon: Notebook,
+    accent: "var(--blue)",
+    race: "Post-race coach",
+    learn: "Replay choices and outcomes",
+  },
 ];
 
 export default function HomePage() {
