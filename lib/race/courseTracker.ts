@@ -43,6 +43,11 @@ export type MarkProgressResult = {
   oppositeTackFetches: boolean;
   headingErrorDeg: number | null;
   oppositeHeadingErrorDeg: number | null;
+  degreesOffLaylineDeg: number | null;
+  nextTackHeadingDeg: number | null;
+  distanceToTackNm: number | null;
+  minutesToTack: number | null;
+  distanceAfterTackNm: number | null;
 };
 
 const EARTH_RADIUS_NM = 3440.065;
@@ -132,6 +137,52 @@ function getNearestTack(cogDeg: number, windFromDeg: number, tackAngleDeg: numbe
   };
 }
 
+function headingVector(headingDeg: number) {
+  const rad = toRad(headingDeg);
+  return {
+    x: Math.sin(rad),
+    y: Math.cos(rad),
+  };
+}
+
+function positionToLocalNm(origin: Position, point: Position) {
+  return {
+    x: (point.lon - origin.lon) * 60 * Math.cos(toRad(origin.lat)),
+    y: (point.lat - origin.lat) * 60,
+  };
+}
+
+function calculateTackToLayline(params: {
+  position: Position;
+  target: Position;
+  currentHeadingDeg: number;
+  nextHeadingDeg: number;
+  sogKt: number | null;
+}) {
+  const targetVector = positionToLocalNm(params.position, params.target);
+  const current = headingVector(params.currentHeadingDeg);
+  const next = headingVector(params.nextHeadingDeg);
+  const determinant = current.x * next.y - current.y * next.x;
+
+  if (Math.abs(determinant) < 0.001) return null;
+
+  const distanceToTackNm =
+    (targetVector.x * next.y - targetVector.y * next.x) / determinant;
+  const distanceAfterTackNm =
+    (current.x * targetVector.y - current.y * targetVector.x) / determinant;
+
+  if (distanceToTackNm < 0 || distanceAfterTackNm < 0) return null;
+
+  return {
+    distanceToTackNm,
+    minutesToTack:
+      params.sogKt == null || params.sogKt <= 0
+        ? null
+        : (distanceToTackNm / params.sogKt) * 60,
+    distanceAfterTackNm,
+  };
+}
+
 export function calculateMarkProgress(input: MarkProgressInput): MarkProgressResult {
   const { position, cogDeg, sogMps, accuracyM, windFromDeg, tackAngleDeg, fromMark, toMark } = input;
 
@@ -152,6 +203,11 @@ export function calculateMarkProgress(input: MarkProgressInput): MarkProgressRes
       oppositeTackFetches: false,
       headingErrorDeg: null,
       oppositeHeadingErrorDeg: null,
+      degreesOffLaylineDeg: null,
+      nextTackHeadingDeg: null,
+      distanceToTackNm: null,
+      minutesToTack: null,
+      distanceAfterTackNm: null,
     };
   }
 
@@ -190,6 +246,11 @@ export function calculateMarkProgress(input: MarkProgressInput): MarkProgressRes
       oppositeTackFetches: false,
       headingErrorDeg: headingError,
       oppositeHeadingErrorDeg: null,
+      degreesOffLaylineDeg: headingError,
+      nextTackHeadingDeg: null,
+      distanceToTackNm: null,
+      minutesToTack: null,
+      distanceAfterTackNm: null,
     };
   }
 
@@ -199,6 +260,13 @@ export function calculateMarkProgress(input: MarkProgressInput): MarkProgressRes
   const currentTackFetches = currentHeadingError <= FETCH_WINDOW_DEG;
   const oppositeTackFetches = oppositeHeadingError <= FETCH_WINDOW_DEG;
   const makingPoorProgress = vmgToMark != null && vmgToMark < 0.4;
+  const tackPlan = calculateTackToLayline({
+    position,
+    target,
+    currentHeadingDeg: tack.currentHeading,
+    nextHeadingDeg: tack.oppositeHeading,
+    sogKt,
+  });
 
   let call: MarkProgressCall = "hold";
   let headline = "Hold this tack";
@@ -253,5 +321,10 @@ export function calculateMarkProgress(input: MarkProgressInput): MarkProgressRes
     oppositeTackFetches,
     headingErrorDeg: currentHeadingError,
     oppositeHeadingErrorDeg: oppositeHeadingError,
+    degreesOffLaylineDeg: currentHeadingError,
+    nextTackHeadingDeg: tack.oppositeHeading,
+    distanceToTackNm: tackPlan?.distanceToTackNm ?? null,
+    minutesToTack: tackPlan?.minutesToTack ?? null,
+    distanceAfterTackNm: tackPlan?.distanceAfterTackNm ?? null,
   };
 }

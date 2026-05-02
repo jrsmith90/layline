@@ -101,6 +101,10 @@ function formatNumber(value: number | null, decimals = 1) {
   return value == null ? "--" : value.toFixed(decimals);
 }
 
+function formatShortNumber(value: number | null, decimals = 1) {
+  return value == null ? "--" : value.toFixed(decimals);
+}
+
 function formatSpeedKt(sogMps: number | null) {
   return sogMps == null ? "--" : `${(sogMps * 1.943844).toFixed(1)} kt`;
 }
@@ -253,11 +257,20 @@ function getCockpitAnswer(params: {
       action: "TACK NOW",
       line: "Wrong tack",
       why: "The opposite tack fetches the mark and this tack does not.",
-      fix: "Tack cleanly, accelerate first, then re-check bearing.",
+      fix: `Tack cleanly to ${formatDeg(result.nextTackHeadingDeg)}, accelerate first, then re-check bearing.`,
     };
   }
 
   if (result.call === "prepare_tack") {
+    const tackPlan =
+      result.distanceToTackNm != null
+        ? ` Sail ${result.distanceToTackNm.toFixed(2)} nm${
+            result.minutesToTack == null
+              ? ""
+              : ` / ${Math.max(1, Math.round(result.minutesToTack))} min`
+          }, then tack to ${formatDeg(result.nextTackHeadingDeg)}.`
+        : "";
+
     return {
       action: "GET READY",
       line: "Line getting worse",
@@ -265,7 +278,7 @@ function getCockpitAnswer(params: {
         result.vmgToMarkKt != null && result.vmgToMarkKt < 0.4
           ? "VMG to the mark is weak."
           : "The opposite tack is lining up better than this one.",
-      fix: "Build speed, find a clear lane, and tack if the trend holds.",
+      fix: tackPlan || "Build speed, find a clear lane, and tack if the trend holds.",
     };
   }
 
@@ -285,15 +298,28 @@ function getCockpitAnswer(params: {
       why: "Your COG is taking you away from the mark.",
       fix: result.oppositeHeadingErrorDeg != null && result.headingErrorDeg != null &&
         result.oppositeHeadingErrorDeg < result.headingErrorDeg
-        ? "Tack if clear. If not, bear away until VMG turns positive."
+        ? `Tack to ${formatDeg(result.nextTackHeadingDeg)} if clear. If not, bear away until VMG turns positive.`
         : "Bear away for speed and get COG back toward the mark.",
+    };
+  }
+
+  if (result.distanceToTackNm != null && result.distanceToTackNm > 0.03 && !result.currentTackFetches) {
+    return {
+      action: "HOLD",
+      line: "Sail to layline",
+      why: `${formatShortNumber(result.degreesOffLaylineDeg)} deg off direct layline, but this tack is setting up the next one.`,
+      fix: `Sail ${result.distanceToTackNm.toFixed(2)} nm${
+        result.minutesToTack == null
+          ? ""
+          : ` / ${Math.max(1, Math.round(result.minutesToTack))} min`
+      }, then tack to ${formatDeg(result.nextTackHeadingDeg)}.`,
     };
   }
 
   return {
     action: "HOLD",
     line: result.currentTackFetches ? "On layline" : "Good enough",
-    why: "This tack is making useful progress toward the mark.",
+    why: `${formatShortNumber(result.degreesOffLaylineDeg)} deg off layline. This tack is making useful progress toward the mark.`,
     fix: "Keep speed on. Re-check when bearing or pressure changes.",
   };
 }
@@ -332,6 +358,8 @@ export default function RaceLiveCockpit() {
   const [liveWeather, setLiveWeather] = useState<LiveWeatherPayload | null>(null);
   const [nearbyWind, setNearbyWind] = useState<NearbyWindPayload | null>(null);
   const [windError, setWindError] = useState<string | null>(null);
+  const [showWeather, setShowWeather] = useState(false);
+  const [showSetup, setShowSetup] = useState(false);
 
   const safeLegIndex = Math.min(legIndex, Math.max(courseData.course.legs.length - 1, 0));
   const leg = courseData.course.legs[safeLegIndex];
@@ -589,6 +617,24 @@ export default function RaceLiveCockpit() {
         {result?.warnings.length ? (
           <div className="mt-3 text-xs leading-5 opacity-80">{result.warnings.join(" ")}</div>
         ) : null}
+
+        <div className="mt-4 grid grid-cols-3 gap-2">
+          <BigMetric label="Off Line" value={`${formatNumber(result?.degreesOffLaylineDeg ?? null, 0)} deg`} />
+          <BigMetric
+            label="Tack Hdg"
+            value={`${formatDeg(result?.currentTackHeadingDeg ?? null)} (${formatDeg(result?.nextTackHeadingDeg ?? null)})`}
+          />
+          <BigMetric
+            label="Tack In"
+            value={
+              result?.distanceToTackNm == null
+                ? "--"
+                : result.minutesToTack == null
+                  ? `${result.distanceToTackNm.toFixed(2)} nm`
+                  : `${Math.max(1, Math.round(result.minutesToTack))}m`
+            }
+          />
+        </div>
       </section>
 
       <section className="layline-panel p-4">
@@ -636,6 +682,17 @@ export default function RaceLiveCockpit() {
           <BigMetric label="Gust" value={formatKt(windRead.windGustKt)} />
           <BigMetric label="From" value={formatDeg(effectiveWindFrom)} />
         </div>
+
+        <button
+          type="button"
+          onClick={() => setShowWeather((value) => !value)}
+          className="mt-3 w-full rounded-xl border border-[color:var(--divider)] bg-black/20 px-3 py-3 text-sm font-black uppercase tracking-wide"
+        >
+          {showWeather ? "Hide Weather Source" : "Show Weather Source"}
+        </button>
+
+        {showWeather && (
+          <>
 
         <label className="mt-3 block space-y-1">
           <div className="text-xs font-bold uppercase tracking-[0.16em] text-[color:var(--muted)]">
@@ -689,6 +746,8 @@ export default function RaceLiveCockpit() {
             {windError}
           </div>
         )}
+          </>
+        )}
       </section>
 
       <section className="layline-panel p-4">
@@ -730,6 +789,15 @@ export default function RaceLiveCockpit() {
         )}
       </section>
 
+      <button
+        type="button"
+        onClick={() => setShowSetup((value) => !value)}
+        className="w-full rounded-xl border border-[color:var(--divider)] bg-black/20 px-3 py-3 text-sm font-black uppercase tracking-wide"
+      >
+        {showSetup ? "Hide Course Setup" : "Show Course Setup"}
+      </button>
+
+      {showSetup && (
       <section className="layline-panel p-4">
         <div className="grid gap-2">
           <label className="space-y-1">
@@ -755,6 +823,7 @@ export default function RaceLiveCockpit() {
           <BigMetric label="X-track" value={`${formatNumber(result?.crossTrackErrorNm ?? null, 2)} nm`} />
         </div>
       </section>
+      )}
 
       <RaceRecorderPanel
         courseId={courseId}
