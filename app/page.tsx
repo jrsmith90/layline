@@ -23,7 +23,7 @@ const modules = [
     href: "/race/live",
     label: "Race Live",
     icon: Flag,
-    accent: "var(--warning)",
+    accent: "#f59e0b",
     race: "Cockpit mode",
     learn: "Big-display course, VMG, and tack calls",
   },
@@ -31,7 +31,7 @@ const modules = [
     href: "/start",
     label: "Start",
     icon: Flag,
-    accent: "var(--warning)",
+    accent: "#ef4444",
     race: "Lane + pressure",
     learn: "Lane, pressure, and bailout logic",
   },
@@ -39,7 +39,7 @@ const modules = [
     href: "/race/pre-race",
     label: "Pre-Race",
     icon: CloudSun,
-    accent: "var(--favorable)",
+    accent: "#22c55e",
     race: "Conditions + sail call",
     learn: "Course conditions, route bias, and sail selection",
   },
@@ -47,7 +47,7 @@ const modules = [
     href: "/race/tracker",
     label: "Course Tracker",
     icon: Route,
-    accent: "var(--favorable)",
+    accent: "#06b6d4",
     race: "Mark progress",
     learn: "COG, VMG, layline, and tack timing",
   },
@@ -55,7 +55,7 @@ const modules = [
     href: "/trim/main",
     label: "Mainsail Trim",
     icon: Sailboat,
-    accent: "var(--unfavorable)",
+    accent: "#3b82f6",
     race: "Power + depower",
     learn: "Power, balance, and depower controls",
   },
@@ -63,7 +63,7 @@ const modules = [
     href: "/trim/jib",
     label: "Headsail Trim",
     icon: Wind,
-    accent: "var(--warning)",
+    accent: "#a855f7",
     race: "Trim + flow",
     learn: "Lead, sheet, and telltale flow",
   },
@@ -71,7 +71,7 @@ const modules = [
     href: "/trim/spin",
     label: "Spinnaker Trim",
     icon: Waves,
-    accent: "var(--blue)",
+    accent: "#14b8a6",
     race: "Downwind control",
     learn: "Downwind trim and control",
   },
@@ -79,7 +79,7 @@ const modules = [
     href: "/tactics",
     label: "Tactics",
     icon: Route,
-    accent: "var(--favorable)",
+    accent: "#eab308",
     race: "Decisions",
     learn: "Upwind and downwind decisions",
   },
@@ -87,7 +87,7 @@ const modules = [
     href: "/troubleshoot",
     label: "Troubleshoot",
     icon: Wrench,
-    accent: "var(--unfavorable)",
+    accent: "#f97316",
     race: "Fix fast",
     learn: "Fix speed, control, and trim issues",
   },
@@ -95,7 +95,7 @@ const modules = [
     href: "/notes",
     label: "Notes",
     icon: Notebook,
-    accent: "var(--muted)",
+    accent: "#94a3b8",
     race: "Review later",
     learn: "Logs and learning",
   },
@@ -103,7 +103,7 @@ const modules = [
     href: "/race/review",
     label: "After Action Report",
     icon: Notebook,
-    accent: "var(--blue)",
+    accent: "#ec4899",
     race: "Good/bad/neutral calls",
     learn: "Score the day and plan practice",
   },
@@ -224,22 +224,22 @@ export default function HomePage() {
               <Link
                 key={item.href}
                 href={item.href}
-                className="group flex h-14 w-14 items-center justify-center rounded-full border bg-[color:var(--panel)] shadow-sm transition duration-150 active:scale-95"
+                className="group flex w-full max-w-[4.35rem] flex-col items-center gap-1.5 text-center transition duration-150 active:scale-95"
                 aria-label={`${item.label}: ${raceMode ? item.race : item.learn}`}
                 title={item.label}
-                style={{
-                  borderColor: "color-mix(in srgb, var(--divider) 72%, transparent)",
-                }}
               >
                 <div
-                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border bg-[color:var(--panel-soft)] transition group-active:scale-95"
+                  className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full border bg-[color:var(--panel)] shadow-sm transition group-active:scale-95"
                   style={{
                     color: item.accent,
-                    borderColor: "color-mix(in srgb, var(--divider) 72%, transparent)",
+                    borderColor: item.accent,
                   }}
                 >
                   <Icon size={19} strokeWidth={2.2} />
                 </div>
+                <span className="min-h-8 text-[0.62rem] font-black uppercase leading-4 text-[color:var(--text-soft)]">
+                  {item.label}
+                </span>
               </Link>
             );
           })}
