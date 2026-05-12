@@ -6,11 +6,14 @@ import { Flag, LocateFixed, TimerReset, Wind } from "lucide-react";
 import { formatCourseLabel, getAllCourseIds, getCourseData, getDefaultCourseId } from "@/data/race/getCourseData";
 import { usePhoneGps } from "@/components/gps/PhoneGpsProvider";
 import { RaceRecorderPanel } from "@/components/race/RaceRecorderPanel";
+import { TackHistoryPanel } from "@/components/race/TackHistoryPanel";
 import { readJsonResponse } from "@/lib/readJsonResponse";
 import { calculateMarkProgress, wrap360 } from "@/lib/race/courseTracker";
+import { getActiveRaceSession, type RaceSession } from "@/lib/raceSessionStore";
 import {
   calculateTackCalibration,
   detectAutomaticTackCalibrations,
+  getKnownStandardTackAngle,
   getRaceDayHalfAngle,
   mergeTackCalibrations,
   readTackCalibrations,
@@ -257,8 +260,10 @@ function getCockpitAnswer(params: {
   if (result.call === "tack_now") {
     return {
       action: "TACK NOW",
-      line: "Wrong tack",
-      why: "The opposite tack fetches the mark and this tack does not.",
+      line: result.oppositeTackFetches ? "Wrong tack" : "Better angle",
+      why: result.oppositeTackFetches
+        ? "The opposite tack fetches the mark and this tack does not."
+        : "Your heading has moved away from the learned tack angle, and the other tack aims closer to the mark.",
       fix: `Tack cleanly to ${formatDeg(result.nextTackHeadingDeg)}, accelerate first, then re-check bearing.`,
     };
   }
@@ -272,14 +277,19 @@ function getCockpitAnswer(params: {
               : ` / ${Math.max(1, Math.round(result.minutesToTack))} min`
           }, then tack to ${formatDeg(result.nextTackHeadingDeg)}.`
         : "";
+    const why =
+      result.tackHeadingDeviationDeg != null && result.tackHeadingDeviationDeg >= 15
+        ? "COG has shifted sharply away from the learned tack heading."
+        : result.oppositeTackGainDeg != null && result.oppositeTackGainDeg >= 8
+          ? "The opposite tack is now a better angle toward the mark."
+          : result.vmgToMarkKt != null && result.vmgToMarkKt < 0.4
+            ? "VMG to the mark is weak."
+            : "The opposite tack is lining up better than this one.";
 
     return {
       action: "GET READY",
       line: "Line getting worse",
-      why:
-        result.vmgToMarkKt != null && result.vmgToMarkKt < 0.4
-          ? "VMG to the mark is weak."
-          : "The opposite tack is lining up better than this one.",
+      why,
       fix: tackPlan || "Build speed, find a clear lane, and tack if the trend holds.",
     };
   }
@@ -359,6 +369,9 @@ export default function RaceLiveCockpit() {
   const [calibrationError, setCalibrationError] = useState<string | null>(null);
   const [liveWeather, setLiveWeather] = useState<LiveWeatherPayload | null>(null);
   const [nearbyWind, setNearbyWind] = useState<NearbyWindPayload | null>(null);
+  const [activeSession, setActiveSession] = useState<RaceSession | null>(() =>
+    getActiveRaceSession(),
+  );
   const [windError, setWindError] = useState<string | null>(null);
   const [showWeather, setShowWeather] = useState(false);
   const [showSetup, setShowSetup] = useState(false);
@@ -475,6 +488,13 @@ export default function RaceLiveCockpit() {
   }, [isCapturing]);
 
   useEffect(() => {
+    const refreshActiveSession = () => setActiveSession(getActiveRaceSession());
+    refreshActiveSession();
+    const interval = window.setInterval(refreshActiveSession, 1500);
+    return () => window.clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
     const detected = detectAutomaticTackCalibrations(gps.track);
     if (detected.length === 0) return;
 
@@ -520,6 +540,26 @@ export default function RaceLiveCockpit() {
   );
   const effectiveWindFrom =
     typeof windRead.windDirectionDeg === "number" ? wrap360(windRead.windDirectionDeg) : null;
+  const standardTackAngle = useMemo(
+    () =>
+      getKnownStandardTackAngle(
+        activeSession?.tackRecords ?? [],
+        activeSession?.tackCalibrations ?? calibrations,
+      ),
+    [activeSession?.tackCalibrations, activeSession?.tackRecords, calibrations],
+  );
+
+  useEffect(() => {
+    if (standardTackAngle == null) return;
+    setTackAngle(Math.round(standardTackAngle));
+  }, [standardTackAngle]);
+
+  const tackContext = useMemo(
+    () => ({
+      windFromDeg: effectiveWindFrom,
+    }),
+    [effectiveWindFrom],
+  );
 
   const result = useMemo(() => {
     if (!leg || !fromMark || !toMark) return null;
@@ -579,6 +619,10 @@ export default function RaceLiveCockpit() {
           windSourceLabel: windRead.label,
           windSpeedKt: windRead.windAvgKt,
           windFromDeg: effectiveWindFrom,
+          tackAngleDeg: tackAngle,
+          standardTackAngleDeg: standardTackAngle,
+          tackHeadingDeviationDeg: result.tackHeadingDeviationDeg,
+          oppositeTackGainDeg: result.oppositeTackGainDeg,
           cogDeg: gps.cogDeg,
           sogMps: gps.sogMps,
         },
@@ -805,6 +849,13 @@ export default function RaceLiveCockpit() {
         )}
       </section>
 
+      <TackHistoryPanel
+        records={activeSession?.tackRecords ?? []}
+        standardAngleDeg={standardTackAngle}
+        currentTackAngleDeg={tackAngle}
+        isRecording={activeSession?.status === "active"}
+      />
+
       <button
         type="button"
         onClick={() => setShowSetup((value) => !value)}
@@ -845,6 +896,7 @@ export default function RaceLiveCockpit() {
         courseId={courseId}
         gpsTrack={gps.track}
         currentDecision={recorderDecision}
+        tackContext={tackContext}
       />
 
       <div className="flex items-center justify-between px-1 text-xs text-[color:var(--muted)]">

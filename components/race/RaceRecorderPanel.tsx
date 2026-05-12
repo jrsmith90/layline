@@ -60,6 +60,9 @@ type RaceRecorderPanelProps = {
   courseId: string;
   gpsTrack: GpsTrackPoint[];
   currentDecision?: RecorderDecisionInput | null;
+  tackContext?: {
+    windFromDeg?: number | null;
+  };
 };
 
 function formatTime(iso?: string) {
@@ -90,6 +93,7 @@ export function RaceRecorderPanel({
   courseId,
   gpsTrack,
   currentDecision,
+  tackContext,
 }: RaceRecorderPanelProps) {
   const [sessionId, setSessionId] = useState(() => getActiveRaceSession()?.id ?? null);
   const [note, setNote] = useState("");
@@ -99,10 +103,10 @@ export function RaceRecorderPanel({
 
   useEffect(() => {
     if (!sessionId || session?.status !== "active") return;
-    appendRaceGpsSamples(sessionId, gpsTrack);
+    appendRaceGpsSamples(sessionId, gpsTrack, tackContext);
     attachTrimLogsToSession(sessionId, getLogs());
     attachTackCalibrationsToSession(sessionId, readTackCalibrations());
-  }, [gpsTrack, session?.status, sessionId]);
+  }, [gpsTrack, session?.status, sessionId, tackContext]);
 
   useEffect(() => {
     if (!sessionId || session?.status !== "active" || !currentDecision) return;
@@ -157,21 +161,21 @@ export function RaceRecorderPanel({
       gps: session?.gpsTrack.length ?? 0,
       weather: session?.weatherSamples.length ?? 0,
       decisions: session?.decisions.length ?? 0,
-      tacks: session?.tackCalibrations.length ?? 0,
+      tacks: session?.tackRecords.length ?? session?.tackCalibrations.length ?? 0,
     }),
     [session],
   );
 
   function beginRecording() {
     const next = startRaceSession({ courseId });
-    appendRaceGpsSamples(next.id, gpsTrack);
+    appendRaceGpsSamples(next.id, gpsTrack, tackContext);
     setSessionId(next.id);
     setStatus("Race recording started.");
   }
 
   function stopRecording() {
     if (!session) return;
-    appendRaceGpsSamples(session.id, gpsTrack);
+    appendRaceGpsSamples(session.id, gpsTrack, tackContext);
     attachTrimLogsToSession(session.id, getLogs());
     attachTackCalibrationsToSession(session.id, readTackCalibrations());
     const ended = endRaceSession(session.id);

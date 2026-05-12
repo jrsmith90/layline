@@ -43,6 +43,8 @@ export type MarkProgressResult = {
   oppositeTackFetches: boolean;
   headingErrorDeg: number | null;
   oppositeHeadingErrorDeg: number | null;
+  tackHeadingDeviationDeg: number | null;
+  oppositeTackGainDeg: number | null;
   degreesOffLaylineDeg: number | null;
   nextTackHeadingDeg: number | null;
   distanceToTackNm: number | null;
@@ -53,6 +55,10 @@ export type MarkProgressResult = {
 const EARTH_RADIUS_NM = 3440.065;
 const FETCH_WINDOW_DEG = 14;
 const TACK_SOON_WINDOW_DEG = 8;
+const DRASTIC_TACK_HEADING_CHANGE_DEG = 18;
+const PREPARE_TACK_HEADING_CHANGE_DEG = 15;
+const TACK_NOW_GAIN_DEG = 16;
+const PREPARE_TACK_GAIN_DEG = 8;
 const LOW_CONFIDENCE_ACCURACY_M = 35;
 const LOW_CONFIDENCE_SOG_KT = 1.2;
 
@@ -203,6 +209,8 @@ export function calculateMarkProgress(input: MarkProgressInput): MarkProgressRes
       oppositeTackFetches: false,
       headingErrorDeg: null,
       oppositeHeadingErrorDeg: null,
+      tackHeadingDeviationDeg: null,
+      oppositeTackGainDeg: null,
       degreesOffLaylineDeg: null,
       nextTackHeadingDeg: null,
       distanceToTackNm: null,
@@ -246,6 +254,8 @@ export function calculateMarkProgress(input: MarkProgressInput): MarkProgressRes
       oppositeTackFetches: false,
       headingErrorDeg: headingError,
       oppositeHeadingErrorDeg: null,
+      tackHeadingDeviationDeg: null,
+      oppositeTackGainDeg: null,
       degreesOffLaylineDeg: headingError,
       nextTackHeadingDeg: null,
       distanceToTackNm: null,
@@ -259,6 +269,8 @@ export function calculateMarkProgress(input: MarkProgressInput): MarkProgressRes
   const oppositeHeadingError = absAngleDiffDeg(tack.oppositeHeading, bearingToMark);
   const currentTackFetches = currentHeadingError <= FETCH_WINDOW_DEG;
   const oppositeTackFetches = oppositeHeadingError <= FETCH_WINDOW_DEG;
+  const tackHeadingDeviation = absAngleDiffDeg(cogDeg, tack.currentHeading);
+  const oppositeTackGain = headingError - oppositeHeadingError;
   const makingPoorProgress = vmgToMark != null && vmgToMark < 0.4;
   const tackPlan = calculateTackToLayline({
     position,
@@ -288,11 +300,27 @@ export function calculateMarkProgress(input: MarkProgressInput): MarkProgressRes
     headline = "Tack now";
     detail =
       "The opposite tack is the one that fetches the mark. Tack while you still have room and speed.";
+  } else if (
+    tackHeadingDeviation >= DRASTIC_TACK_HEADING_CHANGE_DEG &&
+    oppositeTackGain >= TACK_NOW_GAIN_DEG
+  ) {
+    call = "tack_now";
+    headline = "Tack now";
+    detail =
+      "Your COG has fallen well away from the expected tack heading, and the opposite tack points much closer to the mark.";
   } else if (oppositeHeadingError + TACK_SOON_WINDOW_DEG < currentHeadingError) {
     call = "prepare_tack";
     headline = "Prepare to tack";
     detail =
       "The opposite tack is lining up better. Build speed, find a clear lane, and tack if this trend holds.";
+  } else if (
+    tackHeadingDeviation >= PREPARE_TACK_HEADING_CHANGE_DEG &&
+    oppositeTackGain >= PREPARE_TACK_GAIN_DEG
+  ) {
+    call = "prepare_tack";
+    headline = "Prepare to tack";
+    detail =
+      "Your heading has changed sharply from the expected tack angle. Get ready if the opposite tack keeps aiming closer to the mark.";
   } else if (makingPoorProgress) {
     call = "prepare_tack";
     headline = "Progress is weak";
@@ -321,6 +349,8 @@ export function calculateMarkProgress(input: MarkProgressInput): MarkProgressRes
     oppositeTackFetches,
     headingErrorDeg: currentHeadingError,
     oppositeHeadingErrorDeg: oppositeHeadingError,
+    tackHeadingDeviationDeg: tackHeadingDeviation,
+    oppositeTackGainDeg: oppositeTackGain,
     degreesOffLaylineDeg: currentHeadingError,
     nextTackHeadingDeg: tack.oppositeHeading,
     distanceToTackNm: tackPlan?.distanceToTackNm ?? null,

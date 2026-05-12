@@ -6,7 +6,12 @@ import { LiveInstrumentsPanel } from "@/components/gps/LiveInstrumentsPanel";
 import { usePhoneGps } from "@/components/gps/PhoneGpsProvider";
 import { TackCalibrationPanel } from "@/components/race/TackCalibrationPanel";
 import { calculateMarkProgress, wrap360 } from "@/lib/race/courseTracker";
-import { getRaceDayHalfAngle, readTackCalibrations } from "@/lib/race/tackCalibration";
+import { getActiveRaceSession } from "@/lib/raceSessionStore";
+import {
+  getKnownStandardTackAngle,
+  getRaceDayHalfAngle,
+  readTackCalibrations,
+} from "@/lib/race/tackCalibration";
 
 const courseIds = getAllCourseIds();
 const TRACKER_STORAGE_KEY = "layline-active-course-tracker-v1";
@@ -85,7 +90,28 @@ export default function ActiveCourseTracker() {
     const raceDayHalfAngle = getRaceDayHalfAngle(readTackCalibrations());
     return raceDayHalfAngle == null ? 42 : Math.round(raceDayHalfAngle);
   });
+  const [standardTackAngle, setStandardTackAngle] = useState<number | null>(() => {
+    const session = getActiveRaceSession();
+    return session
+      ? getKnownStandardTackAngle(session.tackRecords, session.tackCalibrations)
+      : null;
+  });
   const safeLegIndex = Math.min(legIndex, Math.max(courseData.course.legs.length - 1, 0));
+
+  useEffect(() => {
+    const refreshStandardAngle = () => {
+      const session = getActiveRaceSession();
+      const nextAngle = session
+        ? getKnownStandardTackAngle(session.tackRecords, session.tackCalibrations)
+        : null;
+      setStandardTackAngle(nextAngle);
+      if (nextAngle != null) setTackAngle(Math.round(nextAngle));
+    };
+
+    refreshStandardAngle();
+    const interval = window.setInterval(refreshStandardAngle, 1500);
+    return () => window.clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     if (
@@ -241,6 +267,11 @@ export default function ActiveCourseTracker() {
                 if (!Number.isNaN(parsed)) setTackAngle(Math.min(60, Math.max(30, parsed)));
               }}
             />
+            {standardTackAngle != null ? (
+              <div className="text-xs text-[color:var(--muted)]">
+                Using race-day standard {formatDeg(standardTackAngle)}
+              </div>
+            ) : null}
           </label>
         </div>
 

@@ -4,12 +4,18 @@ import type { GpsTrackPoint } from "@/lib/useGpsCourse";
 import type { LaylineLog } from "@/lib/logStore";
 import { getLogs } from "@/lib/logStore";
 import {
+  detectAutomaticTackRecords,
   detectAutomaticTackCalibrations,
+  getKnownStandardTackAngle,
   mergeTackCalibrations,
+  mergeTackRecords,
   readTackCalibrations,
   saveTackCalibrations,
+  type TackRecord,
   type TackCalibrationResult,
 } from "@/lib/race/tackCalibration";
+
+export type { TackRecord } from "@/lib/race/tackCalibration";
 
 export type RaceSessionStatus = "active" | "ended";
 export type RaceDecisionKind =
@@ -65,6 +71,7 @@ export type RaceSession = {
   decisions: RaceDecisionRecord[];
   trimLogs: LaylineLog[];
   tackCalibrations: TackCalibrationResult[];
+  tackRecords: TackRecord[];
 };
 
 export type RaceSessionReview = {
@@ -113,6 +120,20 @@ function safeUUID() {
   return `race_${Date.now()}_${Math.random().toString(16).slice(2)}`;
 }
 
+function normalizeRaceSession(session: RaceSession): RaceSession {
+  return {
+    ...session,
+    gpsTrack: Array.isArray(session.gpsTrack) ? session.gpsTrack : [],
+    weatherSamples: Array.isArray(session.weatherSamples) ? session.weatherSamples : [],
+    decisions: Array.isArray(session.decisions) ? session.decisions : [],
+    trimLogs: Array.isArray(session.trimLogs) ? session.trimLogs : [],
+    tackCalibrations: Array.isArray(session.tackCalibrations)
+      ? session.tackCalibrations
+      : [],
+    tackRecords: Array.isArray(session.tackRecords) ? session.tackRecords : [],
+  };
+}
+
 function readJson<T>(key: string, fallback: T): T {
   if (!hasLocalStorage()) return fallback;
 
@@ -132,7 +153,7 @@ function writeJson(key: string, value: unknown) {
 
 export function getRaceSessions(): RaceSession[] {
   const sessions = readJson<RaceSession[]>(SESSIONS_KEY, []);
-  return Array.isArray(sessions) ? sessions : [];
+  return Array.isArray(sessions) ? sessions.map(normalizeRaceSession) : [];
 }
 
 export function saveRaceSessions(sessions: RaceSession[]) {
@@ -183,6 +204,7 @@ export function startRaceSession(input: {
     decisions: [],
     trimLogs: [],
     tackCalibrations: [],
+    tackRecords: [],
   };
 
   upsertRaceSession(session);
@@ -216,7 +238,11 @@ export function deleteRaceSession(id: string) {
   }
 }
 
-export function appendRaceGpsSamples(id: string, points: GpsTrackPoint[]) {
+export function appendRaceGpsSamples(
+  id: string,
+  points: GpsTrackPoint[],
+  context: { windFromDeg?: number | null } = {},
+) {
   const session = getRaceSession(id);
   if (!session || points.length === 0) return session;
 
@@ -224,11 +250,15 @@ export function appendRaceGpsSamples(id: string, points: GpsTrackPoint[]) {
   for (const point of points) byTime.set(point.at, point);
 
   const gpsTrack = Array.from(byTime.values()).sort((a, b) => a.at.localeCompare(b.at));
-  const detectedTacks = detectAutomaticTackCalibrations(gpsTrack);
+  const detectedTacks =
+    session.status === "active" ? detectAutomaticTackCalibrations(gpsTrack) : [];
+  const detectedTackRecords =
+    session.status === "active" ? detectAutomaticTackRecords(gpsTrack, context) : [];
   const tackCalibrations = mergeTackCalibrations(
     session.tackCalibrations,
     detectedTacks,
   );
+  const tackRecords = mergeTackRecords(session.tackRecords, detectedTackRecords);
 
   if (detectedTacks.length > 0) {
     saveTackCalibrations(
@@ -240,9 +270,27 @@ export function appendRaceGpsSamples(id: string, points: GpsTrackPoint[]) {
     ...session,
     gpsTrack,
     tackCalibrations,
+    tackRecords,
   };
   upsertRaceSession(updated);
   return updated;
+}
+
+export function appendRaceTackRecords(id: string, records: TackRecord[]) {
+  const session = getRaceSession(id);
+  if (!session || records.length === 0) return session;
+
+  const updated: RaceSession = {
+    ...session,
+    tackRecords: mergeTackRecords(session.tackRecords, records),
+  };
+  upsertRaceSession(updated);
+  return updated;
+}
+
+export function getRaceSessionStandardTackAngle(session: RaceSession | null) {
+  if (!session) return null;
+  return getKnownStandardTackAngle(session.tackRecords, session.tackCalibrations);
 }
 
 export function appendRaceWeatherSample(id: string, sample: RaceWeatherSample) {
@@ -386,6 +434,7 @@ export function recoverTodayRaceSession() {
       decisions: [],
       trimLogs: [],
       tackCalibrations: [],
+      tackRecords: [],
     };
 
   upsertRaceSession(session);
