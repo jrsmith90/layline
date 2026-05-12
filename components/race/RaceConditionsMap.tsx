@@ -450,9 +450,9 @@ export default function RaceConditionsMap() {
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <div className="layline-kicker">Race map</div>
-              <h2 className="mt-1 text-xl font-black">Course, tide, and current overlay</h2>
+              <h2 className="mt-1 text-xl font-black">NOAA-style planning chart</h2>
               <p className="mt-1 text-sm text-[color:var(--muted)]">
-                NOAA predictions layered over a chart-style bay view at the same horizontal and vertical scale for planning only.
+                NOAA tide and current predictions layered over a chart-style bay map. The view is scaled for pre-race planning.
               </p>
             </div>
             <label className="w-44 space-y-1">
@@ -517,23 +517,23 @@ export default function RaceConditionsMap() {
             <svg
               viewBox={mapViewBox}
               role="img"
-              aria-label="Chesapeake Bay race course with tide and current overlays"
+              aria-label="NOAA-style Chesapeake Bay race chart with tide and current overlays"
               className="aspect-[1.536] w-full bg-[#b9d8df]"
             >
               <defs>
                 <marker
                   id="currentArrow"
-                  markerWidth="10"
-                  markerHeight="10"
-                  refX="8"
-                  refY="5"
+                  markerWidth="6"
+                  markerHeight="6"
+                  refX="5"
+                  refY="3"
                   orient="auto"
                   markerUnits="strokeWidth"
                 >
-                  <path d="M 0 0 L 10 5 L 0 10 z" fill="context-stroke" />
+                  <path d="M 0 0 L 6 3 L 0 6 z" fill="context-stroke" />
                 </marker>
                 <pattern id="chartPaper" width="18" height="18" patternUnits="userSpaceOnUse">
-                  <rect width="18" height="18" fill="#b9d8df" />
+                  <rect width="18" height="18" fill="#bfdfe9" />
                   <path d="M 0 18 L 18 0" stroke="#ffffff" strokeOpacity="0.12" strokeWidth="1" />
                 </pattern>
               </defs>
@@ -647,7 +647,7 @@ export default function RaceConditionsMap() {
                 const fromPoint = project(from, bounds);
                 const toPoint = project(to, bounds);
                 const station = dominantCurrent;
-                const length = station ? 20 + Math.min(station.speedKt, 1.8) * 22 : 24;
+                const length = station ? 14 + Math.min(station.speedKt, 1.8) * 16 : 18;
                 const vector =
                   station?.directionDeg == null
                     ? { x: 0, y: 0 }
@@ -666,7 +666,7 @@ export default function RaceConditionsMap() {
                       x2={x + vector.x / 2}
                       y2={y + vector.y / 2}
                       stroke={color}
-                      strokeWidth="5"
+                      strokeWidth="3"
                       strokeLinecap="round"
                       markerEnd="url(#currentArrow)"
                       opacity="0.9"
@@ -688,7 +688,7 @@ export default function RaceConditionsMap() {
 
               {currentStations.map((station) => {
                 const plotted = project(station, bounds);
-                const length = 24 + Math.min(station.speedKt, 1.8) * 24;
+                const length = 16 + Math.min(station.speedKt, 1.8) * 16;
                 const vector =
                   station.directionDeg == null
                     ? { x: 0, y: 0 }
@@ -697,14 +697,14 @@ export default function RaceConditionsMap() {
 
                 return (
                   <g key={station.stationId}>
-                    <circle cx={plotted.x} cy={plotted.y} r="16" fill="#f7fbff" stroke={color} strokeWidth="3" />
+                    <circle cx={plotted.x} cy={plotted.y} r="12" fill="#f7fbff" stroke={color} strokeWidth="2.5" />
                     <line
                       x1={plotted.x - vector.x / 2}
                       y1={plotted.y - vector.y / 2}
                       x2={plotted.x + vector.x / 2}
                       y2={plotted.y + vector.y / 2}
                       stroke={color}
-                      strokeWidth="5"
+                      strokeWidth="3"
                       strokeLinecap="round"
                       markerEnd="url(#currentArrow)"
                     />
