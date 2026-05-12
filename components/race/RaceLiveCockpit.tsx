@@ -3,14 +3,16 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { Flag, LocateFixed, TimerReset, Wind } from "lucide-react";
-import { getAllCourseIds, getCourseData } from "@/data/race/getCourseData";
+import { formatCourseLabel, getAllCourseIds, getCourseData, getDefaultCourseId } from "@/data/race/getCourseData";
 import { usePhoneGps } from "@/components/gps/PhoneGpsProvider";
 import { RaceRecorderPanel } from "@/components/race/RaceRecorderPanel";
 import { readJsonResponse } from "@/lib/readJsonResponse";
 import { calculateMarkProgress, wrap360 } from "@/lib/race/courseTracker";
 import {
   calculateTackCalibration,
+  detectAutomaticTackCalibrations,
   getRaceDayHalfAngle,
+  mergeTackCalibrations,
   readTackCalibrations,
   saveTackCalibrations,
   type TackCalibrationResult,
@@ -330,7 +332,7 @@ export default function RaceLiveCockpit() {
     const stored = readStoredTrackerState();
     return stored.courseId && courseIds.some((id) => id === stored.courseId)
       ? stored.courseId
-      : courseIds[0] ?? "1";
+      : getDefaultCourseId();
   });
   const courseData = useMemo(() => getCourseData(courseId), [courseId]);
   const [legIndex, setLegIndex] = useState(() => {
@@ -473,12 +475,26 @@ export default function RaceLiveCockpit() {
   }, [isCapturing]);
 
   useEffect(() => {
+    const detected = detectAutomaticTackCalibrations(gps.track);
+    if (detected.length === 0) return;
+
+    setCalibrations((current) => {
+      const nextCalibrations = mergeTackCalibrations(current, detected);
+      if (JSON.stringify(nextCalibrations) === JSON.stringify(current)) return current;
+      saveTackCalibrations(nextCalibrations);
+      const raceDayHalfAngle = getRaceDayHalfAngle(nextCalibrations);
+      if (raceDayHalfAngle != null) setTackAngle(Math.round(raceDayHalfAngle));
+      return nextCalibrations;
+    });
+  }, [gps.track]);
+
+  useEffect(() => {
     if (startedAtMs == null) return;
     if (nowMs < startedAtMs + CALIBRATION_DURATION_MS) return;
 
     try {
       const calibration = calculateTackCalibration(gps.track, startedAtMs);
-      const nextCalibrations = [...calibrations, calibration].slice(-10);
+      const nextCalibrations = mergeTackCalibrations(calibrations, [calibration]);
       setCalibrations(nextCalibrations);
       saveTackCalibrations(nextCalibrations);
       setTackAngle(Math.round(calibration.halfAngleDeg));
@@ -589,7 +605,7 @@ export default function RaceLiveCockpit() {
             Race Live
           </div>
           <div className="text-xs font-bold uppercase tracking-wide opacity-75">
-            Course {courseId} · Leg {safeLegIndex + 1}
+            {formatCourseLabel(courseId)} · Leg {safeLegIndex + 1}
           </div>
         </div>
         <div className="mt-3 text-5xl font-black uppercase leading-none tracking-tight">
@@ -814,7 +830,7 @@ export default function RaceLiveCockpit() {
             >
               {courseIds.map((id) => (
                 <option key={id} value={id} className="bg-slate-900">
-                  Course {id}
+                  {formatCourseLabel(id)}
                 </option>
               ))}
             </select>

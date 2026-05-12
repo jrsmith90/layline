@@ -10,6 +10,7 @@ import {
 import {
   CloudSun,
   Flag,
+  Library,
   Notebook,
   Route,
   Sailboat,
@@ -18,94 +19,126 @@ import {
   Wrench,
 } from "lucide-react";
 
-const modules = [
+const moduleGroups = [
   {
-    href: "/race/live",
-    label: "Race Live",
-    icon: Flag,
-    accent: "#f59e0b",
-    race: "Cockpit mode",
-    learn: "Big-display course, VMG, and tack calls",
-  },
-  {
-    href: "/start",
-    label: "Start",
-    icon: Flag,
-    accent: "#ef4444",
-    race: "Lane + pressure",
-    learn: "Lane, pressure, and bailout logic",
-  },
-  {
-    href: "/race/pre-race",
-    label: "Pre-Race",
+    title: "Pre Race",
     icon: CloudSun,
     accent: "#22c55e",
-    race: "Conditions + sail call",
-    learn: "Course conditions, route bias, and sail selection",
+    summary: "Plan the day, choose sails, and get the start organized.",
+    items: [
+      {
+        href: "/race/pre-race",
+        label: "Pre-Race",
+        icon: CloudSun,
+        accent: "#22c55e",
+        race: "Conditions + sail call",
+        learn: "Course conditions, route bias, and sail selection",
+      },
+      {
+        href: "/start",
+        label: "Start",
+        icon: Flag,
+        accent: "#ef4444",
+        race: "Lane + pressure",
+        learn: "Lane, pressure, and bailout logic",
+      },
+    ],
   },
   {
-    href: "/race/tracker",
-    label: "Course Tracker",
-    icon: Route,
-    accent: "#06b6d4",
-    race: "Mark progress",
-    learn: "COG, VMG, layline, and tack timing",
+    title: "Live During Race",
+    icon: Flag,
+    accent: "#f59e0b",
+    summary: "Cockpit tools for course position, mark progress, and tactics.",
+    items: [
+      {
+        href: "/race/live",
+        label: "Race Live",
+        icon: Flag,
+        accent: "#f59e0b",
+        race: "Cockpit mode",
+        learn: "Big-display course, VMG, and tack calls",
+      },
+      {
+        href: "/race/tracker",
+        label: "Course Tracker",
+        icon: Route,
+        accent: "#06b6d4",
+        race: "Mark progress",
+        learn: "COG, VMG, layline, and tack timing",
+      },
+      {
+        href: "/tactics",
+        label: "Tactics",
+        icon: Route,
+        accent: "#eab308",
+        race: "Decisions",
+        learn: "Upwind and downwind decisions",
+      },
+    ],
   },
   {
-    href: "/trim/main",
-    label: "Mainsail Trim",
-    icon: Sailboat,
-    accent: "#3b82f6",
-    race: "Power + depower",
-    learn: "Power, balance, and depower controls",
-  },
-  {
-    href: "/trim/jib",
-    label: "Headsail Trim",
-    icon: Wind,
-    accent: "#a855f7",
-    race: "Trim + flow",
-    learn: "Lead, sheet, and telltale flow",
-  },
-  {
-    href: "/trim/spin",
-    label: "Spinnaker Trim",
-    icon: Waves,
-    accent: "#14b8a6",
-    race: "Downwind control",
-    learn: "Downwind trim and control",
-  },
-  {
-    href: "/tactics",
-    label: "Tactics",
-    icon: Route,
-    accent: "#eab308",
-    race: "Decisions",
-    learn: "Upwind and downwind decisions",
-  },
-  {
-    href: "/troubleshoot",
-    label: "Troubleshoot",
+    title: "Troubleshooting",
     icon: Wrench,
     accent: "#f97316",
-    race: "Fix fast",
-    learn: "Fix speed, control, and trim issues",
+    summary: "Diagnose speed, control, lane, and balance problems fast.",
+    items: [
+      {
+        href: "/troubleshoot",
+        label: "Troubleshoot",
+        icon: Wrench,
+        accent: "#f97316",
+        race: "Fix fast",
+        learn: "Fix speed, control, and trim issues",
+      },
+    ],
   },
   {
-    href: "/notes",
-    label: "Notes",
-    icon: Notebook,
-    accent: "#94a3b8",
-    race: "Review later",
-    learn: "Logs and learning",
-  },
-  {
-    href: "/race/review",
-    label: "After Action Report",
-    icon: Notebook,
-    accent: "#ec4899",
-    race: "Good/bad/neutral calls",
-    learn: "Score the day and plan practice",
+    title: "Library",
+    icon: Library,
+    accent: "#3b82f6",
+    summary: "Trim reference, notes, and race review material.",
+    items: [
+      {
+        href: "/trim/main",
+        label: "Mainsail Trim",
+        icon: Sailboat,
+        accent: "#3b82f6",
+        race: "Power + depower",
+        learn: "Power, balance, and depower controls",
+      },
+      {
+        href: "/trim/jib",
+        label: "Headsail Trim",
+        icon: Wind,
+        accent: "#a855f7",
+        race: "Trim + flow",
+        learn: "Lead, sheet, and telltale flow",
+      },
+      {
+        href: "/trim/spin",
+        label: "Spinnaker Trim",
+        icon: Waves,
+        accent: "#14b8a6",
+        race: "Downwind control",
+        learn: "Downwind trim and control",
+      },
+      {
+        href: "/notes",
+        label: "Notes",
+        icon: Notebook,
+        accent: "#94a3b8",
+        race: "Review later",
+        learn: "Logs and learning",
+      },
+      {
+        href: "/race/review",
+        label: "After Action Report",
+        icon: Notebook,
+        accent: "#ec4899",
+        race: "Good/bad/neutral calls",
+        learn: "Score the day and plan practice",
+      },
+    ],
   },
 ];
 
@@ -203,44 +236,84 @@ export default function HomePage() {
 
       <section className="space-y-3">
         <div className="flex items-center justify-between px-1">
-          <div className="layline-kicker">Modules</div>
-          <div className="text-xs text-[color:var(--muted)]">Icons</div>
+          <div className="layline-kicker">Race Workflow</div>
+          <div className="text-xs text-[color:var(--muted)]">Grouped</div>
         </div>
 
         <div
           className={[
-            "grid justify-items-center gap-3",
+            "grid gap-3",
             isDesktopLayout
-              ? "grid-cols-8 xl:grid-cols-11"
+              ? "grid-cols-4"
               : isWideLayout
-                ? "grid-cols-7 lg:grid-cols-9"
-                : "grid-cols-5",
+                ? "grid-cols-2"
+                : "grid-cols-1",
           ].join(" ")}
         >
-          {modules.map((item) => {
-            const Icon = item.icon;
+          {moduleGroups.map((group) => {
+            const GroupIcon = group.icon;
 
             return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className="group flex w-full max-w-[4.35rem] flex-col items-center gap-1.5 text-center transition duration-150 active:scale-95"
-                aria-label={`${item.label}: ${raceMode ? item.race : item.learn}`}
-                title={item.label}
+              <div
+                key={group.title}
+                className="layline-panel flex min-h-52 flex-col gap-4 p-4"
               >
-                <div
-                  className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full border bg-[color:var(--panel)] shadow-sm transition group-active:scale-95"
-                  style={{
-                    color: item.accent,
-                    borderColor: item.accent,
-                  }}
-                >
-                  <Icon size={19} strokeWidth={2.2} />
+                <div className="flex items-start gap-3">
+                  <div
+                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border bg-[color:var(--panel)] shadow-sm"
+                    style={{
+                      color: group.accent,
+                      borderColor: group.accent,
+                    }}
+                  >
+                    <GroupIcon size={19} strokeWidth={2.2} />
+                  </div>
+                  <div className="min-w-0">
+                    <h2 className="text-base font-black uppercase leading-5 text-[color:var(--text)]">
+                      {group.title}
+                    </h2>
+                    <p className="mt-1 text-sm leading-5 text-[color:var(--muted)]">
+                      {group.summary}
+                    </p>
+                  </div>
                 </div>
-                <span className="min-h-8 text-[0.62rem] font-black uppercase leading-4 text-[color:var(--text-soft)]">
-                  {item.label}
-                </span>
-              </Link>
+
+                <div className="grid gap-2">
+                  {group.items.map((item) => {
+                    const Icon = item.icon;
+
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        className="group flex items-center gap-3 rounded-lg border border-[color:var(--divider)] bg-[color:var(--panel-soft)] px-3 py-2.5 transition duration-150 active:scale-[0.99]"
+                        aria-label={`${item.label}: ${
+                          raceMode ? item.race : item.learn
+                        }`}
+                        title={item.label}
+                      >
+                        <div
+                          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border bg-[color:var(--panel)] transition group-active:scale-95"
+                          style={{
+                            color: item.accent,
+                            borderColor: item.accent,
+                          }}
+                        >
+                          <Icon size={17} strokeWidth={2.2} />
+                        </div>
+                        <div className="min-w-0">
+                          <div className="text-sm font-bold leading-5 text-[color:var(--text-soft)]">
+                            {item.label}
+                          </div>
+                          <div className="truncate text-xs leading-4 text-[color:var(--muted)]">
+                            {raceMode ? item.race : item.learn}
+                          </div>
+                        </div>
+                      </Link>
+                    );
+                  })}
+                </div>
+              </div>
             );
           })}
         </div>

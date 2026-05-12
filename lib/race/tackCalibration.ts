@@ -17,6 +17,7 @@ export type TackCalibrationResult = {
   confidence: "low" | "medium" | "high";
   beforeSamples: number;
   afterSamples: number;
+  source?: "manual" | "auto";
 };
 
 export const TACK_CALIBRATION_STORAGE_KEY = "layline-tack-calibrations-v1";
@@ -28,6 +29,9 @@ const MIN_SETTLED_SPEED_MPS = 1.3;
 const MAX_SETTLED_ACCURACY_M = 35;
 const MIN_REASONABLE_TACK_DEG = 65;
 const MAX_REASONABLE_TACK_DEG = 125;
+const AUTO_SCAN_STEP_MS = 5_000;
+const AUTO_DEDUPE_WINDOW_MS = 45_000;
+const MAX_STORED_CALIBRATIONS = 200;
 
 function circularMeanDeg(values: number[]) {
   const vector = values.reduce(
@@ -148,7 +152,101 @@ export function calculateTackCalibration(
     }),
     beforeSamples: beforePoints.length,
     afterSamples: afterPoints.length,
+    source: "manual",
   };
+}
+
+function autoId(atMs: number, beforeCogDeg: number, afterCogDeg: number) {
+  return `auto-tack-${atMs}-${Math.round(beforeCogDeg)}-${Math.round(afterCogDeg)}`;
+}
+
+function scoreTack(result: TackCalibrationResult) {
+  const confidenceScore =
+    result.confidence === "high" ? 3 : result.confidence === "medium" ? 2 : 1;
+  return confidenceScore * 100 + result.beforeSamples + result.afterSamples;
+}
+
+export function detectAutomaticTackCalibrations(
+  track: TackCalibrationTrackPoint[],
+): TackCalibrationResult[] {
+  const sortedTrack = track
+    .filter((point) => point.cogDeg != null)
+    .slice()
+    .sort((a, b) => a.at.localeCompare(b.at));
+
+  if (sortedTrack.length < 8) return [];
+
+  const firstMs = new Date(sortedTrack[0].at).getTime();
+  const lastMs = new Date(sortedTrack[sortedTrack.length - 1].at).getTime();
+  if (!Number.isFinite(firstMs) || !Number.isFinite(lastMs)) return [];
+
+  const candidates: TackCalibrationResult[] = [];
+
+  for (
+    let tackStartedAtMs = firstMs + BEFORE_WINDOW_MS;
+    tackStartedAtMs <= lastMs - AFTER_SETTLE_MS - AFTER_WINDOW_MS;
+    tackStartedAtMs += AUTO_SCAN_STEP_MS
+  ) {
+    try {
+      const result = calculateTackCalibration(sortedTrack, tackStartedAtMs);
+      candidates.push({
+        ...result,
+        id: autoId(tackStartedAtMs, result.beforeCogDeg, result.afterCogDeg),
+        at: new Date(tackStartedAtMs).toISOString(),
+        source: "auto",
+      });
+    } catch {
+      // Most scan windows are not tacks; ignore invalid windows.
+    }
+  }
+
+  const clusters: TackCalibrationResult[][] = [];
+
+  for (const candidate of candidates) {
+    const candidateMs = new Date(candidate.at).getTime();
+    const cluster = clusters.find((items) => {
+      const firstItemMs = new Date(items[0].at).getTime();
+      return Math.abs(candidateMs - firstItemMs) <= AUTO_DEDUPE_WINDOW_MS;
+    });
+
+    if (cluster) cluster.push(candidate);
+    else clusters.push([candidate]);
+  }
+
+  return clusters
+    .map((cluster) =>
+      cluster.slice().sort((a, b) => scoreTack(b) - scoreTack(a))[0],
+    )
+    .sort((a, b) => a.at.localeCompare(b.at));
+}
+
+export function mergeTackCalibrations(
+  existing: TackCalibrationResult[],
+  incoming: TackCalibrationResult[],
+) {
+  const merged = [...existing];
+
+  for (const next of incoming) {
+    const nextMs = new Date(next.at).getTime();
+    const duplicateIndex = merged.findIndex((current) => {
+      if (current.id === next.id) return true;
+      if (current.source !== "auto" || next.source !== "auto") return false;
+      const currentMs = new Date(current.at).getTime();
+      return Math.abs(currentMs - nextMs) <= AUTO_DEDUPE_WINDOW_MS;
+    });
+
+    if (duplicateIndex >= 0) {
+      if (scoreTack(next) > scoreTack(merged[duplicateIndex])) {
+        merged[duplicateIndex] = next;
+      }
+    } else {
+      merged.push(next);
+    }
+  }
+
+  return merged
+    .sort((a, b) => a.at.localeCompare(b.at))
+    .slice(-MAX_STORED_CALIBRATIONS);
 }
 
 export function readTackCalibrations(): TackCalibrationResult[] {
@@ -168,7 +266,7 @@ export function saveTackCalibrations(results: TackCalibrationResult[]) {
   if (typeof window === "undefined") return;
   localStorage.setItem(
     TACK_CALIBRATION_STORAGE_KEY,
-    JSON.stringify(results.slice(-10))
+    JSON.stringify(results.slice(-MAX_STORED_CALIBRATIONS))
   );
 }
 

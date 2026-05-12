@@ -12,6 +12,7 @@ import {
   type LegType,
 } from "@/data/logic/sailSelectionLogic";
 import { getRouteBiasInputs } from "@/data/race/getRouteBiasInputs";
+import { formatCourseLabel, getCourseCode, getDefaultCourseId } from "@/data/race/getCourseData";
 import { readJsonResponse } from "@/lib/readJsonResponse";
 
 import { Panel } from "@/components/ui/Panel";
@@ -102,8 +103,10 @@ function getPlanningWindFromTrend(windAvgKt?: number, trend?: WeatherTrend) {
 }
 
 function getCourseWindSourceId(courseId: string): CourseWindRead["sourceId"] {
-  if (courseId === "1" || courseId === "1R") return "thomas_point_wind";
-  if (courseId === "99") return "naval_academy_wind";
+  const courseCode = getCourseCode(courseId);
+
+  if (courseCode === "1" || courseCode === "1R") return "thomas_point_wind";
+  if (courseCode === "99") return "naval_academy_wind";
   return "annapolis_buoy_wind";
 }
 
@@ -405,8 +408,9 @@ function buildFinalCall(params: {
 }
 
 export default function SailSelectionPage() {
-  const routeConfig = useMemo(() => getRouteBiasInputs("1"), []);
-  const [courseId, setCourseId] = useState("1");
+  const defaultCourseId = getDefaultCourseId();
+  const routeConfig = useMemo(() => getRouteBiasInputs(defaultCourseId), [defaultCourseId]);
+  const [courseId, setCourseId] = useState(defaultCourseId);
   const [forecastWind, setForecastWind] = useState<number | "">("");
   const [seaState, setSeaState] = useState<SeaState>("gentle_breeze_7_10");
   const [crewCount, setCrewCount] = useState<CrewCount>(5);
@@ -582,7 +586,7 @@ export default function SailSelectionPage() {
             >
               {routeConfig.prompts.announcedCourse.options?.map((option) => (
                 <option key={option.value} value={option.value} className="bg-slate-900">
-                  Course {option.label}
+                  {formatCourseLabel(option.value)}
                 </option>
               ))}
             </select>

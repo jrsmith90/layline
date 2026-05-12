@@ -9,6 +9,7 @@ import {
   type PressureSide,
   type WindTrend
 } from "@/data/race/getRouteBiasInputs";
+import { getDefaultCourseId } from "@/data/race/getCourseData";
 import { readJsonResponse } from "@/lib/readJsonResponse";
 
 type RouteBiasDecision = "shore_first" | "bay_first" | "neutral" | "mixed_signal";
@@ -53,7 +54,7 @@ type FormValues = {
 };
 
 const initialValues: FormValues = {
-  courseId: "1",
+  courseId: getDefaultCourseId(),
   openingLegType: "unknown",
   windDirectionDeg: "",
   windSpeedKt: "",

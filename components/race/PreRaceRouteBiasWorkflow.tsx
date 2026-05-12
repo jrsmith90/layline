@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { getRouteBiasInputs } from "@/data/race/getRouteBiasInputs";
+import { getDefaultCourseId } from "@/data/race/getCourseData";
 import PreRaceRouteBiasForm from "@/components/race/PreRaceRouteBiasForm";
 import LiveRouteUpdateCard from "@/components/race/LiveRouteUpdateCard";
 import { LiveInstrumentsPanel } from "@/components/gps/LiveInstrumentsPanel";
@@ -53,7 +54,7 @@ type LatestConditionsValues = {
 };
 
 const initialLatestValues: LatestConditionsValues = {
-  courseId: "1",
+  courseId: getDefaultCourseId(),
   openingLegType: "unknown",
   windDirectionDeg: "",
   windSpeedKt: "",

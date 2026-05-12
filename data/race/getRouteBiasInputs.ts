@@ -1,6 +1,6 @@
 
 
-import { getAllCourseIds, getCourseData } from "./getCourseData";
+import { formatCourseLabel, getAllCourseIds, getCourseCode, getCourseData } from "./getCourseData";
 
 export type RouteBiasCourseType =
   | "local_short"
@@ -71,16 +71,34 @@ export type RouteBiasInputModel = {
 };
 
 function getCourseType(courseId: string): RouteBiasCourseType {
-  if (courseId === "99") return "custom";
-  if (courseId === "1" || courseId === "1R") return "local_short";
-  if (courseId === "2" || courseId === "2R") return "channel_mid";
-  if (courseId === "3" || courseId === "3R") return "channel_long";
-  if (courseId === "4" || courseId === "4R") return "multi_zone";
+  const courseCode = getCourseCode(courseId);
+
+  if (courseCode === "99") return "custom";
+  if (courseCode === "short" || courseCode === "shortR") return "local_short";
+  if (courseCode === "medium" || courseCode === "mediumR") return "channel_mid";
+  if (courseCode === "1" || courseCode === "1R") return "local_short";
+  if (courseCode === "2" || courseCode === "2R") return "channel_mid";
+  if (courseCode === "3" || courseCode === "3R") return "channel_long";
+  if (courseCode === "4" || courseCode === "4R") return "multi_zone";
   return "custom";
 }
 
 function getCourseNotes(courseId: string): string[] {
-  switch (courseId) {
+  switch (getCourseCode(courseId)) {
+    case "short":
+    case "shortR":
+      return [
+        "Treat this as the EWE Spirit short pursuit course.",
+        "Expect the Severn River mouth and WR87 leg to make pressure and traffic management matter.",
+        "Confirm final course direction and pursuit start time before leaving the dock."
+      ];
+    case "medium":
+    case "mediumR":
+      return [
+        "Treat this as the EWE Spirit medium pursuit course.",
+        "The Hackett Point and WR87 triangle makes open-bay pressure and current more important.",
+        "Confirm final course direction and pursuit start time before leaving the dock."
+      ];
     case "1":
     case "1R":
       return [
@@ -137,7 +155,7 @@ export function getRouteBiasInputs(courseId: string): RouteBiasInputModel {
         required: true,
         options: getAllCourseIds().map((id) => ({
           value: id,
-          label: id
+          label: formatCourseLabel(id)
         }))
       },
       openingLegType: {

@@ -1,0 +1,185 @@
+{
+  "event": {
+    "name": "EWE Cup",
+    "location": "Annapolis, MD",
+    "dates": "2026-05-16",
+    "source": "2026 SCC EWE Spirit Cup Sailing Instructions"
+  },
+  "startFinishMark": "C",
+  "marks": {
+    "C": {
+      "id": "GC \"7\"",
+      "name": "Horn Point start mark",
+      "lat": 38.9374,
+      "lon": -76.469,
+      "characteristics": "Approx. 500 yards NE by E of Horn Point shoal pole"
+    },
+    "D": {
+      "id": "G \"91\"",
+      "name": "Chesapeake Channel - Lighted Buoy 91",
+      "lat": 38.98316666666667,
+      "lon": -76.38516666666666,
+      "characteristics": "Fl G 4s"
+    },
+    "G": {
+      "id": "G \"WR87\"",
+      "name": "Chesapeake Channel - Lighted Buoy WR87",
+      "lat": 38.932833333333335,
+      "lon": -76.3925,
+      "characteristics": "Q G"
+    },
+    "X": {
+      "id": "R \"2\"",
+      "name": "Severn River - Lighted Buoy 2",
+      "lat": 38.94166666666667,
+      "lon": -76.42466666666667,
+      "characteristics": "Fl R 2.5s"
+    },
+    "M": {
+      "id": "SG \"1AH\"",
+      "name": "Tolly Point - Light 1AH",
+      "lat": 38.935833333333335,
+      "lon": -76.43616666666667,
+      "characteristics": "Fl G 4s"
+    },
+    "P": {
+      "id": "FL 6s 15ft 4M \"HP\"",
+      "name": "Horn Point shoal pole",
+      "lat": 38.93582557965308,
+      "lon": -76.47388621118127,
+      "characteristics": "Shoal pole"
+    }
+  },
+  "courses": {
+    "medium": {
+      "sequence": ["C", "D", "G", "C"],
+      "distanceNmSI": 11.41,
+      "distanceNmCalculated": 11.41,
+      "legs": [
+        {
+          "legNumber": 1,
+          "fromMark": "C",
+          "toMark": "D",
+          "bearingDeg": 54.9,
+          "distanceNmCalculated": 4.78
+        },
+        {
+          "legNumber": 2,
+          "fromMark": "D",
+          "toMark": "G",
+          "bearingDeg": 186.5,
+          "distanceNmCalculated": 3.04
+        },
+        {
+          "legNumber": 3,
+          "fromMark": "G",
+          "toMark": "C",
+          "bearingDeg": 274.4,
+          "distanceNmCalculated": 3.58
+        }
+      ],
+      "notes": "Appendix A medium pursuit course, CCW shown. CW is permitted; both turning marks must be rounded to port."
+    },
+    "mediumR": {
+      "sequence": ["C", "G", "D", "C"],
+      "distanceNmSI": 11.41,
+      "distanceNmCalculated": 11.41,
+      "legs": [
+        {
+          "legNumber": 1,
+          "fromMark": "C",
+          "toMark": "G",
+          "bearingDeg": 94.4,
+          "distanceNmCalculated": 3.58
+        },
+        {
+          "legNumber": 2,
+          "fromMark": "G",
+          "toMark": "D",
+          "bearingDeg": 6.5,
+          "distanceNmCalculated": 3.04
+        },
+        {
+          "legNumber": 3,
+          "fromMark": "D",
+          "toMark": "C",
+          "bearingDeg": 235,
+          "distanceNmCalculated": 4.78
+        }
+      ],
+      "notes": "Appendix A medium pursuit course, CW option. Both turning marks must be rounded to port."
+    },
+    "short": {
+      "sequence": ["C", "X", "G", "C"],
+      "distanceNmSI": 7.26,
+      "distanceNmCalculated": 7.26,
+      "legs": [
+        {
+          "legNumber": 1,
+          "fromMark": "C",
+          "toMark": "X",
+          "bearingDeg": 82.9,
+          "distanceNmCalculated": 2.09
+        },
+        {
+          "legNumber": 2,
+          "fromMark": "X",
+          "toMark": "G",
+          "bearingDeg": 109.4,
+          "distanceNmCalculated": 1.59
+        },
+        {
+          "legNumber": 3,
+          "fromMark": "G",
+          "toMark": "C",
+          "bearingDeg": 274.4,
+          "distanceNmCalculated": 3.58
+        }
+      ],
+      "notes": "Appendix A short pursuit course, CCW shown. CW is permitted; both turning marks must be rounded to port."
+    },
+    "shortR": {
+      "sequence": ["C", "G", "X", "C"],
+      "distanceNmSI": 7.26,
+      "distanceNmCalculated": 7.26,
+      "legs": [
+        {
+          "legNumber": 1,
+          "fromMark": "C",
+          "toMark": "G",
+          "bearingDeg": 94.4,
+          "distanceNmCalculated": 3.58
+        },
+        {
+          "legNumber": 2,
+          "fromMark": "G",
+          "toMark": "X",
+          "bearingDeg": 289.5,
+          "distanceNmCalculated": 1.59
+        },
+        {
+          "legNumber": 3,
+          "fromMark": "X",
+          "toMark": "C",
+          "bearingDeg": 263,
+          "distanceNmCalculated": 2.09
+        }
+      ],
+      "notes": "Appendix A short pursuit course, CW option. Both turning marks must be rounded to port."
+    }
+  },
+  "specialRoutingNotes": [
+    "Pursuit Division warning signal is scheduled for 1200 Saturday, May 16, 2026 at GC \"7\" off Horn Point.",
+    "The start lies between GC \"7\" and an orange flag on the race committee boat to the southwest of the mark.",
+    "The finish lies between a drop mark and an orange flag on the race committee boat.",
+    "All course marks shall be rounded to port.",
+    "Course may be sailed either direction, except the J/105 class will all sail the same direction as announced on VHF before the first warning.",
+    "The following marks shall always be passed on the channel side for keelboat classes: \"1AH\" at Tolly Point, FL R 6s 15ft 4M \"4\" off Greenbury Point, and FL 6s 15ft 4M \"HP\" shoal pole.",
+    "Race committee announcements are intended on VHF channel 73.",
+    "A boat starting early receives a 5-minute penalty without a hearing and need not restart.",
+    "A boat not starting within 10 minutes after her starting signal is scored DNS without a hearing.",
+    "Any yacht not finishing by 1630 Saturday, May 16, 2026 will be scored TLE.",
+    "A retiring boat shall notify race committee as soon as possible on VHF channel 73 or by email at scc1944.rc@gmail.com.",
+    "Do not interfere with commercial traffic; propulsion may be used only as needed to avoid commercial traffic if no advantage is gained and a written report is submitted by the protest deadline."
+  ]
+}

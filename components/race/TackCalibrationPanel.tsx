@@ -5,8 +5,10 @@ import { TimerReset } from "lucide-react";
 import { usePhoneGps } from "@/components/gps/PhoneGpsProvider";
 import {
   calculateTackCalibration,
+  detectAutomaticTackCalibrations,
   getRaceDayHalfAngle,
   getTackShiftLabel,
+  mergeTackCalibrations,
   readTackCalibrations,
   saveTackCalibrations,
   type TackCalibrationResult,
@@ -53,12 +55,26 @@ export function TackCalibrationPanel({
   }, [isCapturing]);
 
   useEffect(() => {
+    const detected = detectAutomaticTackCalibrations(gps.track);
+    if (detected.length === 0) return;
+
+    setResults((current) => {
+      const nextResults = mergeTackCalibrations(current, detected);
+      if (JSON.stringify(nextResults) === JSON.stringify(current)) return current;
+      saveTackCalibrations(nextResults);
+      const raceDayHalfAngle = getRaceDayHalfAngle(nextResults);
+      if (raceDayHalfAngle != null) onUseHalfAngle(raceDayHalfAngle);
+      return nextResults;
+    });
+  }, [gps.track, onUseHalfAngle]);
+
+  useEffect(() => {
     if (startedAtMs == null) return;
     if (nowMs < startedAtMs + CALIBRATION_DURATION_MS) return;
 
     try {
       const result = calculateTackCalibration(gps.track, startedAtMs);
-      const nextResults = [...results, result].slice(-10);
+      const nextResults = mergeTackCalibrations(results, [result]);
       setResults(nextResults);
       saveTackCalibrations(nextResults);
       onUseHalfAngle(result.halfAngleDeg);
@@ -159,7 +175,8 @@ export function TackCalibrationPanel({
           {latestResult.beforeSamples} · after samples {latestResult.afterSamples} · confidence{" "}
           <span className={confidenceClass(latestResult.confidence)}>
             {latestResult.confidence}
-          </span>
+          </span>{" "}
+          · {latestResult.source === "auto" ? "auto" : "manual"}
         </div>
       )}
     </section>

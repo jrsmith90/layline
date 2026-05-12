@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useReducer, useState } from "react";
 import { Download, RotateCcw, Trash2 } from "lucide-react";
+import CourseChart from "@/components/race/CourseChart";
+import { formatCourseLabel, getCourseData } from "@/data/race/getCourseData";
 import {
   buildRaceSessionReview,
   deleteRaceSession,
@@ -50,6 +52,7 @@ export default function RaceReviewPage() {
   const [selectedId, setSelectedId] = useState(mostRecent?.id ?? "");
   const session = sessions.find((candidate) => candidate.id === selectedId) ?? mostRecent;
   const review = session ? buildRaceSessionReview(session) : null;
+  const reviewCourseData = session?.courseId ? getCourseData(session.courseId) : null;
 
   function recoverToday() {
     const recovered = recoverTodayRaceSession();
@@ -151,7 +154,7 @@ export default function RaceReviewPage() {
                 <h2 className="text-xl font-black">{session.name}</h2>
                 <p className="mt-1 text-sm text-[color:var(--muted)]">
                   {formatDateTime(session.startedAtISO)} to {formatDateTime(session.endedAtISO)}
-                  {session.courseId ? ` · Course ${session.courseId}` : ""}
+                  {session.courseId ? ` · ${formatCourseLabel(session.courseId)}` : ""}
                 </p>
               </div>
               <button
@@ -164,15 +167,25 @@ export default function RaceReviewPage() {
               </button>
             </div>
 
-            <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-6">
+            <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-7">
               <Metric label="Minutes" value={formatNumber(review.durationMin, 0)} />
               <Metric label="GPS" value={String(review.gpsPointCount)} />
               <Metric label="Weather" value={String(review.weatherSampleCount)} />
               <Metric label="Choices" value={String(review.decisionCount)} />
+              <Metric label="Tacks" value={String(session.tackCalibrations.length)} />
               <Metric label="Avg SOG" value={`${formatNumber(review.averageSogKt)} kt`} />
               <Metric label="Max SOG" value={`${formatNumber(review.maxSogKt)} kt`} />
             </div>
           </section>
+
+          {reviewCourseData && (
+            <CourseChart
+              courseData={reviewCourseData}
+              track={session.gpsTrack}
+              title="Course vs sailed track"
+              subtitle="Use the GPS overlay to spot missed laylines, extra distance, and sections sailed away from the planned shape."
+            />
+          )}
 
           <section className="layline-panel p-4">
             <div className="flex flex-wrap items-start justify-between gap-3">

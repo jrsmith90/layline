@@ -4,7 +4,10 @@ import type { GpsTrackPoint } from "@/lib/useGpsCourse";
 import type { LaylineLog } from "@/lib/logStore";
 import { getLogs } from "@/lib/logStore";
 import {
+  detectAutomaticTackCalibrations,
+  mergeTackCalibrations,
   readTackCalibrations,
+  saveTackCalibrations,
   type TackCalibrationResult,
 } from "@/lib/race/tackCalibration";
 
@@ -220,9 +223,23 @@ export function appendRaceGpsSamples(id: string, points: GpsTrackPoint[]) {
   const byTime = new Map(session.gpsTrack.map((point) => [point.at, point]));
   for (const point of points) byTime.set(point.at, point);
 
+  const gpsTrack = Array.from(byTime.values()).sort((a, b) => a.at.localeCompare(b.at));
+  const detectedTacks = detectAutomaticTackCalibrations(gpsTrack);
+  const tackCalibrations = mergeTackCalibrations(
+    session.tackCalibrations,
+    detectedTacks,
+  );
+
+  if (detectedTacks.length > 0) {
+    saveTackCalibrations(
+      mergeTackCalibrations(readTackCalibrations(), detectedTacks),
+    );
+  }
+
   const updated: RaceSession = {
     ...session,
-    gpsTrack: Array.from(byTime.values()).sort((a, b) => a.at.localeCompare(b.at)),
+    gpsTrack,
+    tackCalibrations,
   };
   upsertRaceSession(updated);
   return updated;

@@ -157,7 +157,7 @@ export function RaceRecorderPanel({
       gps: session?.gpsTrack.length ?? 0,
       weather: session?.weatherSamples.length ?? 0,
       decisions: session?.decisions.length ?? 0,
-      trim: session?.trimLogs.length ?? 0,
+      tacks: session?.tackCalibrations.length ?? 0,
     }),
     [session],
   );
@@ -261,7 +261,7 @@ export function RaceRecorderPanel({
         <SmallMetric label="GPS" value={String(counts.gps)} />
         <SmallMetric label="Weather" value={String(counts.weather)} />
         <SmallMetric label="Choices" value={String(counts.decisions)} />
-        <SmallMetric label="Trim" value={String(counts.trim)} />
+        <SmallMetric label="Tacks" value={String(counts.tacks)} />
       </div>
 
       <div className="mt-4 grid gap-2">

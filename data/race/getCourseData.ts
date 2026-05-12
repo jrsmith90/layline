@@ -1,12 +1,15 @@
-import { getActiveCourseGeometry } from "./eventDatabase";
+import {
+  getActiveRaceEvent,
+  raceEvents,
+  type RaceCourseGeometry,
+} from "./eventDatabase";
 
-const courseGeometry = getActiveCourseGeometry();
+const activeEvent = getActiveRaceEvent();
 
-type CourseGeometry = typeof courseGeometry;
-type MarkId = keyof CourseGeometry["marks"];
-type CourseId = keyof CourseGeometry["courses"];
+type MarkId = string;
+type CourseId = string;
 
-export type RaceMark = CourseGeometry["marks"][MarkId];
+export type RaceMark = RaceCourseGeometry["marks"][MarkId];
 
 export type RaceLeg = {
   legNumber: number;
@@ -27,6 +30,11 @@ export type RaceCourse = {
 
 export type CourseSummary = {
   courseId: CourseId;
+  eventId: string;
+  eventName: string;
+  eventLocation: string;
+  eventDates: string;
+  raceDate: string;
   course: RaceCourse;
   marks: Partial<Record<MarkId, RaceMark>>;
   firstMark: MarkId | null;
@@ -39,8 +47,74 @@ export type CourseSummary = {
   specialRoutingNotes: string[];
 };
 
+function getFirstRaceDate(dates: string) {
+  return dates.split(" to ")[0] ?? dates;
+}
+
+function buildQualifiedCourseId(eventId: string, courseId: string) {
+  return `${eventId}:${courseId}`;
+}
+
+function splitQualifiedCourseId(courseId: string) {
+  const separatorIndex = courseId.indexOf(":");
+
+  if (separatorIndex === -1) {
+    return null;
+  }
+
+  return {
+    eventId: courseId.slice(0, separatorIndex),
+    courseId: courseId.slice(separatorIndex + 1),
+  };
+}
+
+function resolveCourse(requestedCourseId: string) {
+  const qualified = splitQualifiedCourseId(requestedCourseId);
+
+  if (qualified) {
+    const event = raceEvents.find((candidate) => candidate.id === qualified.eventId);
+    const course = event?.courseGeometry.courses[qualified.courseId];
+
+    return event && course
+      ? {
+          event,
+          courseId: qualified.courseId,
+          displayCourseId: requestedCourseId,
+          courseGeometry: event.courseGeometry,
+          course,
+        }
+      : null;
+  }
+
+  const activeCourse = activeEvent.courseGeometry.courses[requestedCourseId];
+  if (activeCourse) {
+    return {
+      event: activeEvent,
+      courseId: requestedCourseId,
+      displayCourseId: requestedCourseId,
+      courseGeometry: activeEvent.courseGeometry,
+      course: activeCourse,
+    };
+  }
+
+  for (const event of raceEvents) {
+    const course = event.courseGeometry.courses[requestedCourseId];
+    if (course) {
+      return {
+        event,
+        courseId: requestedCourseId,
+        displayCourseId: buildQualifiedCourseId(event.id, requestedCourseId),
+        courseGeometry: event.courseGeometry,
+        course,
+      };
+    }
+  }
+
+  return null;
+}
+
 function assertCourseExists(courseId: string): asserts courseId is CourseId {
-  if (!(courseId in courseGeometry.courses)) {
+  if (!resolveCourse(courseId)) {
     throw new Error(`Unknown course ID: ${courseId}`);
   }
 }
@@ -48,15 +122,28 @@ function assertCourseExists(courseId: string): asserts courseId is CourseId {
 export function getCourseData(courseId: string): CourseSummary {
   assertCourseExists(courseId);
 
-  const course = courseGeometry.courses[courseId] as RaceCourse;
+  const resolved = resolveCourse(courseId);
+  if (!resolved) {
+    throw new Error(`Unknown course ID: ${courseId}`);
+  }
+
+  const course = resolved.course as RaceCourse;
   const sequence = (course.sequence ?? []) as MarkId[];
   const uniqueMarks = [...new Set(sequence)];
   const marks = Object.fromEntries(
-    uniqueMarks.map((markId) => [markId, courseGeometry.marks[markId as MarkId]])
+    uniqueMarks.map((markId) => [
+      markId,
+      resolved.courseGeometry.marks[markId as MarkId],
+    ])
   ) as Partial<Record<MarkId, RaceMark>>;
 
   return {
-    courseId,
+    courseId: resolved.displayCourseId,
+    eventId: resolved.event.id,
+    eventName: resolved.event.name,
+    eventLocation: resolved.event.location,
+    eventDates: resolved.event.dates,
+    raceDate: getFirstRaceDate(resolved.event.dates),
     course,
     marks,
     firstMark: sequence.length > 1 ? sequence[1] : null,
@@ -77,17 +164,50 @@ export function getCourseData(courseId: string): CourseSummary {
     totalLegs: course.legs.length,
     totalDistanceNmSI: course.distanceNmSI,
     totalDistanceNmCalculated: course.distanceNmCalculated,
-    startFinishMark: courseGeometry.startFinishMark as MarkId,
-    specialRoutingNotes: courseGeometry.specialRoutingNotes
+    startFinishMark: resolved.courseGeometry.startFinishMark as MarkId,
+    specialRoutingNotes: resolved.courseGeometry.specialRoutingNotes
   };
 }
 
 export function getAllCourseIds(): CourseId[] {
-  return Object.keys(courseGeometry.courses) as CourseId[];
+  const sortedEvents = [
+    activeEvent,
+    ...raceEvents.filter((event) => event.id !== activeEvent.id),
+  ];
+
+  return sortedEvents.flatMap((event) =>
+    Object.keys(event.courseGeometry.courses).map((courseId) =>
+      event.id === activeEvent.id
+        ? courseId
+        : buildQualifiedCourseId(event.id, courseId)
+    )
+  );
+}
+
+export function getCourseCode(courseId: string): string {
+  return splitQualifiedCourseId(courseId)?.courseId ?? courseId;
+}
+
+export function formatCourseLabel(courseId: string): string {
+  const resolved = resolveCourse(courseId);
+  const courseCode = resolved?.courseId ?? getCourseCode(courseId);
+  const eventName = resolved?.event.name ?? activeEvent.name;
+
+  return `${eventName}: ${courseCode}`;
+}
+
+export function getDefaultCourseId(): CourseId {
+  const firstCourseId = getAllCourseIds()[0];
+
+  if (!firstCourseId) {
+    throw new Error("No race courses configured for the active event.");
+  }
+
+  return firstCourseId;
 }
 
 export function isCustomCourse(courseId: string): boolean {
   assertCourseExists(courseId);
-  const course = courseGeometry.courses[courseId] as RaceCourse;
-  return Boolean(course.custom);
+  const resolved = resolveCourse(courseId);
+  return Boolean(resolved?.course.custom);
 }

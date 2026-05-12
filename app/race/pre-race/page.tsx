@@ -1,5 +1,7 @@
 import Link from "next/link";
+import CoursePreviewCard from "@/components/race/CoursePreviewCard";
 import PreRaceRouteBiasWorkflow from "@/components/race/PreRaceRouteBiasWorkflow";
+import RaceConditionsMap from "@/components/race/RaceConditionsMap";
 
 export default function Page() {
   return (
@@ -36,6 +38,8 @@ export default function Page() {
           After Action Report
         </Link>
       </div>
+      <RaceConditionsMap />
+      <CoursePreviewCard />
       <PreRaceRouteBiasWorkflow />
     </main>
   );

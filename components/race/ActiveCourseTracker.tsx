@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { getAllCourseIds, getCourseData } from "@/data/race/getCourseData";
+import { formatCourseLabel, getAllCourseIds, getCourseData, getDefaultCourseId } from "@/data/race/getCourseData";
 import { LiveInstrumentsPanel } from "@/components/gps/LiveInstrumentsPanel";
 import { usePhoneGps } from "@/components/gps/PhoneGpsProvider";
 import { TackCalibrationPanel } from "@/components/race/TackCalibrationPanel";
@@ -68,7 +68,7 @@ export default function ActiveCourseTracker() {
     const stored = readStoredTrackerState();
     return stored.courseId && courseIds.some((id) => id === stored.courseId)
       ? stored.courseId
-      : courseIds[0] ?? "1";
+      : getDefaultCourseId();
   });
   const courseData = useMemo(() => getCourseData(courseId), [courseId]);
   const [legIndex, setLegIndex] = useState(() => {
@@ -187,7 +187,7 @@ export default function ActiveCourseTracker() {
             >
               {courseIds.map((id) => (
                 <option key={id} value={id} className="bg-slate-900">
-                  Course {id}
+                  {formatCourseLabel(id)}
                 </option>
               ))}
             </select>
