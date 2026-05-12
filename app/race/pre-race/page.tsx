@@ -1,7 +1,14 @@
+"use client";
+
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import CoursePreviewCard from "@/components/race/CoursePreviewCard";
 import PreRaceRouteBiasWorkflow from "@/components/race/PreRaceRouteBiasWorkflow";
-import RaceConditionsMap from "@/components/race/RaceConditionsMap";
+
+const RaceConditionsMap = dynamic(
+  () => import("@/components/race/RaceConditionsMap"),
+  { ssr: false }
+);
 
 export default function Page() {
   return (
