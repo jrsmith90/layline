@@ -116,6 +116,7 @@ type WindMarker = {
 const courseIds = getAllCourseIds();
 const NOAA_CHART_WMS_URL =
   "https://gis.charttools.noaa.gov/arcgis/rest/services/MCS/NOAAChartDisplay/MapServer/exts/MaritimeChartService/WMSServer";
+const NOAA_CHART_LAYERS = "1,2,3,4,5,6,7,8,9,10,11,12";
 const DEFAULT_CENTER: [number, number] = [38.95, -76.35];
 const HOLLOW_ARROW_FILL = "#f7fbff";
 const WIND_MARKERS: WindMarker[] = [
@@ -537,7 +538,7 @@ export default function RaceConditionsMap() {
                 <FitMapToBounds bounds={mapBounds.bounds} />
                 <WMSTileLayer
                   url={NOAA_CHART_WMS_URL}
-                  layers="0"
+                  layers={NOAA_CHART_LAYERS}
                   format="image/png"
                   transparent
                   version="1.3.0"
