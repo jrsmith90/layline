@@ -198,9 +198,14 @@ export default function RaceConditionsMap() {
   const [courseId, setCourseId] = useState<string>(getDefaultCourseId);
   const [payload, setPayload] = useState<TideCurrentPayload | null>(null);
   const [snapshotIndex, setSnapshotIndex] = useState(4);
+  const [isMapClientReady, setIsMapClientReady] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const courseData = useMemo(() => getCourseData(courseId), [courseId]);
+
+  useEffect(() => {
+    setIsMapClientReady(true);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -344,7 +349,7 @@ export default function RaceConditionsMap() {
               </div>
             </div>
 
-            {loading ? (
+            {loading || !isMapClientReady ? (
               <div className="h-96 bg-[#bfdfe9] flex items-center justify-center">
                 <div className="text-center">
                   <div className="text-sm text-[#25313a]">Loading chart and conditions...</div>
@@ -358,6 +363,7 @@ export default function RaceConditionsMap() {
               </div>
             ) : (
               <MapContainer
+                key={`${courseId}-${payload?.date ?? "no-date"}`}
                 center={mapBounds.center}
                 zoom={mapBounds.zoom}
                 minZoom={5}

@@ -140,10 +140,8 @@ export function DisplayModeControl() {
 }
 
 export function DisplayModeProvider({ children }: { children: ReactNode }) {
-  const [mode, setModeState] = useState<DisplayMode>(readSavedMode);
-  const [autoMode, setAutoMode] = useState<EffectiveDisplayMode>(
-    getAutoDisplayMode
-  );
+  const [mode, setModeState] = useState<DisplayMode>("auto");
+  const [autoMode, setAutoMode] = useState<EffectiveDisplayMode>("phone");
 
   useEffect(() => {
     const tabletQuery = window.matchMedia(IPAD_WIDTH_QUERY);
@@ -155,6 +153,7 @@ export function DisplayModeProvider({ children }: { children: ReactNode }) {
       );
     }
 
+    setModeState(readSavedMode());
     syncAutoMode();
     tabletQuery.addEventListener("change", syncAutoMode);
     desktopQuery.addEventListener("change", syncAutoMode);
@@ -174,7 +173,9 @@ export function DisplayModeProvider({ children }: { children: ReactNode }) {
 
   function setMode(nextMode: DisplayMode) {
     setModeState(nextMode);
-    localStorage.setItem(DISPLAY_MODE_KEY, nextMode);
+    if (typeof window !== "undefined") {
+      localStorage.setItem(DISPLAY_MODE_KEY, nextMode);
+    }
   }
 
   const value = useMemo<DisplayModeContextValue>(

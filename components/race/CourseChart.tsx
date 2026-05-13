@@ -222,10 +222,10 @@ export default function CourseChart({
             );
           })}
 
-          {coursePoints.map((point) => {
+          {coursePoints.map((point, index) => {
             const plotted = project(point, bounds);
             return (
-              <g key={`${point.label}-${plotted.x}-${plotted.y}`}>
+              <g key={`${point.id ?? point.label ?? "mark"}-${index}`}>
                 <circle
                   cx={plotted.x}
                   cy={plotted.y}
