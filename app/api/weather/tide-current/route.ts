@@ -38,14 +38,14 @@ const CURRENT_STATIONS: CurrentStationConfig[] = [
     label: "Tolly Point",
     lat: 38.9345,
     lon: -76.417,
-    role: "Severn mouth / start-area set",
+    role: "NOAA current station 1.6 miles east of Tolly Point",
   },
   {
     stationId: "ACT6106",
     label: "Greenbury Point",
     lat: 38.97333,
     lon: -76.41667,
-    role: "Northern bay approach",
+    role: "NOAA current station 1.8 miles east of Greenbury Point",
   },
   {
     stationId: "cb1102",
@@ -59,14 +59,14 @@ const CURRENT_STATIONS: CurrentStationConfig[] = [
     label: "Thomas Point SE",
     lat: 38.891,
     lon: -76.427,
-    role: "Southern exposed bay water",
+    role: "NOAA current station 0.5 n.mi. southeast of Thomas Point Shoal Light",
   },
   {
     stationId: "ACT4966",
     label: "Thomas Point East",
     lat: 38.89583,
     lon: -76.38683,
-    role: "Eastern side pressure/current check",
+    role: "NOAA current station 2.0 miles east of Thomas Point Shoal Light",
   },
 ];
 

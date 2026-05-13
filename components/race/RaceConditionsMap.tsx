@@ -601,12 +601,16 @@ export default function RaceConditionsMap() {
                       <Popup>
                         <div className="space-y-1 text-sm">
                           <div className="font-bold">{station.label}</div>
+                          <div className="text-xs">{station.role}</div>
                           <div>{directionShortLabel(station.direction)}</div>
                           <div>{directionLabel(station.direction)} {formatKt(station.speedKt)}</div>
                           {station.directionDeg != null ? (
                             <div>Set {Math.round(station.directionDeg)} deg</div>
                           ) : null}
                           <div className="text-xs">{station.displayTime}</div>
+                          <div className="text-xs">
+                            {station.lat.toFixed(4)}, {station.lon.toFixed(4)}
+                          </div>
                           <div className="text-xs">Source: {station.source}</div>
                         </div>
                       </Popup>
