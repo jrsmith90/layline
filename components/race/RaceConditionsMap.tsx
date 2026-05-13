@@ -75,10 +75,65 @@ type TideCurrentPayload = {
   error?: string;
 };
 
+type LiveWeatherPayload = {
+  observedAt?: string;
+  windAvgKt?: number;
+  windGustKt?: number;
+  windDirectionDeg?: number;
+  cbibsAnnapolis?: {
+    platformId: string;
+    platformName: string;
+    locationName: string;
+    observedAt?: string;
+    windAvgKt?: number;
+    windGustKt?: number;
+    windDirectionDeg?: number;
+  };
+  thomasPoint?: {
+    stationId: string;
+    stationName: string;
+    locationName: string;
+    observedAt?: string;
+    windAvgKt?: number;
+    windGustKt?: number;
+    windDirectionDeg?: number;
+  };
+  error?: string;
+};
+
+type WindMarker = {
+  id: string;
+  label: string;
+  lat: number;
+  lon: number;
+  role: string;
+  observedAt?: string;
+  windAvgKt?: number;
+  windGustKt?: number;
+  windDirectionDeg?: number;
+};
+
 const courseIds = getAllCourseIds();
 const NOAA_CHART_WMS_URL =
   "https://gis.charttools.noaa.gov/arcgis/rest/services/MCS/NOAAChartDisplay/MapServer/exts/MaritimeChartService/WMSServer";
 const DEFAULT_CENTER: [number, number] = [38.95, -76.35];
+const HOLLOW_ARROW_FILL = "#f7fbff";
+const WIND_MARKERS: WindMarker[] = [
+  {
+    id: "annapolis-buoy",
+    label: "Annapolis buoy",
+    lat: 38.99,
+    lon: -76.42,
+    role: "Top-of-course wind reference",
+  },
+  {
+    id: "thomas-point",
+    label: "Thomas Point",
+    lat: 38.891,
+    lon: -76.427,
+    role: "Bottom-of-course wind reference",
+  },
+];
 
 type MapBounds = {
   center: [number, number];
@@ -125,18 +180,50 @@ function directionShortLabel(direction: CurrentDirection) {
   return "Current";
 }
 
+function formatObservedAt(value?: string) {
+  if (!value) return "--";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return value;
+  return parsed.toLocaleTimeString([], {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+function buildDirectionalArrowSvg(params: {
+  color: string;
+  directionDeg?: number | null;
+  visible: boolean;
+  arrowLength: number;
+}) {
+  const { color, directionDeg, visible, arrowLength } = params;
+  if (!visible || directionDeg == null) return "";
+
+  const tipY = Math.max(4, 17 - arrowLength);
+  const headBaseY = Math.min(16, tipY + 7);
+  const shaftEndY = headBaseY - 2.4;
+
+  return `<g transform="rotate(${directionDeg} 17 17)">
+      <path d="M17 17 L17 ${shaftEndY}" fill="none" stroke="${color}" stroke-width="2.8" stroke-linecap="round" />
+      <path d="M17 ${tipY} L12.3 ${headBaseY} L17 ${headBaseY - 1.8} L21.7 ${headBaseY} Z" fill="${HOLLOW_ARROW_FILL}" stroke="${color}" stroke-width="2.2" stroke-linejoin="round" />
+    </g>`;
+}
+
 function buildCurrentIcon(station: CurrentStationSnapshot) {
   const color = directionColor(station.direction, station.speedKt);
   const label = station.direction === "slack" || station.speedKt < 0.08 ? "S" : "C";
-  const hasDirection = station.directionDeg != null && station.direction !== "slack" && station.speedKt >= 0.08;
-  const arrowLength = station.strength === "strong" ? 16 : station.strength === "moderate" ? 15 : 14;
-  const arrowEnd = 17 - arrowLength;
-  const arrowSvg = hasDirection
-    ? `<g transform="rotate(${station.directionDeg ?? 0} 17 17)">
-        <path d="M17 17 L17 ${arrowEnd}" fill="none" stroke="${color}" stroke-width="3" stroke-linecap="round" />
-        <path d="M17 ${arrowEnd} L13 ${arrowEnd + 5} M17 ${arrowEnd} L21 ${arrowEnd + 5}" fill="none" stroke="${color}" stroke-width="3" stroke-linecap="round" />
-      </g>`
-    : "";
+  const hasDirection =
+    station.directionDeg != null &&
+    station.direction !== "slack" &&
+    station.speedKt >= 0.08;
+  const arrowLength =
+    station.strength === "strong" ? 16 : station.strength === "moderate" ? 15 : 14;
+  const arrowSvg = buildDirectionalArrowSvg({
+    color,
+    directionDeg: station.directionDeg,
+    visible: hasDirection,
+    arrowLength,
+  });
 
   return L.divIcon({
     html: `<div style="position:relative;width:34px;height:34px;">
@@ -145,6 +232,28 @@ function buildCurrentIcon(station: CurrentStationSnapshot) {
       <div style="position:absolute;left:22px;top:5px;border:1px solid rgba(21,40,58,.45);background:#f7fbff;color:#15283a;border-radius:999px;padding:1px 4px;font-size:9px;font-weight:900;line-height:1;">${label}</div>
     </div>`,
     className: "layline-current-marker",
+    iconSize: [34, 34],
+    iconAnchor: [17, 17],
+    popupAnchor: [0, -14],
+  });
+}
+
+function buildWindIcon(windDirectionDeg?: number | null) {
+  const color = "#0f766e";
+  const arrowSvg = buildDirectionalArrowSvg({
+    color,
+    directionDeg: windDirectionDeg,
+    visible: windDirectionDeg != null,
+    arrowLength: 16,
+  });
+
+  return L.divIcon({
+    html: `<div style="position:relative;width:34px;height:34px;">
+      <svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true">${arrowSvg}</svg>
+      <div style="position:absolute;left:12px;top:12px;width:10px;height:10px;border-radius:999px;background:${HOLLOW_ARROW_FILL};box-shadow:0 0 0 2px ${color},0 0 0 3px rgba(21,40,58,.38);"></div>
+      <div style="position:absolute;left:22px;top:5px;border:1px solid rgba(15,118,110,.38);background:${HOLLOW_ARROW_FILL};color:${color};border-radius:999px;padding:1px 4px;font-size:9px;font-weight:900;line-height:1;">W</div>
+    </div>`,
+    className: "layline-wind-marker",
     iconSize: [34, 34],
     iconAnchor: [17, 17],
     popupAnchor: [0, -14],
@@ -197,6 +306,7 @@ function FitMapToBounds({ bounds }: { bounds: MapBounds["bounds"] }) {
 export default function RaceConditionsMap() {
   const [courseId, setCourseId] = useState<string>(getDefaultCourseId);
   const [payload, setPayload] = useState<TideCurrentPayload | null>(null);
+  const [windPayload, setWindPayload] = useState<LiveWeatherPayload | null>(null);
   const [snapshotIndex, setSnapshotIndex] = useState(4);
   const [isMapClientReady, setIsMapClientReady] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -205,6 +315,33 @@ export default function RaceConditionsMap() {
 
   useEffect(() => {
     setIsMapClientReady(true);
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadWind() {
+      try {
+        const response = await fetch("/api/weather/noaa-wind", {
+          cache: "no-store",
+        });
+        const data = (await response.json()) as LiveWeatherPayload;
+
+        if (!cancelled && response.ok && !data.error) {
+          setWindPayload(data);
+        }
+      } catch {
+        if (!cancelled) {
+          setWindPayload(null);
+        }
+      }
+    }
+
+    loadWind();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -267,15 +404,40 @@ export default function RaceConditionsMap() {
     [courseData],
   );
 
+  const windStations = useMemo<WindMarker[]>(() => {
+    return WIND_MARKERS.map((marker) => {
+      if (marker.id === "annapolis-buoy") {
+        return {
+          ...marker,
+          observedAt: windPayload?.cbibsAnnapolis?.observedAt,
+          windAvgKt: windPayload?.cbibsAnnapolis?.windAvgKt,
+          windGustKt: windPayload?.cbibsAnnapolis?.windGustKt,
+          windDirectionDeg: windPayload?.cbibsAnnapolis?.windDirectionDeg,
+        };
+      }
+
+      return {
+        ...marker,
+        observedAt: windPayload?.thomasPoint?.observedAt,
+        windAvgKt: windPayload?.thomasPoint?.windAvgKt,
+        windGustKt: windPayload?.thomasPoint?.windGustKt,
+        windDirectionDeg: windPayload?.thomasPoint?.windDirectionDeg,
+      };
+    }).filter((marker) => marker.windDirectionDeg != null || marker.windAvgKt != null);
+  }, [windPayload]);
+
   const mapBounds = useMemo<MapBounds>(() => {
     const stationPositions = currentStations.map(
+      (station) => [station.lat, station.lon] as [number, number],
+    );
+    const windPositions = windStations.map(
       (station) => [station.lat, station.lon] as [number, number],
     );
     const tidePosition =
       payload?.tide.lat != null && payload.tide.lon != null
         ? ([[payload.tide.lat, payload.tide.lon] as [number, number]])
         : [];
-    const positions = [...coursePositions, ...stationPositions, ...tidePosition];
+    const positions = [...coursePositions, ...stationPositions, ...windPositions, ...tidePosition];
 
     if (positions.length === 0) {
       return {
@@ -305,7 +467,7 @@ export default function RaceConditionsMap() {
       ],
       zoom: 12,
     };
-  }, [coursePositions, currentStations, payload?.tide.lat, payload?.tide.lon]);
+  }, [coursePositions, currentStations, payload?.tide.lat, payload?.tide.lon, windStations]);
 
   return (
     <section className="layline-panel overflow-hidden">
@@ -450,6 +612,33 @@ export default function RaceConditionsMap() {
                     </Marker>
                   );
                 })}
+
+                {windStations.map((station) => (
+                  <Marker
+                    key={station.id}
+                    position={[station.lat, station.lon]}
+                    icon={buildWindIcon(station.windDirectionDeg)}
+                  >
+                    <Popup>
+                      <div className="space-y-1 text-sm">
+                        <div className="font-bold">{station.label}</div>
+                        <div>{station.role}</div>
+                        <div>
+                          Wind {formatKt(station.windAvgKt)}
+                          {station.windGustKt != null
+                            ? ` gust ${formatKt(station.windGustKt)}`
+                            : ""}
+                        </div>
+                        {station.windDirectionDeg != null ? (
+                          <div>From {Math.round(station.windDirectionDeg)} deg</div>
+                        ) : null}
+                        <div className="text-xs">
+                          Observed {formatObservedAt(station.observedAt)}
+                        </div>
+                      </div>
+                    </Popup>
+                  </Marker>
+                ))}
 
                 {payload?.tide && (
                   <Marker

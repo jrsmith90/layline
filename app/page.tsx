@@ -11,6 +11,7 @@ import {
   CloudSun,
   Flag,
   Library,
+  Map,
   Notebook,
   Route,
   Sailboat,
@@ -26,6 +27,14 @@ const moduleGroups = [
     accent: "#22c55e",
     summary: "Plan the day, choose sails, and get the start organized.",
     items: [
+      {
+        href: "/race/map",
+        label: "Race Map",
+        icon: Map,
+        accent: "#38bdf8",
+        race: "NOAA chart",
+        learn: "Wind, tide, and current map",
+      },
       {
         href: "/race/pre-race",
         label: "Pre-Race",
