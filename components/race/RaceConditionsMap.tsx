@@ -1,8 +1,17 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
-import { RefreshCw, RotateCcw, Waves, ZoomIn, ZoomOut } from "lucide-react";
+import {
+  CircleMarker,
+  MapContainer,
+  Marker,
+  Polyline,
+  Popup,
+  Tooltip,
+  WMSTileLayer,
+  useMap,
+} from "react-leaflet";
+import { Navigation } from "lucide-react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { formatCourseLabel, getAllCourseIds, getCourseData, getDefaultCourseId } from "@/data/race/getCourseData";
@@ -67,6 +76,15 @@ type TideCurrentPayload = {
 };
 
 const courseIds = getAllCourseIds();
+const NOAA_CHART_WMS_URL =
+  "https://gis.charttools.noaa.gov/arcgis/rest/services/MCS/NOAAChartDisplay/MapServer/exts/MaritimeChartService/WMSServer";
+const DEFAULT_CENTER: [number, number] = [38.95, -76.35];
+
+type MapBounds = {
+  center: [number, number];
+  bounds: [[number, number], [number, number]];
+  zoom: number;
+};
 
 function formatDate(value: string) {
   const [year, month, day] = value.split("-").map(Number);
@@ -100,6 +118,49 @@ function directionColor(direction: CurrentDirection, speedKt: number) {
   return "#a3a3a3";
 }
 
+function directionShortLabel(direction: CurrentDirection) {
+  if (direction === "flood") return "Flood current";
+  if (direction === "ebb") return "Ebb current";
+  if (direction === "slack") return "Slack current";
+  return "Current";
+}
+
+function buildCurrentIcon(station: CurrentStationSnapshot) {
+  const color = directionColor(station.direction, station.speedKt);
+  const label = station.direction === "slack" || station.speedKt < 0.08 ? "S" : "C";
+  const hasDirection = station.directionDeg != null && station.direction !== "slack" && station.speedKt >= 0.08;
+  const arrowLength = station.strength === "strong" ? 16 : station.strength === "moderate" ? 15 : 14;
+  const arrowEnd = 17 - arrowLength;
+  const arrowSvg = hasDirection
+    ? `<g transform="rotate(${station.directionDeg ?? 0} 17 17)">
+        <path d="M17 17 L17 ${arrowEnd}" fill="none" stroke="${color}" stroke-width="3" stroke-linecap="round" />
+        <path d="M17 ${arrowEnd} L13 ${arrowEnd + 5} M17 ${arrowEnd} L21 ${arrowEnd + 5}" fill="none" stroke="${color}" stroke-width="3" stroke-linecap="round" />
+      </g>`
+    : "";
+
+  return L.divIcon({
+    html: `<div style="position:relative;width:34px;height:34px;">
+      <svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true">${arrowSvg}</svg>
+      <div style="position:absolute;left:14px;top:14px;width:6px;height:6px;border-radius:999px;background:${color};box-shadow:0 0 0 2px #f7fbff,0 0 0 3px rgba(21,40,58,.55);"></div>
+      <div style="position:absolute;left:22px;top:5px;border:1px solid rgba(21,40,58,.45);background:#f7fbff;color:#15283a;border-radius:999px;padding:1px 4px;font-size:9px;font-weight:900;line-height:1;">${label}</div>
+    </div>`,
+    className: "layline-current-marker",
+    iconSize: [34, 34],
+    iconAnchor: [17, 17],
+    popupAnchor: [0, -14],
+  });
+}
+
+function tideIcon() {
+  return L.divIcon({
+    html: `<div style="width:20px;height:20px;background:#f7fbff;border:3px solid #047857;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:9px;color:#064e3b;box-shadow:0 1px 4px rgba(0,0,0,.35);">T</div>`,
+    className: "layline-tide-marker",
+    iconSize: [20, 20],
+    iconAnchor: [10, 10],
+    popupAnchor: [0, -10],
+  });
+}
+
 function getSnapshot(payload: TideCurrentPayload | null, index: number) {
   return payload?.snapshots[index] ?? null;
 }
@@ -118,6 +179,19 @@ function stageFromSeries(
   const slope = next - previous;
   if (Math.abs(slope) < 0.04) return "near slack";
   return slope > 0 ? "rising" : "falling";
+}
+
+function FitMapToBounds({ bounds }: { bounds: MapBounds["bounds"] }) {
+  const map = useMap();
+
+  useEffect(() => {
+    map.fitBounds(bounds, {
+      padding: [28, 28],
+      maxZoom: 14,
+    });
+  }, [bounds, map]);
+
+  return null;
 }
 
 export default function RaceConditionsMap() {
@@ -169,36 +243,48 @@ export default function RaceConditionsMap() {
   }, [courseData.eventId, courseData.raceDate]);
 
   const snapshot = getSnapshot(payload, snapshotIndex);
-  const currentStations = snapshot?.currents ?? payload?.currentStations ?? [];
+  const currentStations = useMemo(
+    () => snapshot?.currents ?? payload?.currentStations ?? [],
+    [payload?.currentStations, snapshot?.currents],
+  );
   const selectedTideHeight =
     payload?.tide.series.find((point) => point.time === snapshot?.time)?.heightFt ??
     payload?.tide.heightFt ??
     null;
   const selectedTideStage = stageFromSeries(payload?.tide.series, snapshot?.time, payload?.tide.stage);
 
-  const mapBounds = useMemo(() => {
-    if (!courseData.marks || courseData.course.sequence?.length === 0) {
-      return {
-        center: [38.95, -76.35] as [number, number],
-        zoom: 11,
-      };
-    }
-
-    const markIds = courseData.course.sequence ?? [];
-    const marks = markIds
+  const coursePositions = useMemo(
+    () =>
+      (courseData.course.sequence ?? [])
       .map((id) => courseData.marks[id])
       .filter((m) => m != null)
-      .slice(0, 2);
+      .map((mark) => [mark.lat, mark.lon] as [number, number]),
+    [courseData],
+  );
 
-    if (marks.length < 2) {
+  const mapBounds = useMemo<MapBounds>(() => {
+    const stationPositions = currentStations.map(
+      (station) => [station.lat, station.lon] as [number, number],
+    );
+    const tidePosition =
+      payload?.tide.lat != null && payload.tide.lon != null
+        ? ([[payload.tide.lat, payload.tide.lon] as [number, number]])
+        : [];
+    const positions = [...coursePositions, ...stationPositions, ...tidePosition];
+
+    if (positions.length === 0) {
       return {
-        center: [38.95, -76.35] as [number, number],
+        center: DEFAULT_CENTER,
+        bounds: [
+          [38.85, -76.5],
+          [39.05, -76.2],
+        ],
         zoom: 11,
       };
     }
 
-    const lats = marks.map((m) => m.lat);
-    const lons = marks.map((m) => m.lon);
+    const lats = positions.map(([lat]) => lat);
+    const lons = positions.map(([, lon]) => lon);
     const minLat = Math.min(...lats);
     const maxLat = Math.max(...lats);
     const minLon = Math.min(...lons);
@@ -208,9 +294,13 @@ export default function RaceConditionsMap() {
 
     return {
       center: [centerLat, centerLon] as [number, number],
+      bounds: [
+        [minLat, minLon],
+        [maxLat, maxLon],
+      ],
       zoom: 12,
     };
-  }, [courseData]);
+  }, [coursePositions, currentStations, payload?.tide.lat, payload?.tide.lon]);
 
   return (
     <section className="layline-panel overflow-hidden">
@@ -270,34 +360,85 @@ export default function RaceConditionsMap() {
               <MapContainer
                 center={mapBounds.center}
                 zoom={mapBounds.zoom}
-                style={{ height: "400px", backgroundColor: "#bfdfe9" }}
-                attributionControl={false}
+                minZoom={5}
+                maxZoom={16}
+                scrollWheelZoom
+                style={{ height: "420px", backgroundColor: "#bfdfe9" }}
+                attributionControl
               >
-                <TileLayer
-                  url="https://gis.charttools.noaa.gov/arcgis/rest/services/MCS/NOAAChartDisplay/MapServer/exts/MaritimeChartService/WMSServer?service=WMS&version=1.3.0&request=GetMap&layers=0&styles=&bbox={bbox-epsg-3857}&width=256&height=256&srs=EPSG:3857&format=image/png&transparent=true"
-                  attribution='&copy; <a href="https://www.noaa.gov/">NOAA</a>'
+                <FitMapToBounds bounds={mapBounds.bounds} />
+                <WMSTileLayer
+                  url={NOAA_CHART_WMS_URL}
+                  layers="0"
+                  format="image/png"
+                  transparent
+                  version="1.3.0"
+                  attribution="NOAA Chart Display Service"
                   maxZoom={16}
                   minZoom={5}
                 />
 
-                {currentStations.map((station) => {
-                  const color = directionColor(station.direction, station.speedKt);
-                  const icon = L.divIcon({
-                    html: `<div style="width: 24px; height: 24px; background: #f7fbff; border: 3px solid ${color}; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 10px; color: #15283a;">C</div>`,
-                    className: "",
-                    iconSize: [24, 24],
-                  });
+                {coursePositions.length > 1 ? (
+                  <Polyline
+                    positions={coursePositions}
+                    pathOptions={{
+                      color: "#ef4444",
+                      weight: 3,
+                      opacity: 0.95,
+                      dashArray: "7 5",
+                    }}
+                  />
+                ) : null}
+
+                {(courseData.course.sequence ?? []).map((markId, index) => {
+                  const mark = courseData.marks[markId];
+                  if (!mark) return null;
 
                   return (
+                    <CircleMarker
+                      key={`${markId}-${index}`}
+                      center={[mark.lat, mark.lon]}
+                      radius={5}
+                      pathOptions={{
+                        color: "#991b1b",
+                        fillColor: "#fef2f2",
+                        fillOpacity: 0.95,
+                        weight: 2,
+                      }}
+                    >
+                      <Tooltip direction="top" offset={[0, -6]} opacity={0.95}>
+                        {markId}
+                      </Tooltip>
+                      <Popup>
+                        <div className="space-y-1 text-sm">
+                          <div className="font-bold">{markId}: {mark.name}</div>
+                          <div>{mark.characteristics}</div>
+                          <div className="text-xs">
+                            {mark.lat.toFixed(5)}, {mark.lon.toFixed(5)}
+                          </div>
+                        </div>
+                      </Popup>
+                    </CircleMarker>
+                  );
+                })}
+
+                {currentStations.map((station, index) => {
+                  return (
                     <Marker
-                      key={station.stationId}
+                      key={`${station.stationId}-${station.lat}-${station.lon}-${index}`}
                       position={[station.lat, station.lon]}
-                      icon={icon}
+                      icon={buildCurrentIcon(station)}
                     >
                       <Popup>
                         <div className="space-y-1 text-sm">
                           <div className="font-bold">{station.label}</div>
+                          <div>{directionShortLabel(station.direction)}</div>
                           <div>{directionLabel(station.direction)} {formatKt(station.speedKt)}</div>
+                          {station.directionDeg != null ? (
+                            <div>Set {Math.round(station.directionDeg)} deg</div>
+                          ) : null}
+                          <div className="text-xs">{station.displayTime}</div>
+                          <div className="text-xs">Source: {station.source}</div>
                         </div>
                       </Popup>
                     </Marker>
@@ -307,17 +448,23 @@ export default function RaceConditionsMap() {
                 {payload?.tide && (
                   <Marker
                     position={[payload.tide.lat, payload.tide.lon]}
-                    icon={L.divIcon({
-                      html: `<div style="width: 20px; height: 20px; background: #f7fbff; border: 3px solid #047857; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 9px; color: #064e3b;">T</div>`,
-                      className: "",
-                      iconSize: [20, 20],
-                    })}
+                    icon={tideIcon()}
                   >
                     <Popup>
                       <div className="space-y-1 text-sm">
                         <div className="font-bold">Tide {payload.tide.label}</div>
                         <div>{formatHeight(selectedTideHeight)}</div>
                         <div className="text-xs">{selectedTideStage}</div>
+                        {payload.tide.nextHighTime ? (
+                          <div className="text-xs">
+                            Next high {payload.tide.nextHighTime.displayTime} · {formatHeight(payload.tide.nextHighTime.heightFt)}
+                          </div>
+                        ) : null}
+                        {payload.tide.nextLowTime ? (
+                          <div className="text-xs">
+                            Next low {payload.tide.nextLowTime.displayTime} · {formatHeight(payload.tide.nextLowTime.heightFt)}
+                          </div>
+                        ) : null}
                       </div>
                     </Popup>
                   </Marker>
@@ -366,7 +513,11 @@ export default function RaceConditionsMap() {
           <div className="rounded-lg border border-[color:var(--divider)] bg-black/20 p-3 text-xs text-[color:var(--muted)]">
             <div className="font-bold">About this map</div>
             <p className="mt-2">
-              Uses NOAA's official ENC Chart Display Service with traditional paper chart symbology. Tide and current predictions update weekly from NOAA CO-OPS.
+              Uses NOAA&apos;s official ENC Chart Display Service with traditional paper chart symbology. Tide and current predictions are layered from NOAA CO-OPS for planning only.
+            </p>
+            <p className="mt-2 flex items-center gap-2 font-semibold text-[color:var(--text-soft)]">
+              <Navigation size={13} />
+              Not for navigation.
             </p>
           </div>
         </aside>
