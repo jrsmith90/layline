@@ -36,21 +36,31 @@ function boundsFor(points: ChartPoint[]) {
   const latPad = Math.max((maxLat - minLat) * 0.14, 0.006);
   const lonPad = Math.max((maxLon - minLon) * 0.14, 0.006);
 
+  const paddedMinLat = minLat - latPad;
+  const paddedMaxLat = maxLat + latPad;
+  const paddedMinLon = minLon - lonPad;
+  const paddedMaxLon = maxLon + lonPad;
+  const paddedLonSpan = Math.max(paddedMaxLon - paddedMinLon, 0.0001);
+  const paddedLatSpan = Math.max(paddedMaxLat - paddedMinLat, 0.0001);
+  const scale = Math.min((WIDTH - PADDING * 2) / paddedLonSpan, (HEIGHT - PADDING * 2) / paddedLatSpan);
+  const xOffset = PADDING + ((WIDTH - PADDING * 2) - paddedLonSpan * scale) / 2;
+  const yOffset = PADDING + ((HEIGHT - PADDING * 2) - paddedLatSpan * scale) / 2;
+
   return {
-    minLat: minLat - latPad,
-    maxLat: maxLat + latPad,
-    minLon: minLon - lonPad,
-    maxLon: maxLon + lonPad,
+    minLat: paddedMinLat,
+    maxLat: paddedMaxLat,
+    minLon: paddedMinLon,
+    maxLon: paddedMaxLon,
+    scale,
+    xOffset,
+    yOffset,
   };
 }
 
 function project(point: ChartPoint, bounds: ReturnType<typeof boundsFor>) {
-  const lonSpan = bounds.maxLon - bounds.minLon || 1;
-  const latSpan = bounds.maxLat - bounds.minLat || 1;
-
   return {
-    x: PADDING + ((point.lon - bounds.minLon) / lonSpan) * (WIDTH - PADDING * 2),
-    y: PADDING + ((bounds.maxLat - point.lat) / latSpan) * (HEIGHT - PADDING * 2),
+    x: bounds.xOffset + (point.lon - bounds.minLon) * bounds.scale,
+    y: bounds.yOffset + (bounds.maxLat - point.lat) * bounds.scale,
   };
 }
 
@@ -125,6 +135,7 @@ export default function CourseChart({
       <div className="mt-4 overflow-hidden rounded-lg border border-[color:var(--divider)] bg-[#08233a]">
         <svg
           viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
+          preserveAspectRatio="xMidYMid meet"
           role="img"
           aria-label={`${title} for course ${courseData.courseId}`}
           className="aspect-[1.565] w-full"
