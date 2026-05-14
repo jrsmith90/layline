@@ -5,6 +5,7 @@ import { useEffect, useReducer, useState } from "react";
 import { Download, RotateCcw, Trash2 } from "lucide-react";
 import CourseChart from "@/components/race/CourseChart";
 import { formatCourseLabel, getCourseData } from "@/data/race/getCourseData";
+import type { RaceStateSnapshot } from "@/lib/race/state/types";
 import {
   buildRaceSessionReview,
   deleteRaceSession,
@@ -47,6 +48,38 @@ function gradeLabel(grade: string) {
   return "Needs ratings";
 }
 
+function formatSnapshotCall(call: RaceStateSnapshot["primaryCall"]) {
+  return call.replace(/_/g, " ").toUpperCase();
+}
+
+function formatSnapshotLeg(snapshot: RaceStateSnapshot) {
+  if (snapshot.course.activeLeg) {
+    return `${snapshot.course.activeLeg.fromMark} to ${snapshot.course.activeLeg.toMark}`;
+  }
+
+  if (snapshot.course.fromMark && snapshot.course.toMark) {
+    return `${snapshot.course.fromMark.name} to ${snapshot.course.toMark.name}`;
+  }
+
+  return `Leg ${snapshot.course.safeLegIndex + 1}`;
+}
+
+function confidenceTone(level: RaceStateSnapshot["confidence"]["overall"]) {
+  if (level === "high") {
+    return "border-emerald-400/35 bg-emerald-400/10 text-emerald-50";
+  }
+
+  if (level === "medium") {
+    return "border-cyan-400/30 bg-cyan-400/10 text-cyan-50";
+  }
+
+  if (level === "low") {
+    return "border-amber-300/35 bg-amber-300/10 text-amber-50";
+  }
+
+  return "border-red-400/35 bg-red-400/10 text-red-100";
+}
+
 export default function RaceReviewPage() {
   const [, refresh] = useReducer((value: number) => value + 1, 0);
   const sessions = getRaceSessions();
@@ -57,6 +90,7 @@ export default function RaceReviewPage() {
     sessions.find((candidate) => candidate.id === effectiveSelectedId) ?? mostRecent;
   const review = session ? buildRaceSessionReview(session) : null;
   const reviewCourseData = session?.courseId ? getCourseData(session.courseId) : null;
+  const latestRaceStateSnapshot = session?.raceStateSnapshots.at(-1) ?? null;
 
   useEffect(() => subscribeRaceSessionStore(() => refresh()), []);
 
@@ -177,15 +211,144 @@ export default function RaceReviewPage() {
               </button>
             </div>
 
-            <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-7">
+            <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-8">
               <Metric label="Minutes" value={formatNumber(review.durationMin, 0)} />
               <Metric label="GPS" value={String(review.gpsPointCount)} />
               <Metric label="Weather" value={String(review.weatherSampleCount)} />
               <Metric label="Choices" value={String(review.decisionCount)} />
+              <Metric label="State" value={String(session.raceStateSnapshots.length)} />
               <Metric label="Tacks" value={String(session.tackCalibrations.length)} />
               <Metric label="Avg SOG" value={`${formatNumber(review.averageSogKt)} kt`} />
               <Metric label="Max SOG" value={`${formatNumber(review.maxSogKt)} kt`} />
             </div>
+          </section>
+
+          <section className="layline-panel p-4">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h2 className="text-xl font-black">Saved App State</h2>
+                <p className="mt-1 text-sm text-[color:var(--muted)]">
+                  Latest fused snapshot recorded during the race, loaded directly from the stored session.
+                </p>
+              </div>
+              <div className="text-xs font-bold uppercase tracking-wide text-[color:var(--muted)]">
+                {session.raceStateSnapshots.length} saved snapshot
+                {session.raceStateSnapshots.length === 1 ? "" : "s"}
+              </div>
+            </div>
+
+            {!latestRaceStateSnapshot ? (
+              <div className="mt-4 rounded-xl border border-white/10 bg-white/5 p-4 text-sm text-[color:var(--muted)]">
+                No fused race-state snapshots were saved for this session.
+              </div>
+            ) : (
+              <>
+                <div className="mt-4 flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <div className="text-xs font-black uppercase tracking-[0.16em] text-[color:var(--muted)]">
+                      Captured
+                    </div>
+                    <div className="mt-1 text-lg font-black">
+                      {formatDateTime(latestRaceStateSnapshot.capturedAtISO)}
+                    </div>
+                    <div className="mt-1 text-xs text-[color:var(--muted)]">
+                      App state generated {formatDateTime(latestRaceStateSnapshot.stateGeneratedAt)}
+                    </div>
+                  </div>
+                  <div
+                    className={[
+                      "rounded-full border px-3 py-2 text-xs font-black uppercase tracking-wide",
+                      confidenceTone(latestRaceStateSnapshot.confidence.overall),
+                    ].join(" ")}
+                  >
+                    {latestRaceStateSnapshot.confidence.overall} confidence
+                  </div>
+                </div>
+
+                <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
+                  <Metric
+                    label="Call"
+                    value={formatSnapshotCall(latestRaceStateSnapshot.primaryCall)}
+                  />
+                  <Metric
+                    label="Leg"
+                    value={formatSnapshotLeg(latestRaceStateSnapshot)}
+                  />
+                  <Metric
+                    label="Wind Source"
+                    value={latestRaceStateSnapshot.wind.sourceLabel}
+                  />
+                  <Metric
+                    label="Mode"
+                    value={
+                      latestRaceStateSnapshot.approachingMark
+                        ? "Mark approach"
+                        : "Leg tracking"
+                    }
+                  />
+                </div>
+
+                <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-4">
+                  <Metric
+                    label="GPS Freshness"
+                    value={latestRaceStateSnapshot.sources.gps.freshness}
+                  />
+                  <Metric
+                    label="Wind Freshness"
+                    value={latestRaceStateSnapshot.sources.wind.freshness}
+                  />
+                  <Metric
+                    label="Dist To Mark"
+                    value={
+                      latestRaceStateSnapshot.progress?.distanceToMarkNm == null
+                        ? "--"
+                        : `${formatNumber(
+                            latestRaceStateSnapshot.progress.distanceToMarkNm,
+                            2,
+                          )} nm`
+                    }
+                  />
+                  <Metric
+                    label="VMG"
+                    value={
+                      latestRaceStateSnapshot.progress?.vmgToMarkKt == null
+                        ? "--"
+                        : `${formatNumber(
+                            latestRaceStateSnapshot.progress.vmgToMarkKt,
+                            1,
+                          )} kt`
+                    }
+                  />
+                </div>
+
+                <div className="mt-3 rounded-xl border border-white/10 bg-black/20 p-4">
+                  <div className="text-xs font-black uppercase tracking-[0.16em] text-[color:var(--muted)]">
+                    Source detail
+                  </div>
+                  <div className="mt-2 text-sm leading-6">
+                    GPS was {latestRaceStateSnapshot.sources.gps.status} with{" "}
+                    {latestRaceStateSnapshot.sources.gps.permission} permission. Wind came from{" "}
+                    {latestRaceStateSnapshot.wind.sourceLabel} in{" "}
+                    {latestRaceStateSnapshot.wind.sourceMode} mode.
+                  </div>
+                </div>
+
+                {latestRaceStateSnapshot.confidence.signals.length > 0 && (
+                  <div className="mt-3 grid gap-2 md:grid-cols-2">
+                    {latestRaceStateSnapshot.confidence.signals
+                      .slice(0, 4)
+                      .map((signal) => (
+                        <div
+                          key={signal.key}
+                          className="rounded-xl border border-amber-300/30 bg-amber-300/10 p-3 text-sm leading-6"
+                        >
+                          {signal.message}
+                        </div>
+                      ))}
+                  </div>
+                )}
+              </>
+            )}
           </section>
 
           {reviewCourseData && (

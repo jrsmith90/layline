@@ -686,6 +686,15 @@ export default function RaceLiveCockpit() {
         },
       }
     : null;
+  const raceStateCapture = useMemo(
+    () => ({
+      state: raceState,
+      progress: result,
+      primaryCall,
+      approachingMark,
+    }),
+    [approachingMark, primaryCall, raceState, result],
+  );
 
   function goToLeg(nextIndex: number) {
     setLegIndex(Math.min(Math.max(nextIndex, 0), courseData.course.legs.length - 1));
@@ -980,6 +989,7 @@ export default function RaceLiveCockpit() {
         courseId={courseId}
         gpsTrack={gps.track}
         currentDecision={recorderDecision}
+        raceStateCapture={raceStateCapture}
         tackContext={tackContext}
       />
 

@@ -1,4 +1,5 @@
 import type { CourseSummary, RaceLeg, RaceMark } from "@/data/race/getCourseData";
+import type { MarkProgressCall, MarkProgressResult } from "@/lib/race/courseTracker";
 import type {
   RaceSourceConfidenceHint,
   RaceSourceFreshness,
@@ -121,6 +122,54 @@ export type RaceState = {
   course: RaceStateCourseState;
   sources: RaceStateSourceMeta;
   confidence: RaceStateConfidence;
+};
+
+export type RaceStateSnapshotProgress = Pick<
+  MarkProgressResult,
+  | "call"
+  | "headline"
+  | "detail"
+  | "warnings"
+  | "distanceToMarkNm"
+  | "bearingToMarkDeg"
+  | "vmgToMarkKt"
+  | "crossTrackErrorNm"
+  | "currentTack"
+  | "currentTackHeadingDeg"
+  | "oppositeTackHeadingDeg"
+  | "currentTackFetches"
+  | "oppositeTackFetches"
+  | "degreesOffLaylineDeg"
+  | "nextTackHeadingDeg"
+  | "distanceToTackNm"
+  | "minutesToTack"
+>;
+
+export type RaceStateSnapshotCourseState = Pick<
+  RaceStateCourseState,
+  | "selectedCourseId"
+  | "legIndex"
+  | "safeLegIndex"
+  | "totalLegs"
+  | "markApproachDistanceNm"
+> & {
+  activeLeg: RaceLeg | null;
+  fromMark: RaceMark | null;
+  toMark: RaceMark | null;
+};
+
+export type RaceStateSnapshot = {
+  capturedAtISO: string;
+  stateGeneratedAt: string;
+  primaryCall: MarkProgressCall | "approach";
+  approachingMark: boolean;
+  boat: RaceStateBoatState;
+  wind: RaceStateWindState;
+  performance: RaceStatePerformanceState;
+  course: RaceStateSnapshotCourseState;
+  sources: RaceStateSourceMeta;
+  confidence: RaceStateConfidence;
+  progress: RaceStateSnapshotProgress | null;
 };
 
 export type DeriveRaceStateInput = {

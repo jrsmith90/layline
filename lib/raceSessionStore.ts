@@ -1,5 +1,7 @@
 "use client";
 
+import type { MarkProgressCall, MarkProgressResult } from "@/lib/race/courseTracker";
+import type { RaceState, RaceStateSnapshot } from "@/lib/race/state/types";
 import type { GpsTrackPoint } from "@/lib/useGpsCourse";
 import type { LaylineLog } from "@/lib/logStore";
 import { getLogs } from "@/lib/logStore";
@@ -70,9 +72,18 @@ export type RaceSession = {
   gpsTrack: GpsTrackPoint[];
   weatherSamples: RaceWeatherSample[];
   decisions: RaceDecisionRecord[];
+  raceStateSnapshots: RaceStateSnapshot[];
   trimLogs: LaylineLog[];
   tackCalibrations: TackCalibrationResult[];
   tackRecords: TackRecord[];
+};
+
+export type RaceStateSnapshotCaptureInput = {
+  state: RaceState;
+  progress: MarkProgressResult | null;
+  primaryCall: MarkProgressCall | "approach";
+  approachingMark: boolean;
+  capturedAtISO?: string;
 };
 
 export type RaceSessionReview = {
@@ -104,6 +115,8 @@ const SNAPSHOT_CACHE_KEY = "layline-race-session-repository-cache-v1";
 const GPS_TRACK_KEY = "layline-phone-gps-track-v1";
 const TRACKER_KEY = "layline-active-course-tracker-v1";
 const REPOSITORY_ENDPOINT = "/api/race-sessions";
+const MAX_RACE_STATE_SNAPSHOTS = 720;
+const RACE_STATE_SNAPSHOT_DEDUPE_MS = 5000;
 
 export type RaceSessionRepositorySnapshot = {
   sessions: RaceSession[];
@@ -146,6 +159,9 @@ function normalizeRaceSession(session: RaceSession): RaceSession {
     gpsTrack: Array.isArray(session.gpsTrack) ? session.gpsTrack : [],
     weatherSamples: Array.isArray(session.weatherSamples) ? session.weatherSamples : [],
     decisions: Array.isArray(session.decisions) ? session.decisions : [],
+    raceStateSnapshots: Array.isArray(session.raceStateSnapshots)
+      ? session.raceStateSnapshots
+      : [],
     trimLogs: Array.isArray(session.trimLogs) ? session.trimLogs : [],
     tackCalibrations: Array.isArray(session.tackCalibrations)
       ? session.tackCalibrations
@@ -199,6 +215,12 @@ function mergeRaceSession(existing: RaceSession, incoming: RaceSession): RaceSes
       (decision) => decision.id,
       (leftDecision, rightDecision) => rightDecision.atISO.localeCompare(leftDecision.atISO),
     ),
+    raceStateSnapshots: uniqueByKey(
+      [...secondary.raceStateSnapshots, ...primary.raceStateSnapshots],
+      (snapshot) => snapshot.capturedAtISO,
+      (leftSnapshot, rightSnapshot) =>
+        leftSnapshot.capturedAtISO.localeCompare(rightSnapshot.capturedAtISO),
+    ).slice(-MAX_RACE_STATE_SNAPSHOTS),
     trimLogs: uniqueByKey(
       [...secondary.trimLogs, ...primary.trimLogs],
       (log) => log.id,
@@ -448,6 +470,83 @@ function updateSessionInStore(session: RaceSession) {
   return commitSnapshot(nextSnapshot);
 }
 
+function trimRaceStateSnapshots(snapshots: RaceStateSnapshot[]) {
+  return snapshots
+    .slice()
+    .sort((left, right) => left.capturedAtISO.localeCompare(right.capturedAtISO))
+    .slice(-MAX_RACE_STATE_SNAPSHOTS);
+}
+
+function toRaceStateSnapshotProgress(
+  progress: MarkProgressResult | null,
+): RaceStateSnapshot["progress"] {
+  if (!progress) return null;
+
+  return {
+    call: progress.call,
+    headline: progress.headline,
+    detail: progress.detail,
+    warnings: progress.warnings,
+    distanceToMarkNm: progress.distanceToMarkNm,
+    bearingToMarkDeg: progress.bearingToMarkDeg,
+    vmgToMarkKt: progress.vmgToMarkKt,
+    crossTrackErrorNm: progress.crossTrackErrorNm,
+    currentTack: progress.currentTack,
+    currentTackHeadingDeg: progress.currentTackHeadingDeg,
+    oppositeTackHeadingDeg: progress.oppositeTackHeadingDeg,
+    currentTackFetches: progress.currentTackFetches,
+    oppositeTackFetches: progress.oppositeTackFetches,
+    degreesOffLaylineDeg: progress.degreesOffLaylineDeg,
+    nextTackHeadingDeg: progress.nextTackHeadingDeg,
+    distanceToTackNm: progress.distanceToTackNm,
+    minutesToTack: progress.minutesToTack,
+  };
+}
+
+function buildRaceStateSnapshot(input: RaceStateSnapshotCaptureInput): RaceStateSnapshot {
+  return {
+    capturedAtISO: input.capturedAtISO ?? nowISO(),
+    stateGeneratedAt: input.state.generatedAt,
+    primaryCall: input.primaryCall,
+    approachingMark: input.approachingMark,
+    boat: input.state.boat,
+    wind: input.state.wind,
+    performance: input.state.performance,
+    course: {
+      selectedCourseId: input.state.course.selectedCourseId,
+      legIndex: input.state.course.legIndex,
+      safeLegIndex: input.state.course.safeLegIndex,
+      totalLegs: input.state.course.totalLegs,
+      markApproachDistanceNm: input.state.course.markApproachDistanceNm,
+      activeLeg: input.state.course.activeLeg,
+      fromMark: input.state.course.fromMark,
+      toMark: input.state.course.toMark,
+    },
+    sources: input.state.sources,
+    confidence: input.state.confidence,
+    progress: toRaceStateSnapshotProgress(input.progress),
+  };
+}
+
+function shouldSkipRaceStateSnapshot(
+  previous: RaceStateSnapshot | null | undefined,
+  next: RaceStateSnapshot,
+) {
+  if (!previous) return false;
+
+  const previousMs = timeValue(previous.capturedAtISO);
+  const nextMs = timeValue(next.capturedAtISO);
+  if (nextMs - previousMs >= RACE_STATE_SNAPSHOT_DEDUPE_MS) return false;
+
+  return (
+    previous.primaryCall === next.primaryCall &&
+    previous.approachingMark === next.approachingMark &&
+    previous.course.safeLegIndex === next.course.safeLegIndex &&
+    previous.confidence.overall === next.confidence.overall &&
+    previous.progress?.call === next.progress?.call
+  );
+}
+
 export function subscribeRaceSessionStore(listener: RaceSessionStoreListener) {
   storeListeners.add(listener);
   return () => {
@@ -547,6 +646,7 @@ export function startRaceSession(input: {
     gpsTrack: [],
     weatherSamples: [],
     decisions: [],
+    raceStateSnapshots: [],
     trimLogs: [],
     tackCalibrations: [],
     tackRecords: [],
@@ -718,6 +818,30 @@ export function addManualRaceNote(sessionId: string, note: string) {
   });
 }
 
+export function appendRaceStateSnapshot(
+  sessionId: string,
+  snapshotInput: RaceStateSnapshotCaptureInput,
+) {
+  const session = getRaceSession(sessionId);
+  if (!session) return session;
+
+  const snapshot = buildRaceStateSnapshot(snapshotInput);
+  const previous = session.raceStateSnapshots.at(-1);
+  if (shouldSkipRaceStateSnapshot(previous, snapshot)) {
+    return session;
+  }
+
+  const updated: RaceSession = {
+    ...session,
+    raceStateSnapshots: trimRaceStateSnapshots([
+      ...session.raceStateSnapshots,
+      snapshot,
+    ]),
+  };
+  upsertRaceSession(updated);
+  return updated;
+}
+
 export function attachTrimLogsToSession(id: string, logs: LaylineLog[]) {
   const session = getRaceSession(id);
   if (!session) return session;
@@ -790,6 +914,7 @@ export function recoverTodayRaceSession() {
       gpsTrack: [],
       weatherSamples: [],
       decisions: [],
+      raceStateSnapshots: [],
       trimLogs: [],
       tackCalibrations: [],
       tackRecords: [],
