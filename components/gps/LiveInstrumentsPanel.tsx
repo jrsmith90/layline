@@ -21,6 +21,12 @@ function getDecisionCue(context: DecisionContext, gps: ReturnType<typeof usePhon
   if (!gps.enabled) return "Turn on Phone GPS to feed live COG and SOG into this decision.";
   if (gps.permission === "denied") return "Location permission is blocked for this browser.";
   if (gps.cogDeg == null) return "GPS is on. Build a little speed for a reliable course-over-ground.";
+  if (gps.freshness === "stale") {
+    return "GPS feed looks stale. Treat COG and SOG as delayed until a fresh fix lands.";
+  }
+  if (gps.confidence === "low") {
+    return "GPS quality is weak right now. Use the numbers as a trend check, not a hard trigger.";
+  }
 
   const sogKt = gps.sogMps == null ? null : gps.sogMps * 1.943844;
   const slowCue = sogKt != null && sogKt < 1.2;
@@ -91,6 +97,11 @@ export function LiveInstrumentsPanel({
             <div className="layline-kicker">Live Instruments</div>
             <div className="text-sm font-semibold text-[color:var(--text)]">
               {gps.enabled ? "Phone GPS active" : "Phone GPS off"}
+            </div>
+            <div className="text-xs text-[color:var(--muted)]">
+              {gps.enabled
+                ? `${gps.freshness} feed · ${gps.confidence} confidence`
+                : "Enable GPS to feed live COG and SOG."}
             </div>
           </div>
         </div>

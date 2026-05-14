@@ -8,7 +8,17 @@ import { usePhoneGps } from "@/components/gps/PhoneGpsProvider";
 import { RaceRecorderPanel } from "@/components/race/RaceRecorderPanel";
 import { TackHistoryPanel } from "@/components/race/TackHistoryPanel";
 import { readJsonResponse } from "@/lib/readJsonResponse";
-import { calculateMarkProgress, wrap360 } from "@/lib/race/courseTracker";
+import { type MarkProgressResult, wrap360 } from "@/lib/race/courseTracker";
+import { deriveRaceState } from "@/lib/race/state/deriveRaceState";
+import {
+  selectActiveLeg,
+  selectActiveMarks,
+  selectConfidenceSignalsAtOrBelow,
+  selectHasLowConfidence,
+  selectIsApproachingMark,
+  selectMarkProgress,
+  selectPrimaryMarkCall,
+} from "@/lib/race/state/selectors";
 import { getActiveRaceSession, type RaceSession } from "@/lib/raceSessionStore";
 import {
   calculateTackCalibration,
@@ -125,7 +135,7 @@ function formatTime(value?: string) {
   return parsed.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 }
 
-function callClass(call: ReturnType<typeof calculateMarkProgress>["call"] | "approach") {
+function callClass(call: MarkProgressResult["call"] | "approach") {
   if (call === "tack_now" || call === "not_progressing") {
     return "border-[color:var(--unfavorable)] bg-[color:var(--unfavorable)]/20 text-red-50";
   }
@@ -215,7 +225,7 @@ function getWindRead(params: {
 }
 
 function getCockpitAnswer(params: {
-  result: ReturnType<typeof calculateMarkProgress> | null;
+  result: MarkProgressResult | null;
   approachingMark: boolean;
   markId?: string;
 }) {
@@ -376,35 +386,11 @@ export default function RaceLiveCockpit() {
   const [showWeather, setShowWeather] = useState(false);
   const [showSetup, setShowSetup] = useState(false);
 
-  const safeLegIndex = Math.min(legIndex, Math.max(courseData.course.legs.length - 1, 0));
-  const leg = courseData.course.legs[safeLegIndex];
-  const fromMark = leg ? courseData.marks[leg.fromMark] : null;
-  const toMark = leg ? courseData.marks[leg.toMark] : null;
-  const canGoNext = safeLegIndex < courseData.course.legs.length - 1;
   const isCapturing = startedAtMs != null;
   const secondsLeft =
     startedAtMs == null
       ? 0
       : Math.max(0, Math.ceil((startedAtMs + CALIBRATION_DURATION_MS - nowMs) / 1000));
-
-  useEffect(() => {
-    if (
-      typeof localStorage === "undefined" ||
-      typeof localStorage.setItem !== "function"
-    ) {
-      return;
-    }
-    localStorage.setItem(
-      TRACKER_STORAGE_KEY,
-      JSON.stringify({
-        courseId,
-        legIndex: safeLegIndex,
-        windFrom,
-        windSource,
-        tackAngle,
-      })
-    );
-  }, [courseId, safeLegIndex, tackAngle, windFrom, windSource]);
 
   useEffect(() => {
     let cancelled = false;
@@ -554,49 +540,110 @@ export default function RaceLiveCockpit() {
     setTackAngle(Math.round(standardTackAngle));
   }, [standardTackAngle]);
 
+  const raceState = useMemo(
+    () =>
+      deriveRaceState({
+        courseId,
+        courseData,
+        legIndex,
+        markApproachDistanceNm: MARK_APPROACH_DISTANCE_NM,
+        gps: {
+          enabled: gps.enabled,
+          supported: gps.supported,
+          permission: gps.permission,
+          lat: gps.lat,
+          lon: gps.lon,
+          cogDeg: gps.cogDeg,
+          sogMps: gps.sogMps,
+          accuracyM: gps.accuracyM,
+          observedAt: gps.observedAt ?? null,
+          freshness: gps.freshness,
+          confidence: gps.confidence,
+          error: gps.error,
+        },
+        wind: {
+          sourceMode: windSource,
+          sourceLabel: windRead.label,
+          sourceDetail: windRead.sourceDetail,
+          directionFromDeg: effectiveWindFrom,
+          avgKt: windRead.windAvgKt ?? null,
+          gustKt: windRead.windGustKt ?? null,
+          observedAt: windRead.observedAt ?? null,
+        },
+        performance: {
+          tackAngleDeg: tackAngle,
+          standardTackAngleDeg: standardTackAngle,
+        },
+      }),
+    [
+      courseData,
+      courseId,
+      effectiveWindFrom,
+      gps.accuracyM,
+      gps.cogDeg,
+      gps.enabled,
+      gps.error,
+      gps.lat,
+      gps.lon,
+      gps.observedAt,
+      gps.permission,
+      gps.sogMps,
+      gps.supported,
+      gps.confidence,
+      gps.freshness,
+      legIndex,
+      standardTackAngle,
+      tackAngle,
+      windRead.label,
+      windRead.observedAt,
+      windRead.sourceDetail,
+      windRead.windAvgKt,
+      windRead.windGustKt,
+      windSource,
+    ],
+  );
+  const safeLegIndex = raceState.course.safeLegIndex;
+  const leg = selectActiveLeg(raceState);
+  const { toMark } = selectActiveMarks(raceState);
+  const canGoNext = raceState.course.canGoNext;
+  const confidenceSignals = useMemo(
+    () => selectConfidenceSignalsAtOrBelow(raceState, "medium").slice(0, 3),
+    [raceState],
+  );
+  const lowConfidence = selectHasLowConfidence(raceState);
+
+  useEffect(() => {
+    if (
+      typeof localStorage === "undefined" ||
+      typeof localStorage.setItem !== "function"
+    ) {
+      return;
+    }
+    localStorage.setItem(
+      TRACKER_STORAGE_KEY,
+      JSON.stringify({
+        courseId,
+        legIndex: safeLegIndex,
+        windFrom,
+        windSource,
+        tackAngle,
+      })
+    );
+  }, [courseId, safeLegIndex, tackAngle, windFrom, windSource]);
+
   const tackContext = useMemo(
     () => ({
-      windFromDeg: effectiveWindFrom,
+      windFromDeg: raceState.wind.directionFromDeg,
     }),
-    [effectiveWindFrom],
+    [raceState.wind.directionFromDeg],
   );
 
   const result = useMemo(() => {
-    if (!leg || !fromMark || !toMark) return null;
+    return selectMarkProgress(raceState);
+  }, [raceState]);
 
-    return calculateMarkProgress({
-      position:
-        gps.lat == null || gps.lon == null
-          ? null
-          : {
-              lat: gps.lat,
-              lon: gps.lon,
-            },
-      cogDeg: gps.cogDeg,
-      sogMps: gps.sogMps,
-      accuracyM: gps.accuracyM,
-      windFromDeg: effectiveWindFrom,
-      tackAngleDeg: tackAngle,
-      leg,
-      fromMark,
-      toMark,
-    });
-  }, [
-    fromMark,
-    gps.accuracyM,
-    gps.cogDeg,
-    gps.lat,
-    gps.lon,
-    gps.sogMps,
-    leg,
-    tackAngle,
-    toMark,
-    effectiveWindFrom,
-  ]);
-
-  const approachingMark =
-    result?.distanceToMarkNm != null && result.distanceToMarkNm <= MARK_APPROACH_DISTANCE_NM;
-  const primaryCall = approachingMark ? "approach" : result?.call ?? "need_gps";
+  const approachingMark = selectIsApproachingMark(raceState, result);
+  const primaryCall = selectPrimaryMarkCall(raceState, result);
   const cockpitAnswer = getCockpitAnswer({
     result,
     approachingMark,
@@ -623,8 +670,11 @@ export default function RaceLiveCockpit() {
           standardTackAngleDeg: standardTackAngle,
           tackHeadingDeviationDeg: result.tackHeadingDeviationDeg,
           oppositeTackGainDeg: result.oppositeTackGainDeg,
-          cogDeg: gps.cogDeg,
-          sogMps: gps.sogMps,
+          cogDeg: raceState.boat.cogDeg,
+          sogMps: raceState.boat.sogMps,
+          raceStateConfidence: raceState.confidence.overall,
+          gpsFreshness: raceState.sources.gps.freshness,
+          windFreshness: raceState.sources.wind.freshness,
         },
       }
     : null;
@@ -677,6 +727,32 @@ export default function RaceLiveCockpit() {
         {result?.warnings.length ? (
           <div className="mt-3 text-xs leading-5 opacity-80">{result.warnings.join(" ")}</div>
         ) : null}
+        <div className="mt-3 rounded-2xl border border-white/15 bg-black/20 p-3">
+          <div className="flex items-center justify-between gap-3">
+            <div className="text-xs font-black uppercase tracking-[0.16em] opacity-75">
+              Input confidence
+            </div>
+            <div className="text-xs font-black uppercase tracking-[0.16em] opacity-90">
+              {raceState.confidence.overall}
+            </div>
+          </div>
+          <p className="mt-2 text-sm font-semibold leading-5 opacity-90">
+            {lowConfidence
+              ? "Treat this live call as provisional until the weakest inputs improve."
+              : "Live inputs are usable, with a couple of caveats worth tracking."}
+          </p>
+          {confidenceSignals.length > 0 ? (
+            <div className="mt-2 space-y-1 text-xs leading-5 opacity-80">
+              {confidenceSignals.map((signal) => (
+                <div key={signal.key}>{signal.message}</div>
+              ))}
+            </div>
+          ) : (
+            <div className="mt-2 text-xs leading-5 opacity-75">
+              GPS, course, and wind inputs are aligned right now.
+            </div>
+          )}
+        </div>
 
         <div className="mt-4 grid grid-cols-3 gap-2">
           <BigMetric label="Off Line" value={`${formatNumber(result?.degreesOffLaylineDeg ?? null, 0)} deg`} />

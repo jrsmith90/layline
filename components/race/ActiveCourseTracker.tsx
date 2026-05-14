@@ -5,7 +5,16 @@ import { formatCourseLabel, getAllCourseIds, getCourseData, getDefaultCourseId }
 import { LiveInstrumentsPanel } from "@/components/gps/LiveInstrumentsPanel";
 import { usePhoneGps } from "@/components/gps/PhoneGpsProvider";
 import { TackCalibrationPanel } from "@/components/race/TackCalibrationPanel";
-import { calculateMarkProgress, wrap360 } from "@/lib/race/courseTracker";
+import { type MarkProgressResult, wrap360 } from "@/lib/race/courseTracker";
+import { deriveRaceState } from "@/lib/race/state/deriveRaceState";
+import {
+  selectActiveLeg,
+  selectActiveMarks,
+  selectConfidenceSignalsAtOrBelow,
+  selectHasLowConfidence,
+  selectIsApproachingMark,
+  selectMarkProgress,
+} from "@/lib/race/state/selectors";
 import { getActiveRaceSession } from "@/lib/raceSessionStore";
 import {
   getKnownStandardTackAngle,
@@ -51,7 +60,7 @@ function formatDeg(value: number | null) {
   return value == null ? "--" : `${Math.round(value)} deg`;
 }
 
-function callClass(call: ReturnType<typeof calculateMarkProgress>["call"]) {
+function callClass(call: MarkProgressResult["call"]) {
   if (call === "tack_now" || call === "not_progressing") {
     return "border-[color:var(--unfavorable)] bg-[color:var(--unfavorable)]/15 text-red-100";
   }
@@ -96,7 +105,60 @@ export default function ActiveCourseTracker() {
       ? getKnownStandardTackAngle(session.tackRecords, session.tackCalibrations)
       : null;
   });
-  const safeLegIndex = Math.min(legIndex, Math.max(courseData.course.legs.length - 1, 0));
+  const raceState = useMemo(
+    () =>
+      deriveRaceState({
+        courseId,
+        courseData,
+        legIndex,
+        markApproachDistanceNm: MARK_APPROACH_DISTANCE_NM,
+        gps: {
+          enabled: gps.enabled,
+          supported: gps.supported,
+          permission: gps.permission,
+          lat: gps.lat,
+          lon: gps.lon,
+          cogDeg: gps.cogDeg,
+          sogMps: gps.sogMps,
+          accuracyM: gps.accuracyM,
+          observedAt: gps.observedAt ?? null,
+          freshness: gps.freshness,
+          confidence: gps.confidence,
+          error: gps.error,
+        },
+        wind: {
+          sourceMode: "manual",
+          sourceLabel: "Manual wind",
+          sourceDetail: "Manual override",
+          directionFromDeg: windFrom === "" ? null : windFrom,
+        },
+        performance: {
+          tackAngleDeg: tackAngle,
+          standardTackAngleDeg: standardTackAngle,
+        },
+      }),
+    [
+      courseData,
+      courseId,
+      gps.accuracyM,
+      gps.cogDeg,
+      gps.enabled,
+      gps.error,
+      gps.lat,
+      gps.lon,
+      gps.observedAt,
+      gps.permission,
+      gps.sogMps,
+      gps.supported,
+      gps.confidence,
+      gps.freshness,
+      legIndex,
+      standardTackAngle,
+      tackAngle,
+      windFrom,
+    ],
+  );
+  const safeLegIndex = raceState.course.safeLegIndex;
 
   useEffect(() => {
     const refreshStandardAngle = () => {
@@ -131,46 +193,20 @@ export default function ActiveCourseTracker() {
     );
   }, [courseId, safeLegIndex, tackAngle, windFrom]);
 
-  const leg = courseData.course.legs[safeLegIndex];
-  const fromMark = leg ? courseData.marks[leg.fromMark] : null;
-  const toMark = leg ? courseData.marks[leg.toMark] : null;
-  const canGoPrev = safeLegIndex > 0;
-  const canGoNext = safeLegIndex < courseData.course.legs.length - 1;
+  const leg = selectActiveLeg(raceState);
+  const { fromMark, toMark } = selectActiveMarks(raceState);
+  const canGoPrev = raceState.course.canGoPrev;
+  const canGoNext = raceState.course.canGoNext;
+  const confidenceSignals = useMemo(
+    () => selectConfidenceSignalsAtOrBelow(raceState, "medium").slice(0, 3),
+    [raceState],
+  );
+  const lowConfidence = selectHasLowConfidence(raceState);
 
   const result = useMemo(() => {
-    if (!leg || !fromMark || !toMark) return null;
-
-    return calculateMarkProgress({
-      position:
-        gps.lat == null || gps.lon == null
-          ? null
-          : {
-              lat: gps.lat,
-              lon: gps.lon,
-            },
-      cogDeg: gps.cogDeg,
-      sogMps: gps.sogMps,
-      accuracyM: gps.accuracyM,
-      windFromDeg: windFrom === "" ? null : windFrom,
-      tackAngleDeg: tackAngle,
-      leg,
-      fromMark,
-      toMark,
-    });
-  }, [
-    fromMark,
-    gps.accuracyM,
-    gps.cogDeg,
-    gps.lat,
-    gps.lon,
-    gps.sogMps,
-    leg,
-    tackAngle,
-    toMark,
-    windFrom,
-  ]);
-  const approachingMark =
-    result?.distanceToMarkNm != null && result.distanceToMarkNm <= MARK_APPROACH_DISTANCE_NM;
+    return selectMarkProgress(raceState);
+  }, [raceState]);
+  const approachingMark = selectIsApproachingMark(raceState, result);
 
   function goToLeg(nextIndex: number) {
     setLegIndex(Math.min(Math.max(nextIndex, 0), courseData.course.legs.length - 1));
@@ -293,6 +329,29 @@ export default function ActiveCourseTracker() {
             Next Leg
           </button>
         </div>
+      </section>
+
+      <section className="layline-panel p-4">
+        <div className="layline-kicker">Input Confidence</div>
+        <div className="mt-2 text-lg font-black uppercase">
+          {raceState.confidence.overall}
+        </div>
+        <p className="mt-2 text-sm leading-6 text-[color:var(--text-soft)]">
+          {lowConfidence
+            ? "Treat the recommendation as provisional until the weakest inputs improve."
+            : "Inputs are usable, but keep these caveats in mind while you sail the leg."}
+        </p>
+        {confidenceSignals.length > 0 ? (
+          <div className="mt-3 space-y-2 text-sm leading-5 text-[color:var(--text-soft)]">
+            {confidenceSignals.map((signal) => (
+              <div key={signal.key}>{signal.message}</div>
+            ))}
+          </div>
+        ) : (
+          <div className="mt-3 text-sm text-[color:var(--text-soft)]">
+            GPS, course, and wind inputs are aligned right now.
+          </div>
+        )}
       </section>
 
       {leg && fromMark && toMark && result && (

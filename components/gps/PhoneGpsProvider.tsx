@@ -46,9 +46,11 @@ function FloatingGpsControl() {
     : gps.permission === "denied"
       ? "Denied"
       : gps.enabled
-        ? gps.cogDeg == null
+        ? gps.freshness === "stale"
+          ? "Stale"
+          : gps.cogDeg == null
           ? "Acquiring"
-          : `${Math.round(gps.cogDeg)} deg`
+            : `${Math.round(gps.cogDeg)} deg`
         : "Off";
 
   return (
@@ -98,7 +100,11 @@ function FloatingGpsControl() {
           className={[
             "h-3 w-3 shrink-0 rounded-full",
             gps.enabled && gps.permission !== "denied"
-              ? "bg-[color:var(--favorable)]"
+              ? gps.confidence === "low" || gps.freshness === "stale"
+                ? "bg-[color:var(--warning)]"
+                : gps.confidence === "medium"
+                  ? "bg-amber-300"
+                  : "bg-[color:var(--favorable)]"
               : "bg-[color:var(--divider)]",
           ].join(" ")}
         />

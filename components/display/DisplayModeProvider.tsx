@@ -140,20 +140,17 @@ export function DisplayModeControl() {
 }
 
 export function DisplayModeProvider({ children }: { children: ReactNode }) {
-  const [mode, setModeState] = useState<DisplayMode>("auto");
-  const [autoMode, setAutoMode] = useState<EffectiveDisplayMode>("phone");
+  const [mode, setModeState] = useState<DisplayMode>(() => readSavedMode());
+  const [autoMode, setAutoMode] = useState<EffectiveDisplayMode>(() => getAutoDisplayMode());
 
   useEffect(() => {
     const tabletQuery = window.matchMedia(IPAD_WIDTH_QUERY);
     const desktopQuery = window.matchMedia(DESKTOP_WIDTH_QUERY);
 
     function syncAutoMode() {
-      setAutoMode(
-        desktopQuery.matches ? "desktop" : tabletQuery.matches ? "ipad" : "phone"
-      );
+      setAutoMode(getAutoDisplayMode());
     }
 
-    setModeState(readSavedMode());
     syncAutoMode();
     tabletQuery.addEventListener("change", syncAutoMode);
     desktopQuery.addEventListener("change", syncAutoMode);
