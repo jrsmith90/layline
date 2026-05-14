@@ -19,7 +19,11 @@ import {
   selectMarkProgress,
   selectPrimaryMarkCall,
 } from "@/lib/race/state/selectors";
-import { getActiveRaceSession, type RaceSession } from "@/lib/raceSessionStore";
+import {
+  getActiveRaceSession,
+  syncRaceSessionsFromRepository,
+  type RaceSession,
+} from "@/lib/raceSessionStore";
 import {
   calculateTackCalibration,
   detectAutomaticTackCalibrations,
@@ -472,6 +476,10 @@ export default function RaceLiveCockpit() {
     const interval = window.setInterval(() => setNowMs(Date.now()), 1000);
     return () => window.clearInterval(interval);
   }, [isCapturing]);
+
+  useEffect(() => {
+    void syncRaceSessionsFromRepository();
+  }, []);
 
   useEffect(() => {
     const refreshActiveSession = () => setActiveSession(getActiveRaceSession());

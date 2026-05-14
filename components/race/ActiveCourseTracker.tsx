@@ -15,7 +15,10 @@ import {
   selectIsApproachingMark,
   selectMarkProgress,
 } from "@/lib/race/state/selectors";
-import { getActiveRaceSession } from "@/lib/raceSessionStore";
+import {
+  getActiveRaceSession,
+  syncRaceSessionsFromRepository,
+} from "@/lib/raceSessionStore";
 import {
   getKnownStandardTackAngle,
   getRaceDayHalfAngle,
@@ -159,6 +162,10 @@ export default function ActiveCourseTracker() {
     ],
   );
   const safeLegIndex = raceState.course.safeLegIndex;
+
+  useEffect(() => {
+    void syncRaceSessionsFromRepository();
+  }, []);
 
   useEffect(() => {
     const refreshStandardAngle = () => {

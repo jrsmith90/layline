@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { Circle, Download, Flag, NotebookPen, Square } from "lucide-react";
 import type { GpsTrackPoint } from "@/lib/useGpsCourse";
 import {
@@ -18,6 +18,8 @@ import {
   getRaceSession,
   recoverTodayRaceSession,
   startRaceSession,
+  subscribeRaceSessionStore,
+  syncRaceSessionsFromRepository,
   type RaceWeatherSample,
 } from "@/lib/raceSessionStore";
 import { getLogs } from "@/lib/logStore";
@@ -95,21 +97,30 @@ export function RaceRecorderPanel({
   currentDecision,
   tackContext,
 }: RaceRecorderPanelProps) {
+  const [, refresh] = useReducer((value: number) => value + 1, 0);
   const [sessionId, setSessionId] = useState(() => getActiveRaceSession()?.id ?? null);
   const [note, setNote] = useState("");
   const [status, setStatus] = useState<string | null>(null);
   const lastDecisionRef = useRef<string | null>(null);
-  const session = sessionId ? getRaceSession(sessionId) : null;
+  const activeSession = getActiveRaceSession();
+  const effectiveSessionId = activeSession?.id ?? sessionId;
+  const session = effectiveSessionId ? getRaceSession(effectiveSessionId) : null;
+
+  useEffect(() => subscribeRaceSessionStore(() => refresh()), []);
 
   useEffect(() => {
-    if (!sessionId || session?.status !== "active") return;
-    appendRaceGpsSamples(sessionId, gpsTrack, tackContext);
-    attachTrimLogsToSession(sessionId, getLogs());
-    attachTackCalibrationsToSession(sessionId, readTackCalibrations());
-  }, [gpsTrack, session?.status, sessionId, tackContext]);
+    void syncRaceSessionsFromRepository();
+  }, []);
 
   useEffect(() => {
-    if (!sessionId || session?.status !== "active" || !currentDecision) return;
+    if (!effectiveSessionId || session?.status !== "active") return;
+    appendRaceGpsSamples(effectiveSessionId, gpsTrack, tackContext);
+    attachTrimLogsToSession(effectiveSessionId, getLogs());
+    attachTackCalibrationsToSession(effectiveSessionId, readTackCalibrations());
+  }, [effectiveSessionId, gpsTrack, session?.status, tackContext]);
+
+  useEffect(() => {
+    if (!effectiveSessionId || session?.status !== "active" || !currentDecision) return;
 
     const key = [
       currentDecision.kind,
@@ -121,19 +132,19 @@ export function RaceRecorderPanel({
     if (lastDecisionRef.current === key) return;
     lastDecisionRef.current = key;
 
-    appendRaceDecision(sessionId, {
+    appendRaceDecision(effectiveSessionId, {
       kind: currentDecision.kind,
       label: currentDecision.label,
       recommendation: currentDecision.recommendation,
       inputs: currentDecision.inputs,
     });
-  }, [currentDecision, session?.status, sessionId]);
+  }, [currentDecision, effectiveSessionId, session?.status]);
 
   useEffect(() => {
-    if (!sessionId || session?.status !== "active") return;
+    if (!effectiveSessionId || session?.status !== "active") return;
 
     let cancelled = false;
-    const activeSessionId = sessionId;
+    const activeSessionId = effectiveSessionId;
 
     async function sampleWeather() {
       try {
@@ -153,7 +164,7 @@ export function RaceRecorderPanel({
       cancelled = true;
       window.clearInterval(interval);
     };
-  }, [session?.status, sessionId]);
+  }, [effectiveSessionId, session?.status]);
 
   const isRecording = session?.status === "active";
   const counts = useMemo(

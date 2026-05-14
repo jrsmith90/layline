@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useReducer, useState } from "react";
+import { useEffect, useReducer, useState } from "react";
 import { Download, RotateCcw, Trash2 } from "lucide-react";
 import CourseChart from "@/components/race/CourseChart";
 import { formatCourseLabel, getCourseData } from "@/data/race/getCourseData";
@@ -13,6 +13,8 @@ import {
   getMostRecentRaceSession,
   getRaceSessions,
   recoverTodayRaceSession,
+  subscribeRaceSessionStore,
+  syncRaceSessionsFromRepository,
   updateRaceDecision,
   type RaceDecisionRecord,
 } from "@/lib/raceSessionStore";
@@ -50,9 +52,17 @@ export default function RaceReviewPage() {
   const sessions = getRaceSessions();
   const mostRecent = getMostRecentRaceSession();
   const [selectedId, setSelectedId] = useState(mostRecent?.id ?? "");
-  const session = sessions.find((candidate) => candidate.id === selectedId) ?? mostRecent;
+  const effectiveSelectedId = selectedId || mostRecent?.id || "";
+  const session =
+    sessions.find((candidate) => candidate.id === effectiveSelectedId) ?? mostRecent;
   const review = session ? buildRaceSessionReview(session) : null;
   const reviewCourseData = session?.courseId ? getCourseData(session.courseId) : null;
+
+  useEffect(() => subscribeRaceSessionStore(() => refresh()), []);
+
+  useEffect(() => {
+    void syncRaceSessionsFromRepository().then(() => refresh());
+  }, []);
 
   function recoverToday() {
     const recovered = recoverTodayRaceSession();

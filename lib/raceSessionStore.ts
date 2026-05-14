@@ -66,6 +66,7 @@ export type RaceSession = {
   status: RaceSessionStatus;
   createdFrom?: "live" | "recovered";
   crewNotes?: string;
+  updatedAtISO?: string;
   gpsTrack: GpsTrackPoint[];
   weatherSamples: RaceWeatherSample[];
   decisions: RaceDecisionRecord[];
@@ -99,8 +100,22 @@ export type RaceSessionReview = {
 
 const SESSIONS_KEY = "layline-race-sessions-v1";
 const ACTIVE_SESSION_ID_KEY = "layline-active-race-session-id-v1";
+const SNAPSHOT_CACHE_KEY = "layline-race-session-repository-cache-v1";
 const GPS_TRACK_KEY = "layline-phone-gps-track-v1";
 const TRACKER_KEY = "layline-active-course-tracker-v1";
+const REPOSITORY_ENDPOINT = "/api/race-sessions";
+
+export type RaceSessionRepositorySnapshot = {
+  sessions: RaceSession[];
+  activeSessionId: string | null;
+  updatedAtISO: string;
+};
+
+type RaceSessionStoreListener = () => void;
+
+let cachedSnapshot: RaceSessionRepositorySnapshot | null = null;
+let repositoryHydrationPromise: Promise<RaceSessionRepositorySnapshot | null> | null = null;
+const storeListeners = new Set<RaceSessionStoreListener>();
 
 function hasLocalStorage() {
   return (
@@ -120,6 +135,11 @@ function safeUUID() {
   return `race_${Date.now()}_${Math.random().toString(16).slice(2)}`;
 }
 
+function timeValue(value?: string) {
+  const parsed = Date.parse(value ?? "");
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
 function normalizeRaceSession(session: RaceSession): RaceSession {
   return {
     ...session,
@@ -131,7 +151,134 @@ function normalizeRaceSession(session: RaceSession): RaceSession {
       ? session.tackCalibrations
       : [],
     tackRecords: Array.isArray(session.tackRecords) ? session.tackRecords : [],
+    updatedAtISO:
+      typeof session.updatedAtISO === "string"
+        ? session.updatedAtISO
+        : session.endedAtISO ?? session.startedAtISO,
   };
+}
+
+function uniqueByKey<T>(
+  items: T[],
+  keyOf: (item: T) => string | null,
+  sort: (left: T, right: T) => number,
+) {
+  const byKey = new Map<string, T>();
+
+  for (const item of items) {
+    const key = keyOf(item);
+    if (!key) continue;
+    byKey.set(key, item);
+  }
+
+  return Array.from(byKey.values()).sort(sort);
+}
+
+function mergeRaceSession(existing: RaceSession, incoming: RaceSession): RaceSession {
+  const left = normalizeRaceSession(existing);
+  const right = normalizeRaceSession(incoming);
+  const primary =
+    timeValue(right.updatedAtISO) >= timeValue(left.updatedAtISO) ? right : left;
+  const secondary = primary === right ? left : right;
+
+  return normalizeRaceSession({
+    ...secondary,
+    ...primary,
+    gpsTrack: uniqueByKey(
+      [...secondary.gpsTrack, ...primary.gpsTrack],
+      (point) => point.at,
+      (leftPoint, rightPoint) => leftPoint.at.localeCompare(rightPoint.at),
+    ),
+    weatherSamples: uniqueByKey(
+      [...secondary.weatherSamples, ...primary.weatherSamples],
+      (sample) => sample.atISO,
+      (leftSample, rightSample) => leftSample.atISO.localeCompare(rightSample.atISO),
+    ),
+    decisions: uniqueByKey(
+      [...secondary.decisions, ...primary.decisions],
+      (decision) => decision.id,
+      (leftDecision, rightDecision) => rightDecision.atISO.localeCompare(leftDecision.atISO),
+    ),
+    trimLogs: uniqueByKey(
+      [...secondary.trimLogs, ...primary.trimLogs],
+      (log) => log.id,
+      (leftLog, rightLog) =>
+        rightLog.updatedAtISO.localeCompare(leftLog.updatedAtISO),
+    ),
+    tackCalibrations: uniqueByKey(
+      [...secondary.tackCalibrations, ...primary.tackCalibrations],
+      (calibration) => calibration.id ?? calibration.at,
+      (leftCalibration, rightCalibration) =>
+        rightCalibration.at.localeCompare(leftCalibration.at),
+    ),
+    tackRecords: uniqueByKey(
+      [...secondary.tackRecords, ...primary.tackRecords],
+      (record) => record.id,
+      (leftRecord, rightRecord) => rightRecord.atISO.localeCompare(leftRecord.atISO),
+    ),
+  });
+}
+
+function mergeRaceSessions(existing: RaceSession[], incoming: RaceSession[]) {
+  const byId = new Map<string, RaceSession>();
+
+  for (const session of existing.map(normalizeRaceSession)) {
+    byId.set(session.id, session);
+  }
+
+  for (const session of incoming.map(normalizeRaceSession)) {
+    const current = byId.get(session.id);
+    byId.set(session.id, current ? mergeRaceSession(current, session) : session);
+  }
+
+  return Array.from(byId.values()).sort((left, right) =>
+    right.startedAtISO.localeCompare(left.startedAtISO),
+  );
+}
+
+function normalizeSnapshot(
+  snapshot: Partial<RaceSessionRepositorySnapshot> | null | undefined,
+): RaceSessionRepositorySnapshot {
+  const sessions = mergeRaceSessions([], Array.isArray(snapshot?.sessions) ? snapshot.sessions : []);
+  const activeSessionId =
+    typeof snapshot?.activeSessionId === "string" &&
+    sessions.some((session) => session.id === snapshot.activeSessionId)
+      ? snapshot.activeSessionId
+      : null;
+
+  return {
+    sessions,
+    activeSessionId,
+    updatedAtISO:
+      typeof snapshot?.updatedAtISO === "string"
+        ? snapshot.updatedAtISO
+        : sessions[0]?.updatedAtISO ?? sessions[0]?.startedAtISO ?? nowISO(),
+  };
+}
+
+function mergeSnapshots(
+  existing: RaceSessionRepositorySnapshot,
+  incoming: RaceSessionRepositorySnapshot,
+) {
+  const sessions = mergeRaceSessions(existing.sessions, incoming.sessions);
+  const preferredActiveSessionId =
+    timeValue(incoming.updatedAtISO) >= timeValue(existing.updatedAtISO)
+      ? incoming.activeSessionId ?? existing.activeSessionId
+      : existing.activeSessionId ?? incoming.activeSessionId;
+  const activeSessionId =
+    preferredActiveSessionId &&
+    sessions.some((session) => session.id === preferredActiveSessionId)
+      ? preferredActiveSessionId
+      : null;
+
+  return normalizeSnapshot({
+    sessions,
+    activeSessionId,
+    updatedAtISO:
+      timeValue(incoming.updatedAtISO) >= timeValue(existing.updatedAtISO)
+        ? incoming.updatedAtISO
+        : existing.updatedAtISO,
+  });
 }
 
 function readJson<T>(key: string, fallback: T): T {
@@ -151,13 +298,213 @@ function writeJson(key: string, value: unknown) {
   localStorage.setItem(key, JSON.stringify(value));
 }
 
-export function getRaceSessions(): RaceSession[] {
+function notifyStoreListeners() {
+  for (const listener of storeListeners) {
+    listener();
+  }
+}
+
+function readLocalSnapshot() {
+  const cached = readJson<Partial<RaceSessionRepositorySnapshot> | null>(
+    SNAPSHOT_CACHE_KEY,
+    null,
+  );
+
+  if (cached && typeof cached === "object") {
+    return normalizeSnapshot(cached);
+  }
+
   const sessions = readJson<RaceSession[]>(SESSIONS_KEY, []);
-  return Array.isArray(sessions) ? sessions.map(normalizeRaceSession) : [];
+  const activeSessionId = hasLocalStorage()
+    ? localStorage.getItem(ACTIVE_SESSION_ID_KEY)
+    : null;
+
+  return normalizeSnapshot({
+    sessions,
+    activeSessionId,
+    updatedAtISO: sessions[0]?.updatedAtISO ?? sessions[0]?.startedAtISO ?? nowISO(),
+  });
+}
+
+function writeLocalSnapshot(snapshot: RaceSessionRepositorySnapshot) {
+  if (!hasLocalStorage()) return;
+
+  writeJson(SESSIONS_KEY, snapshot.sessions);
+  writeJson(SNAPSHOT_CACHE_KEY, snapshot);
+
+  if (snapshot.activeSessionId) {
+    localStorage.setItem(ACTIVE_SESSION_ID_KEY, snapshot.activeSessionId);
+  } else {
+    localStorage.removeItem(ACTIVE_SESSION_ID_KEY);
+  }
+}
+
+function getCachedSnapshot() {
+  cachedSnapshot ??= readLocalSnapshot();
+  return cachedSnapshot;
+}
+
+function applySnapshot(
+  snapshot: RaceSessionRepositorySnapshot,
+  options: { persistLocal?: boolean; notify?: boolean } = {},
+) {
+  const nextSnapshot = normalizeSnapshot(snapshot);
+  cachedSnapshot = nextSnapshot;
+
+  if (options.persistLocal !== false) {
+    writeLocalSnapshot(nextSnapshot);
+  }
+
+  if (options.notify !== false) {
+    notifyStoreListeners();
+  }
+
+  return nextSnapshot;
+}
+
+async function fetchRepositorySnapshot() {
+  const response = await fetch(REPOSITORY_ENDPOINT, {
+    cache: "no-store",
+  });
+  const payload = (await response.json()) as Partial<RaceSessionRepositorySnapshot>;
+
+  if (!response.ok) {
+    throw new Error(
+      typeof payload === "object" &&
+        payload != null &&
+        "error" in payload &&
+        typeof payload.error === "string"
+        ? payload.error
+        : "Failed to load race session repository.",
+    );
+  }
+
+  return normalizeSnapshot(payload);
+}
+
+async function postRepositorySnapshot(snapshot: RaceSessionRepositorySnapshot) {
+  const response = await fetch(REPOSITORY_ENDPOINT, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    cache: "no-store",
+    body: JSON.stringify(snapshot),
+  });
+  const payload = (await response.json()) as Partial<RaceSessionRepositorySnapshot>;
+
+  if (!response.ok) {
+    throw new Error(
+      typeof payload === "object" &&
+        payload != null &&
+        "error" in payload &&
+        typeof payload.error === "string"
+        ? payload.error
+        : "Failed to save race session repository.",
+    );
+  }
+
+  return normalizeSnapshot(payload);
+}
+
+function queueRepositoryPersist(snapshot: RaceSessionRepositorySnapshot) {
+  const pendingSnapshot = normalizeSnapshot(snapshot);
+
+  void postRepositorySnapshot(pendingSnapshot)
+    .then((savedSnapshot) => {
+      applySnapshot(savedSnapshot);
+    })
+    .catch(() => {
+      // Keep local fallback intact if the shared repository is unavailable.
+    });
+}
+
+function replaceSessions(sessions: RaceSession[], activeSessionId: string | null) {
+  return applySnapshot({
+    sessions: mergeRaceSessions([], sessions),
+    activeSessionId,
+    updatedAtISO: nowISO(),
+  });
+}
+
+function commitSnapshot(snapshot: RaceSessionRepositorySnapshot) {
+  const nextSnapshot = applySnapshot(snapshot);
+  queueRepositoryPersist(nextSnapshot);
+  return nextSnapshot;
+}
+
+function updateSessionInStore(session: RaceSession) {
+  const snapshot = getCachedSnapshot();
+  const updatedSession = normalizeRaceSession({
+    ...session,
+    updatedAtISO: nowISO(),
+  });
+  const nextSnapshot = {
+    ...snapshot,
+    sessions: mergeRaceSessions(snapshot.sessions, [updatedSession]),
+    updatedAtISO: updatedSession.updatedAtISO ?? nowISO(),
+  };
+
+  return commitSnapshot(nextSnapshot);
+}
+
+export function subscribeRaceSessionStore(listener: RaceSessionStoreListener) {
+  storeListeners.add(listener);
+  return () => {
+    storeListeners.delete(listener);
+  };
+}
+
+export async function syncRaceSessionsFromRepository() {
+  if (typeof window === "undefined") return getCachedSnapshot();
+  if (repositoryHydrationPromise) return repositoryHydrationPromise;
+
+  repositoryHydrationPromise = (async () => {
+    const localSnapshot = getCachedSnapshot();
+
+    try {
+      const remoteSnapshot = await fetchRepositorySnapshot();
+      const mergedSnapshot = mergeSnapshots(localSnapshot, remoteSnapshot);
+      const remoteHasData =
+        remoteSnapshot.sessions.length > 0 || remoteSnapshot.activeSessionId != null;
+      const localHasData =
+        localSnapshot.sessions.length > 0 || localSnapshot.activeSessionId != null;
+
+      if (!remoteHasData && localHasData) {
+        const savedSnapshot = await postRepositorySnapshot(localSnapshot);
+        return applySnapshot(savedSnapshot);
+      }
+
+      const appliedSnapshot = applySnapshot(mergedSnapshot);
+
+      if (localHasData) {
+        const remoteSignature = JSON.stringify(remoteSnapshot);
+        const mergedSignature = JSON.stringify(mergedSnapshot);
+
+        if (remoteSignature !== mergedSignature) {
+          queueRepositoryPersist(appliedSnapshot);
+        }
+      }
+
+      return appliedSnapshot;
+    } catch {
+      return localSnapshot;
+    } finally {
+      repositoryHydrationPromise = null;
+    }
+  })();
+
+  return repositoryHydrationPromise;
+}
+
+export function getRaceSessions(): RaceSession[] {
+  return getCachedSnapshot().sessions;
 }
 
 export function saveRaceSessions(sessions: RaceSession[]) {
-  writeJson(SESSIONS_KEY, sessions);
+  const activeSessionId = getCachedSnapshot().activeSessionId;
+  replaceSessions(sessions, activeSessionId);
+  queueRepositoryPersist(getCachedSnapshot());
 }
 
 export function getRaceSession(id: string): RaceSession | null {
@@ -165,9 +512,10 @@ export function getRaceSession(id: string): RaceSession | null {
 }
 
 export function getActiveRaceSession(): RaceSession | null {
-  if (!hasLocalStorage()) return null;
-  const activeId = localStorage.getItem(ACTIVE_SESSION_ID_KEY);
-  return activeId ? getRaceSession(activeId) : null;
+  const { activeSessionId, sessions } = getCachedSnapshot();
+  return activeSessionId
+    ? sessions.find((session) => session.id === activeSessionId) ?? null
+    : null;
 }
 
 export function getMostRecentRaceSession(): RaceSession | null {
@@ -179,11 +527,7 @@ export function getMostRecentRaceSession(): RaceSession | null {
 }
 
 export function upsertRaceSession(session: RaceSession) {
-  const sessions = getRaceSessions();
-  const index = sessions.findIndex((candidate) => candidate.id === session.id);
-  if (index >= 0) sessions[index] = session;
-  else sessions.unshift(session);
-  saveRaceSessions(sessions);
+  return updateSessionInStore(session);
 }
 
 export function startRaceSession(input: {
@@ -199,6 +543,7 @@ export function startRaceSession(input: {
     startedAtISO: nowISO(),
     status: "active",
     createdFrom: "live",
+    updatedAtISO: nowISO(),
     gpsTrack: [],
     weatherSamples: [],
     decisions: [],
@@ -207,8 +552,13 @@ export function startRaceSession(input: {
     tackRecords: [],
   };
 
-  upsertRaceSession(session);
-  if (hasLocalStorage()) localStorage.setItem(ACTIVE_SESSION_ID_KEY, session.id);
+  const snapshot = getCachedSnapshot();
+  commitSnapshot({
+    ...snapshot,
+    sessions: mergeRaceSessions(snapshot.sessions, [session]),
+    activeSessionId: session.id,
+    updatedAtISO: session.updatedAtISO ?? nowISO(),
+  });
   return session;
 }
 
@@ -222,20 +572,28 @@ export function endRaceSession(id: string) {
     endedAtISO: session.endedAtISO ?? nowISO(),
   };
 
-  upsertRaceSession(updated);
+  const snapshot = getCachedSnapshot();
+  commitSnapshot({
+    ...snapshot,
+    sessions: mergeRaceSessions(snapshot.sessions, [updated]),
+    activeSessionId: snapshot.activeSessionId === id ? null : snapshot.activeSessionId,
+    updatedAtISO: nowISO(),
+  });
 
-  if (hasLocalStorage() && localStorage.getItem(ACTIVE_SESSION_ID_KEY) === id) {
-    localStorage.removeItem(ACTIVE_SESSION_ID_KEY);
-  }
-
-  return updated;
+  return normalizeRaceSession({
+    ...updated,
+    updatedAtISO: nowISO(),
+  });
 }
 
 export function deleteRaceSession(id: string) {
-  saveRaceSessions(getRaceSessions().filter((session) => session.id !== id));
-  if (hasLocalStorage() && localStorage.getItem(ACTIVE_SESSION_ID_KEY) === id) {
-    localStorage.removeItem(ACTIVE_SESSION_ID_KEY);
-  }
+  const snapshot = getCachedSnapshot();
+  commitSnapshot({
+    ...snapshot,
+    sessions: snapshot.sessions.filter((session) => session.id !== id),
+    activeSessionId: snapshot.activeSessionId === id ? null : snapshot.activeSessionId,
+    updatedAtISO: nowISO(),
+  });
 }
 
 export function appendRaceGpsSamples(
