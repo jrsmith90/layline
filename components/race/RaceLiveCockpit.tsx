@@ -4,11 +4,23 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useAppMode } from "@/components/display/AppModeProvider";
 import { Flag, LocateFixed, TimerReset, Wind } from "lucide-react";
-import { formatCourseLabel, getAllCourseIds, getCourseData, getDefaultCourseId } from "@/data/race/getCourseData";
+import { formatCourseLabel, getAllCourseIds, getCourseData } from "@/data/race/getCourseData";
 import { usePhoneGps } from "@/components/gps/PhoneGpsProvider";
 import { RaceRecorderPanel } from "@/components/race/RaceRecorderPanel";
 import { TackHistoryPanel } from "@/components/race/TackHistoryPanel";
 import { readJsonResponse } from "@/lib/readJsonResponse";
+import {
+  getStoredTrackerStateSnapshot,
+  isRecentTrackerTransition,
+  setTrackerCourseId,
+  setTrackerLegIndex,
+  setTrackerTackAngle,
+  setTrackerWindFrom,
+  setTrackerWindSource,
+  subscribeStoredTrackerState,
+  syncAutomaticLegTransition,
+  type WindSourceMode,
+} from "@/lib/race/legDetection";
 import { type MarkProgressResult, wrap360 } from "@/lib/race/courseTracker";
 import {
   getCockpitModeCopy,
@@ -41,19 +53,8 @@ import {
 } from "@/lib/race/tackCalibration";
 
 const courseIds = getAllCourseIds();
-const TRACKER_STORAGE_KEY = "layline-active-course-tracker-v1";
 const CALIBRATION_DURATION_MS = 35_000;
 const MARK_APPROACH_DISTANCE_NM = 0.08;
-
-type StoredTrackerState = {
-  courseId?: string;
-  legIndex?: number;
-  windFrom?: number | "";
-  tackAngle?: number;
-  windSource?: WindSourceMode;
-};
-
-type WindSourceMode = "nearest" | "top" | "bottom" | "river" | "manual";
 
 type LiveWeatherPayload = {
   stationName?: string;
@@ -98,25 +99,6 @@ type WindRead = {
   observedAt?: string;
 };
 
-function readStoredTrackerState(): StoredTrackerState {
-  if (
-    typeof window === "undefined" ||
-    typeof localStorage === "undefined" ||
-    typeof localStorage.getItem !== "function"
-  ) {
-    return {};
-  }
-
-  try {
-    const raw = localStorage.getItem(TRACKER_STORAGE_KEY);
-    if (!raw) return {};
-    const parsed = JSON.parse(raw);
-    return typeof parsed === "object" && parsed != null ? parsed : {};
-  } catch {
-    return {};
-  }
-}
-
 function formatDeg(value: number | null) {
   return value == null ? "--" : `${Math.round(value)} deg`;
 }
@@ -158,16 +140,6 @@ function callClass(call: MarkProgressResult["call"] | "approach") {
   }
 
   return "border-[color:var(--divider)] bg-black/20 text-[color:var(--text-soft)]";
-}
-
-function readWindSourceMode(value: unknown): WindSourceMode {
-  return value === "nearest" ||
-    value === "top" ||
-    value === "bottom" ||
-    value === "river" ||
-    value === "manual"
-    ? value
-    : "nearest";
 }
 
 function getWindRead(params: {
@@ -245,7 +217,7 @@ function getCockpitAnswer(params: {
       action: `ROUND ${markId ?? "MARK"}`,
       line: "At mark",
       why: "You are inside the mark approach circle.",
-      fix: "Round cleanly, settle the boat, then tap Next Leg.",
+      fix: "Round cleanly and settle onto the next leg. If auto-advance does not fire, use Next Leg.",
     };
   }
 
@@ -358,30 +330,12 @@ function getCockpitAnswer(params: {
 export default function RaceLiveCockpit() {
   const { mode, isRaceMode } = useAppMode();
   const gps = usePhoneGps();
-  const [courseId, setCourseId] = useState<string>(() => {
-    const stored = readStoredTrackerState();
-    return stored.courseId && courseIds.some((id) => id === stored.courseId)
-      ? stored.courseId
-      : getDefaultCourseId();
-  });
+  const [trackerState, setTrackerState] = useState(() => getStoredTrackerStateSnapshot());
+  const courseId = trackerState.courseId;
   const courseData = useMemo(() => getCourseData(courseId), [courseId]);
-  const [legIndex, setLegIndex] = useState(() => {
-    const stored = readStoredTrackerState();
-    return typeof stored.legIndex === "number" ? stored.legIndex : 0;
-  });
-  const [windFrom, setWindFrom] = useState<number | "">(() => {
-    const stored = readStoredTrackerState();
-    return typeof stored.windFrom === "number" ? stored.windFrom : "";
-  });
-  const [windSource, setWindSource] = useState<WindSourceMode>(() => {
-    const stored = readStoredTrackerState();
-    return readWindSourceMode(stored.windSource);
-  });
-  const [tackAngle, setTackAngle] = useState(() => {
-    const stored = readStoredTrackerState();
-    if (typeof stored.tackAngle === "number") return stored.tackAngle;
-    return Math.round(getRaceDayHalfAngle(readTackCalibrations()) ?? 42);
-  });
+  const legIndex = trackerState.legIndex;
+  const windFrom = trackerState.windFrom;
+  const windSource = trackerState.windSource;
   const [startedAtMs, setStartedAtMs] = useState<number | null>(null);
   const [nowMs, setNowMs] = useState(Date.now());
   const [calibrations, setCalibrations] =
@@ -395,12 +349,22 @@ export default function RaceLiveCockpit() {
   const [windError, setWindError] = useState<string | null>(null);
   const [showWeather, setShowWeather] = useState(false);
   const [showSetup, setShowSetup] = useState(false);
+  const fallbackTackAngle = useMemo(
+    () => Math.round(getRaceDayHalfAngle(calibrations) ?? 42),
+    [calibrations],
+  );
+  const tackAngle = trackerState.tackAngle ?? fallbackTackAngle;
 
   const isCapturing = startedAtMs != null;
   const secondsLeft =
     startedAtMs == null
       ? 0
       : Math.max(0, Math.ceil((startedAtMs + CALIBRATION_DURATION_MS - nowMs) / 1000));
+
+  useEffect(
+    () => subscribeStoredTrackerState(() => setTrackerState(getStoredTrackerStateSnapshot())),
+    [],
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -503,7 +467,7 @@ export default function RaceLiveCockpit() {
       if (JSON.stringify(nextCalibrations) === JSON.stringify(current)) return current;
       saveTackCalibrations(nextCalibrations);
       const raceDayHalfAngle = getRaceDayHalfAngle(nextCalibrations);
-      if (raceDayHalfAngle != null) setTackAngle(Math.round(raceDayHalfAngle));
+      if (raceDayHalfAngle != null) setTrackerTackAngle(Math.round(raceDayHalfAngle));
       return nextCalibrations;
     });
   }, [gps.track]);
@@ -517,7 +481,7 @@ export default function RaceLiveCockpit() {
       const nextCalibrations = mergeTackCalibrations(calibrations, [calibration]);
       setCalibrations(nextCalibrations);
       saveTackCalibrations(nextCalibrations);
-      setTackAngle(Math.round(calibration.halfAngleDeg));
+      setTrackerTackAngle(Math.round(calibration.halfAngleDeg));
       setCalibrationError(null);
     } catch (error) {
       setCalibrationError(
@@ -550,8 +514,13 @@ export default function RaceLiveCockpit() {
   );
 
   useEffect(() => {
+    if (trackerState.tackAngle != null) return;
+    setTrackerTackAngle(fallbackTackAngle);
+  }, [fallbackTackAngle, trackerState.tackAngle]);
+
+  useEffect(() => {
     if (standardTackAngle == null) return;
-    setTackAngle(Math.round(standardTackAngle));
+    setTrackerTackAngle(Math.round(standardTackAngle));
   }, [standardTackAngle]);
 
   const raceState = useMemo(
@@ -635,25 +604,6 @@ export default function RaceLiveCockpit() {
     [confidenceSignals, lowConfidence, mode],
   );
 
-  useEffect(() => {
-    if (
-      typeof localStorage === "undefined" ||
-      typeof localStorage.setItem !== "function"
-    ) {
-      return;
-    }
-    localStorage.setItem(
-      TRACKER_STORAGE_KEY,
-      JSON.stringify({
-        courseId,
-        legIndex: safeLegIndex,
-        windFrom,
-        windSource,
-        tackAngle,
-      })
-    );
-  }, [courseId, safeLegIndex, tackAngle, windFrom, windSource]);
-
   const tackContext = useMemo(
     () => ({
       windFromDeg: raceState.wind.directionFromDeg,
@@ -720,9 +670,29 @@ export default function RaceLiveCockpit() {
     }),
     [approachingMark, primaryCall, raceState, result],
   );
+  const recentTransition =
+    trackerState.lastTransition?.courseId === courseId &&
+    trackerState.lastTransition.toLegIndex === safeLegIndex &&
+    isRecentTrackerTransition(trackerState.lastTransition)
+      ? trackerState.lastTransition
+      : null;
+  const autoAdvanceArmed =
+    canGoNext &&
+    trackerState.legDetection.armedLegIndex === safeLegIndex &&
+    trackerState.legDetection.armedMarkId === leg?.toMark;
+
+  useEffect(() => {
+    if (!canGoNext) return;
+    syncAutomaticLegTransition({
+      courseData,
+      raceState,
+      result,
+      approachingMark,
+    });
+  }, [approachingMark, canGoNext, courseData, raceState, result]);
 
   function goToLeg(nextIndex: number) {
-    setLegIndex(Math.min(Math.max(nextIndex, 0), courseData.course.legs.length - 1));
+    setTrackerLegIndex(nextIndex, { kind: "manual" });
   }
 
   function startCapture() {
@@ -857,6 +827,17 @@ export default function RaceLiveCockpit() {
           <BigMetric label="Bearing" value={formatDeg(result?.bearingToMarkDeg ?? null)} />
           <BigMetric label="VMG" value={`${formatNumber(result?.vmgToMarkKt ?? null, 1)} kt`} />
         </div>
+        {recentTransition?.kind === "automatic" && (
+          <div className="mt-3 rounded-xl border border-[color:var(--favorable)]/40 bg-[color:var(--favorable)]/10 px-3 py-2 text-xs font-semibold text-teal-50">
+            {recentTransition.message}
+          </div>
+        )}
+        {autoAdvanceArmed && (
+          <div className="mt-3 text-xs font-semibold leading-5 text-[color:var(--muted)]">
+            Auto-advance is armed for this rounding. If the leg does not flip once you
+            settle onto the next leg, use the manual button.
+          </div>
+        )}
       </section>
 
       <section className="layline-panel p-4">
@@ -895,7 +876,7 @@ export default function RaceLiveCockpit() {
           <select
             className="w-full rounded-xl border border-[color:var(--divider)] bg-black/30 p-3"
             value={windSource}
-            onChange={(event) => setWindSource(event.target.value as WindSourceMode)}
+            onChange={(event) => setTrackerWindSource(event.target.value as WindSourceMode)}
           >
             <option value="nearest" className="bg-slate-900">
               Nearest wind marker
@@ -927,9 +908,9 @@ export default function RaceLiveCockpit() {
               value={windFrom}
               onChange={(event) => {
                 const value = event.target.value.trim();
-                if (value === "") return setWindFrom("");
+                if (value === "") return setTrackerWindFrom("");
                 const parsed = Number(value);
-                if (!Number.isNaN(parsed)) setWindFrom(wrap360(parsed));
+                if (!Number.isNaN(parsed)) setTrackerWindFrom(wrap360(parsed));
               }}
             />
           </label>
@@ -1008,10 +989,7 @@ export default function RaceLiveCockpit() {
             <select
               className="w-full rounded-xl border border-[color:var(--divider)] bg-black/30 p-3"
               value={courseId}
-              onChange={(event) => {
-                setCourseId(event.target.value);
-                setLegIndex(0);
-              }}
+              onChange={(event) => setTrackerCourseId(event.target.value)}
             >
               {courseIds.map((id) => (
                 <option key={id} value={id} className="bg-slate-900">

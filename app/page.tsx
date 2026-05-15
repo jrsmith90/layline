@@ -44,6 +44,14 @@ const moduleGroups = [
         learn: "Course conditions, route bias, and sail selection",
       },
       {
+        href: "/race/tactical-board",
+        label: "Tactical Board",
+        icon: Wind,
+        accent: "#14b8a6",
+        race: "Shift memory",
+        learn: "Manual tactical board and target headings",
+      },
+      {
         href: "/start",
         label: "Start",
         icon: Flag,

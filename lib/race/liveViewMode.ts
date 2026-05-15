@@ -134,8 +134,8 @@ export function getTrackerRecommendationCopy(params: {
 
 export function getMarkApproachCopy(mode: AppMode, distanceNm: number) {
   if (mode === "race") {
-    return `Inside the ${distanceNm.toFixed(2)} nm approach circle. Round cleanly, then advance the leg.`;
+    return `Inside the ${distanceNm.toFixed(2)} nm approach circle. Round cleanly, let auto-advance catch the new leg, and use manual advance only if it stays behind.`;
   }
 
-  return `You are within about ${distanceNm.toFixed(2)} nm of the next mark. Confirm the rounding, then advance to the next leg.`;
+  return `You are within about ${distanceNm.toFixed(2)} nm of the next mark. The app will try to auto-advance after the rounding, and the manual control is still there if it stays on the old leg.`;
 }

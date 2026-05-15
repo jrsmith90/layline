@@ -2,10 +2,20 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useAppMode } from "@/components/display/AppModeProvider";
-import { formatCourseLabel, getAllCourseIds, getCourseData, getDefaultCourseId } from "@/data/race/getCourseData";
+import { formatCourseLabel, getAllCourseIds, getCourseData } from "@/data/race/getCourseData";
 import { LiveInstrumentsPanel } from "@/components/gps/LiveInstrumentsPanel";
 import { usePhoneGps } from "@/components/gps/PhoneGpsProvider";
 import { TackCalibrationPanel } from "@/components/race/TackCalibrationPanel";
+import {
+  getStoredTrackerStateSnapshot,
+  isRecentTrackerTransition,
+  setTrackerCourseId,
+  setTrackerLegIndex,
+  setTrackerTackAngle,
+  setTrackerWindFrom,
+  subscribeStoredTrackerState,
+  syncAutomaticLegTransition,
+} from "@/lib/race/legDetection";
 import { type MarkProgressResult, wrap360 } from "@/lib/race/courseTracker";
 import {
   getConfidencePanelCopy,
@@ -32,34 +42,7 @@ import {
 } from "@/lib/race/tackCalibration";
 
 const courseIds = getAllCourseIds();
-const TRACKER_STORAGE_KEY = "layline-active-course-tracker-v1";
 const MARK_APPROACH_DISTANCE_NM = 0.08;
-
-type StoredTrackerState = {
-  courseId?: string;
-  legIndex?: number;
-  windFrom?: number | "";
-  tackAngle?: number;
-};
-
-function readStoredTrackerState(): StoredTrackerState {
-  if (
-    typeof window === "undefined" ||
-    typeof localStorage === "undefined" ||
-    typeof localStorage.getItem !== "function"
-  ) {
-    return {};
-  }
-
-  try {
-    const raw = localStorage.getItem(TRACKER_STORAGE_KEY);
-    if (!raw) return {};
-    const parsed = JSON.parse(raw);
-    return typeof parsed === "object" && parsed != null ? parsed : {};
-  } catch {
-    return {};
-  }
-}
 
 function formatNumber(value: number | null, decimals = 1) {
   return value == null ? "--" : value.toFixed(decimals);
@@ -88,33 +71,22 @@ function callClass(call: MarkProgressResult["call"]) {
 export default function ActiveCourseTracker() {
   const { mode, isLearningMode } = useAppMode();
   const gps = usePhoneGps();
-  const [courseId, setCourseId] = useState<string>(() => {
-    const stored = readStoredTrackerState();
-    return stored.courseId && courseIds.some((id) => id === stored.courseId)
-      ? stored.courseId
-      : getDefaultCourseId();
-  });
+  const [trackerState, setTrackerState] = useState(() => getStoredTrackerStateSnapshot());
+  const courseId = trackerState.courseId;
   const courseData = useMemo(() => getCourseData(courseId), [courseId]);
-  const [legIndex, setLegIndex] = useState(() => {
-    const stored = readStoredTrackerState();
-    return typeof stored.legIndex === "number" ? stored.legIndex : 0;
-  });
-  const [windFrom, setWindFrom] = useState<number | "">(() => {
-    const stored = readStoredTrackerState();
-    return typeof stored.windFrom === "number" ? stored.windFrom : "";
-  });
-  const [tackAngle, setTackAngle] = useState(() => {
-    const stored = readStoredTrackerState();
-    if (typeof stored.tackAngle === "number") return stored.tackAngle;
-    const raceDayHalfAngle = getRaceDayHalfAngle(readTackCalibrations());
-    return raceDayHalfAngle == null ? 42 : Math.round(raceDayHalfAngle);
-  });
+  const legIndex = trackerState.legIndex;
+  const windFrom = trackerState.windFrom;
   const [standardTackAngle, setStandardTackAngle] = useState<number | null>(() => {
     const session = getActiveRaceSession();
     return session
       ? getKnownStandardTackAngle(session.tackRecords, session.tackCalibrations)
       : null;
   });
+  const fallbackTackAngle = useMemo(() => {
+    const raceDayHalfAngle = getRaceDayHalfAngle(readTackCalibrations());
+    return raceDayHalfAngle == null ? 42 : Math.round(raceDayHalfAngle);
+  }, []);
+  const tackAngle = trackerState.tackAngle ?? fallbackTackAngle;
   const raceState = useMemo(
     () =>
       deriveRaceState({
@@ -170,9 +142,19 @@ export default function ActiveCourseTracker() {
   );
   const safeLegIndex = raceState.course.safeLegIndex;
 
+  useEffect(
+    () => subscribeStoredTrackerState(() => setTrackerState(getStoredTrackerStateSnapshot())),
+    [],
+  );
+
   useEffect(() => {
     void syncRaceSessionsFromRepository();
   }, []);
+
+  useEffect(() => {
+    if (trackerState.tackAngle != null) return;
+    setTrackerTackAngle(fallbackTackAngle);
+  }, [fallbackTackAngle, trackerState.tackAngle]);
 
   useEffect(() => {
     const refreshStandardAngle = () => {
@@ -181,31 +163,13 @@ export default function ActiveCourseTracker() {
         ? getKnownStandardTackAngle(session.tackRecords, session.tackCalibrations)
         : null;
       setStandardTackAngle(nextAngle);
-      if (nextAngle != null) setTackAngle(Math.round(nextAngle));
+      if (nextAngle != null) setTrackerTackAngle(Math.round(nextAngle));
     };
 
     refreshStandardAngle();
     const interval = window.setInterval(refreshStandardAngle, 1500);
     return () => window.clearInterval(interval);
   }, []);
-
-  useEffect(() => {
-    if (
-      typeof localStorage === "undefined" ||
-      typeof localStorage.setItem !== "function"
-    ) {
-      return;
-    }
-    localStorage.setItem(
-      TRACKER_STORAGE_KEY,
-      JSON.stringify({
-        courseId,
-        legIndex: safeLegIndex,
-        windFrom,
-        tackAngle,
-      })
-    );
-  }, [courseId, safeLegIndex, tackAngle, windFrom]);
 
   const leg = selectActiveLeg(raceState);
   const { fromMark, toMark } = selectActiveMarks(raceState);
@@ -234,9 +198,29 @@ export default function ActiveCourseTracker() {
     () => (result ? getTrackerRecommendationCopy({ mode, result }) : null),
     [mode, result],
   );
+  const recentTransition =
+    trackerState.lastTransition?.courseId === courseId &&
+    trackerState.lastTransition.toLegIndex === safeLegIndex &&
+    isRecentTrackerTransition(trackerState.lastTransition)
+      ? trackerState.lastTransition
+      : null;
+  const autoAdvanceArmed =
+    canGoNext &&
+    trackerState.legDetection.armedLegIndex === safeLegIndex &&
+    trackerState.legDetection.armedMarkId === leg?.toMark;
+
+  useEffect(() => {
+    if (!canGoNext) return;
+    syncAutomaticLegTransition({
+      courseData,
+      raceState,
+      result,
+      approachingMark,
+    });
+  }, [approachingMark, canGoNext, courseData, raceState, result]);
 
   function goToLeg(nextIndex: number) {
-    setLegIndex(Math.min(Math.max(nextIndex, 0), courseData.course.legs.length - 1));
+    setTrackerLegIndex(nextIndex, { kind: "manual" });
   }
 
   return (
@@ -244,7 +228,7 @@ export default function ActiveCourseTracker() {
       <LiveInstrumentsPanel context="route" />
 
       <TackCalibrationPanel
-        onUseHalfAngle={(halfAngleDeg) => setTackAngle(Math.round(halfAngleDeg))}
+        onUseHalfAngle={(halfAngleDeg) => setTrackerTackAngle(Math.round(halfAngleDeg))}
       />
 
       <section className="layline-panel p-4">
@@ -269,10 +253,7 @@ export default function ActiveCourseTracker() {
             <select
               className="w-full rounded-xl border border-[color:var(--divider)] bg-black/30 p-3"
               value={courseId}
-              onChange={(event) => {
-                setCourseId(event.target.value);
-                setLegIndex(0);
-              }}
+              onChange={(event) => setTrackerCourseId(event.target.value)}
             >
               {courseIds.map((id) => (
                 <option key={id} value={id} className="bg-slate-900">
@@ -289,7 +270,9 @@ export default function ActiveCourseTracker() {
             <select
               className="w-full rounded-xl border border-[color:var(--divider)] bg-black/30 p-3"
               value={legIndex}
-              onChange={(event) => setLegIndex(Number(event.target.value))}
+              onChange={(event) =>
+                setTrackerLegIndex(Number(event.target.value), { kind: "manual" })
+              }
             >
               {courseData.course.legs.map((courseLeg, index) => (
                 <option key={courseLeg.legNumber} value={index} className="bg-slate-900">
@@ -310,9 +293,9 @@ export default function ActiveCourseTracker() {
               value={windFrom}
               onChange={(event) => {
                 const value = event.target.value.trim();
-                if (value === "") return setWindFrom("");
+                if (value === "") return setTrackerWindFrom("");
                 const parsed = Number(value);
-                if (!Number.isNaN(parsed)) setWindFrom(wrap360(parsed));
+                if (!Number.isNaN(parsed)) setTrackerWindFrom(wrap360(parsed));
               }}
             />
           </label>
@@ -327,7 +310,9 @@ export default function ActiveCourseTracker() {
               value={tackAngle}
               onChange={(event) => {
                 const parsed = Number(event.target.value);
-                if (!Number.isNaN(parsed)) setTackAngle(Math.min(60, Math.max(30, parsed)));
+                if (!Number.isNaN(parsed)) {
+                  setTrackerTackAngle(Math.min(60, Math.max(30, parsed)));
+                }
               }}
             />
             {standardTackAngle != null ? (
@@ -356,6 +341,17 @@ export default function ActiveCourseTracker() {
             Next Leg
           </button>
         </div>
+        {recentTransition?.kind === "automatic" && (
+          <div className="mt-3 rounded-xl border border-[color:var(--favorable)]/40 bg-[color:var(--favorable)]/10 px-3 py-2 text-xs font-semibold text-teal-50">
+            {recentTransition.message}
+          </div>
+        )}
+        {autoAdvanceArmed && (
+          <div className="mt-3 text-xs font-semibold leading-5 text-[color:var(--muted)]">
+            Auto-advance is armed for this rounding. If the leg does not change once
+            you settle onto the next leg, use the manual controls here.
+          </div>
+        )}
       </section>
 
       <section className="layline-panel p-4">
