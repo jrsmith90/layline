@@ -42,6 +42,12 @@ import {
   syncRaceSessionsFromRepository,
   type RaceSession,
 } from "@/lib/raceSessionStore";
+import { deriveTacticalBoardFromRaceState } from "@/lib/race/tacticalBoard/deriveTacticalBoardFromRaceState";
+import {
+  getStoredTacticalBoardDraft,
+  subscribeTacticalBoardStore,
+  type TacticalBoardDraft,
+} from "@/lib/race/tacticalBoard/store";
 import {
   calculateTackCalibration,
   detectAutomaticTackCalibrations,
@@ -332,6 +338,9 @@ export default function RaceLiveCockpit() {
   const { mode, isRaceMode } = useAppMode();
   const gps = usePhoneGps();
   const [trackerState, setTrackerState] = useState(() => getStoredTrackerStateSnapshot());
+  const [tacticalBoardDraft, setTacticalBoardDraft] = useState<TacticalBoardDraft>(() =>
+    getStoredTacticalBoardDraft(),
+  );
   const courseId = trackerState.courseId;
   const courseData = useMemo(() => getCourseData(courseId), [courseId]);
   const legIndex = trackerState.legIndex;
@@ -366,6 +375,12 @@ export default function RaceLiveCockpit() {
     () => subscribeStoredTrackerState(() => setTrackerState(getStoredTrackerStateSnapshot())),
     [],
   );
+
+  useEffect(() => {
+    return subscribeTacticalBoardStore(() => {
+      setTacticalBoardDraft(getStoredTacticalBoardDraft());
+    });
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -670,6 +685,16 @@ export default function RaceLiveCockpit() {
       approachingMark,
     }),
     [approachingMark, primaryCall, raceState, result],
+  );
+  const tacticalBoardCapture = useMemo(
+    () => ({
+      liveBoard: deriveTacticalBoardFromRaceState({
+        raceState,
+        draft: tacticalBoardDraft,
+      }),
+      raceState,
+    }),
+    [raceState, tacticalBoardDraft],
   );
   const recentTransition =
     trackerState.lastTransition?.courseId === courseId &&
@@ -1012,6 +1037,7 @@ export default function RaceLiveCockpit() {
         gpsTrack={gps.track}
         currentDecision={recorderDecision}
         raceStateCapture={raceStateCapture}
+        tacticalBoardCapture={tacticalBoardCapture}
         tackContext={tackContext}
       />
 

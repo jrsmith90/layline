@@ -9,6 +9,8 @@ import type {
   RaceStateSourceStatus,
   RaceStateWindSourceMode,
 } from "@/lib/race/state/types";
+import type { DerivedLiveTacticalBoard } from "@/lib/race/tacticalBoard/deriveTacticalBoardFromRaceState";
+import type { TacticalBoardSnapshot } from "@/lib/race/tacticalBoard/types";
 import type { GpsTrackPoint } from "@/lib/useGpsCourse";
 import type { LaylineLog } from "@/lib/logStore";
 import { getLogs } from "@/lib/logStore";
@@ -105,6 +107,7 @@ export type RaceSession = {
   weatherSamples: RaceWeatherSample[];
   decisions: RaceDecisionRecord[];
   raceStateSnapshots: RaceStateSnapshot[];
+  tacticalBoardSnapshots: TacticalBoardSnapshot[];
   trimLogs: LaylineLog[];
   tackCalibrations: TackCalibrationResult[];
   tackRecords: TackRecord[];
@@ -115,6 +118,12 @@ export type RaceStateSnapshotCaptureInput = {
   progress: MarkProgressResult | null;
   primaryCall: MarkProgressCall | "approach";
   approachingMark: boolean;
+  capturedAtISO?: string;
+};
+
+export type TacticalBoardSnapshotCaptureInput = {
+  liveBoard: DerivedLiveTacticalBoard;
+  raceState: RaceState;
   capturedAtISO?: string;
 };
 
@@ -148,7 +157,9 @@ const GPS_TRACK_KEY = "layline-phone-gps-track-v1";
 const TRACKER_KEY = "layline-active-course-tracker-v1";
 const REPOSITORY_ENDPOINT = "/api/race-sessions";
 const MAX_RACE_STATE_SNAPSHOTS = 720;
+const MAX_TACTICAL_BOARD_SNAPSHOTS = 720;
 const RACE_STATE_SNAPSHOT_DEDUPE_MS = 5000;
+const TACTICAL_BOARD_SNAPSHOT_DEDUPE_MS = 5000;
 
 export type RaceSessionRepositorySnapshot = {
   sessions: RaceSession[];
@@ -207,6 +218,9 @@ function normalizeRaceSession(session: RaceSession): RaceSession {
     decisions: Array.isArray(session.decisions) ? session.decisions : [],
     raceStateSnapshots: Array.isArray(session.raceStateSnapshots)
       ? session.raceStateSnapshots
+      : [],
+    tacticalBoardSnapshots: Array.isArray(session.tacticalBoardSnapshots)
+      ? session.tacticalBoardSnapshots
       : [],
     trimLogs: Array.isArray(session.trimLogs) ? session.trimLogs : [],
     tackCalibrations: Array.isArray(session.tackCalibrations)
@@ -267,6 +281,12 @@ function mergeRaceSession(existing: RaceSession, incoming: RaceSession): RaceSes
       (leftSnapshot, rightSnapshot) =>
         leftSnapshot.capturedAtISO.localeCompare(rightSnapshot.capturedAtISO),
     ).slice(-MAX_RACE_STATE_SNAPSHOTS),
+    tacticalBoardSnapshots: uniqueByKey(
+      [...secondary.tacticalBoardSnapshots, ...primary.tacticalBoardSnapshots],
+      (snapshot) => snapshot.capturedAtISO,
+      (leftSnapshot, rightSnapshot) =>
+        leftSnapshot.capturedAtISO.localeCompare(rightSnapshot.capturedAtISO),
+    ).slice(-MAX_TACTICAL_BOARD_SNAPSHOTS),
     trimLogs: uniqueByKey(
       [...secondary.trimLogs, ...primary.trimLogs],
       (log) => log.id,
@@ -527,6 +547,13 @@ function trimRaceStateSnapshots(snapshots: RaceStateSnapshot[]) {
     .slice(-MAX_RACE_STATE_SNAPSHOTS);
 }
 
+function trimTacticalBoardSnapshots(snapshots: TacticalBoardSnapshot[]) {
+  return snapshots
+    .slice()
+    .sort((left, right) => left.capturedAtISO.localeCompare(right.capturedAtISO))
+    .slice(-MAX_TACTICAL_BOARD_SNAPSHOTS);
+}
+
 function getDecisionWeatherSourceId(state: RaceState) {
   switch (state.wind.sourceMode) {
     case "nearest": {
@@ -633,6 +660,26 @@ function buildRaceStateSnapshot(input: RaceStateSnapshotCaptureInput): RaceState
   };
 }
 
+function buildTacticalBoardSnapshot(
+  input: TacticalBoardSnapshotCaptureInput,
+): TacticalBoardSnapshot {
+  return {
+    capturedAtISO: input.capturedAtISO ?? nowISO(),
+    boardGeneratedAt: input.liveBoard.board.generatedAt,
+    board: input.liveBoard.board,
+    liveContext: {
+      activeLegLabel: input.liveBoard.activeLegLabel,
+      legMode: input.liveBoard.legMode,
+      currentWindSource: input.liveBoard.currentWindSource,
+      usesActiveLegBearing: input.liveBoard.usesActiveLegBearing,
+      windSourceLabel: input.raceState.wind.sourceLabel,
+      windSourceMode: input.raceState.wind.sourceMode,
+      windFreshness: input.raceState.sources.wind.freshness,
+      overallConfidence: input.raceState.confidence.overall,
+    },
+  };
+}
+
 function shouldSkipRaceStateSnapshot(
   previous: RaceStateSnapshot | null | undefined,
   next: RaceStateSnapshot,
@@ -649,6 +696,33 @@ function shouldSkipRaceStateSnapshot(
     previous.course.safeLegIndex === next.course.safeLegIndex &&
     previous.confidence.overall === next.confidence.overall &&
     previous.progress?.call === next.progress?.call
+  );
+}
+
+function shouldSkipTacticalBoardSnapshot(
+  previous: TacticalBoardSnapshot | null | undefined,
+  next: TacticalBoardSnapshot,
+) {
+  if (!previous) return false;
+
+  const previousMs = timeValue(previous.capturedAtISO);
+  const nextMs = timeValue(next.capturedAtISO);
+  if (nextMs - previousMs >= TACTICAL_BOARD_SNAPSHOT_DEDUPE_MS) return false;
+
+  return (
+    previous.liveContext.legMode === next.liveContext.legMode &&
+    previous.liveContext.activeLegLabel === next.liveContext.activeLegLabel &&
+    previous.liveContext.currentWindSource === next.liveContext.currentWindSource &&
+    previous.liveContext.usesActiveLegBearing === next.liveContext.usesActiveLegBearing &&
+    previous.liveContext.windSourceLabel === next.liveContext.windSourceLabel &&
+    previous.liveContext.windFreshness === next.liveContext.windFreshness &&
+    previous.liveContext.overallConfidence === next.liveContext.overallConfidence &&
+    previous.board.readiness.status === next.board.readiness.status &&
+    previous.board.shift.direction === next.board.shift.direction &&
+    previous.board.shift.deltaDeg === next.board.shift.deltaDeg &&
+    previous.board.upwind.favoredTack === next.board.upwind.favoredTack &&
+    previous.board.downwind.dominantReach === next.board.downwind.dominantReach &&
+    previous.board.startLine.favoredEnd === next.board.startLine.favoredEnd
   );
 }
 
@@ -796,6 +870,7 @@ export function startRaceSession(input: {
     weatherSamples: [],
     decisions: [],
     raceStateSnapshots: [],
+    tacticalBoardSnapshots: [],
     trimLogs: [],
     tackCalibrations: [],
     tackRecords: [],
@@ -991,6 +1066,30 @@ export function appendRaceStateSnapshot(
   return updated;
 }
 
+export function appendTacticalBoardSnapshot(
+  sessionId: string,
+  snapshotInput: TacticalBoardSnapshotCaptureInput,
+) {
+  const session = getRaceSession(sessionId);
+  if (!session) return session;
+
+  const snapshot = buildTacticalBoardSnapshot(snapshotInput);
+  const previous = session.tacticalBoardSnapshots.at(-1);
+  if (shouldSkipTacticalBoardSnapshot(previous, snapshot)) {
+    return session;
+  }
+
+  const updated: RaceSession = {
+    ...session,
+    tacticalBoardSnapshots: trimTacticalBoardSnapshots([
+      ...session.tacticalBoardSnapshots,
+      snapshot,
+    ]),
+  };
+  upsertRaceSession(updated);
+  return updated;
+}
+
 export function attachTrimLogsToSession(id: string, logs: LaylineLog[]) {
   const session = getRaceSession(id);
   if (!session) return session;
@@ -1073,6 +1172,7 @@ export async function recoverTodayRaceSession(): Promise<RecoverTodayRaceSession
       weatherSamples: [],
       decisions: [],
       raceStateSnapshots: [],
+      tacticalBoardSnapshots: [],
       trimLogs: [],
       tackCalibrations: [],
       tackRecords: [],

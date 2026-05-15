@@ -21,6 +21,10 @@ type StoredRaceStateSnapshot = Record<string, unknown> & {
   capturedAtISO?: string;
 };
 
+type StoredTacticalBoardSnapshot = Record<string, unknown> & {
+  capturedAtISO?: string;
+};
+
 type StoredTrimLog = Record<string, unknown> & {
   id?: string;
   createdAtISO?: string;
@@ -49,6 +53,7 @@ type StoredRaceSession = Record<string, unknown> & {
   weatherSamples?: StoredWeatherSample[];
   decisions?: StoredDecision[];
   raceStateSnapshots?: StoredRaceStateSnapshot[];
+  tacticalBoardSnapshots?: StoredTacticalBoardSnapshot[];
   trimLogs?: StoredTrimLog[];
   tackCalibrations?: StoredCalibration[];
   tackRecords?: StoredTackRecord[];
@@ -63,6 +68,7 @@ type RaceSessionRepositorySnapshot = {
 const DATA_DIR = path.join(process.cwd(), ".layline-data");
 const REPOSITORY_FILE = path.join(DATA_DIR, "race-sessions-v1.json");
 const MAX_RACE_STATE_SNAPSHOTS = 720;
+const MAX_TACTICAL_BOARD_SNAPSHOTS = 720;
 
 function nowISO() {
   return new Date().toISOString();
@@ -105,6 +111,9 @@ function normalizeSession(session: StoredRaceSession): StoredRaceSession {
     decisions: Array.isArray(session.decisions) ? session.decisions : [],
     raceStateSnapshots: Array.isArray(session.raceStateSnapshots)
       ? session.raceStateSnapshots
+      : [],
+    tacticalBoardSnapshots: Array.isArray(session.tacticalBoardSnapshots)
+      ? session.tacticalBoardSnapshots
       : [],
     trimLogs: Array.isArray(session.trimLogs) ? session.trimLogs : [],
     tackCalibrations: Array.isArray(session.tackCalibrations)
@@ -153,6 +162,14 @@ function mergeSession(existing: StoredRaceSession, incoming: StoredRaceSession) 
           String(rightItem.capturedAtISO ?? ""),
         ),
     ).slice(-MAX_RACE_STATE_SNAPSHOTS),
+    tacticalBoardSnapshots: uniqueByKey(
+      [...(secondary.tacticalBoardSnapshots ?? []), ...(primary.tacticalBoardSnapshots ?? [])],
+      (item) => (typeof item.capturedAtISO === "string" ? item.capturedAtISO : null),
+      (leftItem, rightItem) =>
+        String(leftItem.capturedAtISO ?? "").localeCompare(
+          String(rightItem.capturedAtISO ?? ""),
+        ),
+    ).slice(-MAX_TACTICAL_BOARD_SNAPSHOTS),
     trimLogs: uniqueByKey(
       [...(secondary.trimLogs ?? []), ...(primary.trimLogs ?? [])],
       (item) => (typeof item.id === "string" ? item.id : null),

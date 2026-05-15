@@ -9,6 +9,7 @@ import {
   appendRaceDecision,
   appendRaceGpsSamples,
   appendRaceStateSnapshot,
+  appendTacticalBoardSnapshot,
   appendRaceWeatherSample,
   attachTackCalibrationsToSession,
   attachTrimLogsToSession,
@@ -25,6 +26,7 @@ import {
   type RaceSessionRepositoryRecoveryResult,
   type RaceDecisionSourceMeta,
   type RaceStateSnapshotCaptureInput,
+  type TacticalBoardSnapshotCaptureInput,
   type RaceWeatherSample,
 } from "@/lib/raceSessionStore";
 import { getLogs } from "@/lib/logStore";
@@ -69,6 +71,7 @@ type RaceRecorderPanelProps = {
   gpsTrack: GpsTrackPoint[];
   currentDecision?: RecorderDecisionInput | null;
   raceStateCapture?: RaceStateSnapshotCaptureInput | null;
+  tacticalBoardCapture?: TacticalBoardSnapshotCaptureInput | null;
   tackContext?: {
     windFromDeg?: number | null;
   };
@@ -154,6 +157,7 @@ export function RaceRecorderPanel({
   gpsTrack,
   currentDecision,
   raceStateCapture,
+  tacticalBoardCapture,
   tackContext,
 }: RaceRecorderPanelProps) {
   const [, refresh] = useReducer((value: number) => value + 1, 0);
@@ -163,6 +167,9 @@ export function RaceRecorderPanel({
   const lastDecisionRef = useRef<string | null>(null);
   const latestRaceStateCaptureRef = useRef<RaceStateSnapshotCaptureInput | null>(
     raceStateCapture ?? null,
+  );
+  const latestTacticalBoardCaptureRef = useRef<TacticalBoardSnapshotCaptureInput | null>(
+    tacticalBoardCapture ?? null,
   );
   const activeSession = getActiveRaceSession();
   const effectiveSessionId = activeSession?.id ?? sessionId;
@@ -196,6 +203,10 @@ export function RaceRecorderPanel({
   useEffect(() => {
     latestRaceStateCaptureRef.current = raceStateCapture ?? null;
   }, [raceStateCapture]);
+
+  useEffect(() => {
+    latestTacticalBoardCaptureRef.current = tacticalBoardCapture ?? null;
+  }, [tacticalBoardCapture]);
 
   useEffect(() => {
     if (!effectiveSessionId || session?.status !== "active") return;
@@ -273,10 +284,22 @@ export function RaceRecorderPanel({
     const activeSessionId = effectiveSessionId;
 
     function captureRaceState() {
+      const capturedAtISO = new Date().toISOString();
       const latestCapture = latestRaceStateCaptureRef.current;
-      if (!latestCapture) return;
+      if (latestCapture) {
+        appendRaceStateSnapshot(activeSessionId, {
+          ...latestCapture,
+          capturedAtISO,
+        });
+      }
 
-      appendRaceStateSnapshot(activeSessionId, latestCapture);
+      const latestTacticalCapture = latestTacticalBoardCaptureRef.current;
+      if (latestTacticalCapture) {
+        appendTacticalBoardSnapshot(activeSessionId, {
+          ...latestTacticalCapture,
+          capturedAtISO,
+        });
+      }
     }
 
     captureRaceState();
@@ -295,6 +318,7 @@ export function RaceRecorderPanel({
       weather: session?.weatherSamples.length ?? 0,
       decisions: session?.decisions.length ?? 0,
       state: session?.raceStateSnapshots.length ?? 0,
+      board: session?.tacticalBoardSnapshots.length ?? 0,
       tacks: session?.tackRecords.length ?? session?.tackCalibrations.length ?? 0,
     }),
     [session],
@@ -398,11 +422,12 @@ export function RaceRecorderPanel({
         </Link>
       </div>
 
-      <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-5">
+      <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-6">
         <SmallMetric label="GPS" value={String(counts.gps)} />
         <SmallMetric label="Weather" value={String(counts.weather)} />
         <SmallMetric label="Choices" value={String(counts.decisions)} />
         <SmallMetric label="State" value={String(counts.state)} />
+        <SmallMetric label="Board" value={String(counts.board)} />
         <SmallMetric label="Tacks" value={String(counts.tacks)} />
       </div>
 

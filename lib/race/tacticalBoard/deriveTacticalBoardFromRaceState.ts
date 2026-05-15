@@ -2,12 +2,13 @@ import { angleDiffDeg, wrap360 } from "@/lib/race/courseTracker";
 import type { RaceState } from "@/lib/race/state/types";
 import { deriveTacticalBoard } from "./deriveTacticalBoard";
 import type { TacticalBoardDraft } from "./store";
-import type { TacticalBoard } from "./types";
+import type {
+  TacticalBoard,
+  TacticalBoardCurrentWindSource,
+  TacticalBoardLiveLegMode,
+} from "./types";
 
 const LEG_ALIGNMENT_WINDOW_DEG = 70;
-
-export type TacticalBoardLiveLegMode = "upwind" | "downwind" | "reach" | "unknown";
-export type TacticalBoardCurrentWindSource = "live" | "setup" | "missing";
 
 export type DerivedLiveTacticalBoard = {
   board: TacticalBoard;

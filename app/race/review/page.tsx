@@ -7,6 +7,11 @@ import CourseChart from "@/components/race/CourseChart";
 import { formatCourseLabel, getCourseData } from "@/data/race/getCourseData";
 import type { RaceStateSnapshot } from "@/lib/race/state/types";
 import {
+  selectShiftHeadline,
+  selectStartLineHeadline,
+} from "@/lib/race/tacticalBoard/selectors";
+import type { TacticalBoardSnapshot } from "@/lib/race/tacticalBoard/types";
+import {
   buildRaceSessionReview,
   deleteRaceSession,
   downloadTextFile,
@@ -81,6 +86,155 @@ function confidenceTone(level: RaceStateSnapshot["confidence"]["overall"]) {
   return "border-red-400/35 bg-red-400/10 text-red-100";
 }
 
+function formatDeg(value: number | null) {
+  return value == null ? "--" : `${Math.round(value)} deg`;
+}
+
+function formatSignedDeg(value: number | null) {
+  if (value == null) return "--";
+  const rounded = Math.round(value);
+  return `${rounded > 0 ? "+" : ""}${rounded} deg`;
+}
+
+function formatTacticalBoardStatus(
+  status: TacticalBoardSnapshot["board"]["readiness"]["status"],
+) {
+  switch (status) {
+    case "ready":
+      return "Board ready";
+    case "partial":
+      return "Partial board";
+    default:
+      return "Setup needed";
+  }
+}
+
+function formatTacticalBoardLegMode(
+  mode: TacticalBoardSnapshot["liveContext"]["legMode"],
+) {
+  switch (mode) {
+    case "upwind":
+      return "Upwind focus";
+    case "downwind":
+      return "Run focus";
+    case "reach":
+      return "Reach focus";
+    default:
+      return "General read";
+  }
+}
+
+function formatTacticalBoardCurrentWindSource(
+  source: TacticalBoardSnapshot["liveContext"]["currentWindSource"],
+) {
+  switch (source) {
+    case "live":
+      return "Live feed";
+    case "setup":
+      return "Setup fallback";
+    default:
+      return "Missing";
+  }
+}
+
+function formatTacticalBoardSide(
+  value:
+    | TacticalBoardSnapshot["board"]["upwind"]["favoredTack"]
+    | TacticalBoardSnapshot["board"]["startLine"]["favoredEnd"],
+) {
+  switch (value) {
+    case "starboard":
+      return "Starboard";
+    case "port":
+      return "Port";
+    case "even":
+      return "Even";
+    case "square":
+      return "Square";
+    default:
+      return "Unknown";
+  }
+}
+
+function buildTacticalBoardThoughts(snapshot: TacticalBoardSnapshot) {
+  const thoughts: string[] = [];
+
+  if (snapshot.liveContext.legMode === "upwind") {
+    if (snapshot.board.upwind.favoredTack === "even") {
+      thoughts.push("The board read the windward leg as centered enough that lane and pressure mattered more than a forced-side bias.");
+    } else if (snapshot.board.upwind.favoredTack !== "unknown") {
+      thoughts.push(
+        `${formatTacticalBoardSide(snapshot.board.upwind.favoredTack)} tack had the cleaner first look on this upwind leg.`,
+      );
+    }
+  } else if (snapshot.liveContext.legMode === "downwind") {
+    if (snapshot.board.downwind.dominantReach === "even") {
+      thoughts.push("Run geometry looked balanced around the jibe bearing at this moment.");
+    } else if (snapshot.board.downwind.dominantReach !== "unknown") {
+      thoughts.push(
+        `${formatTacticalBoardSide(snapshot.board.downwind.dominantReach)} reach was the cleaner pressure-side setup on the run.`,
+      );
+    }
+  } else if (snapshot.board.startLine.favoredEnd !== "unknown") {
+    thoughts.push(selectStartLineHeadline(snapshot.board));
+  }
+
+  thoughts.push(selectShiftHeadline(snapshot.board));
+
+  if (snapshot.liveContext.currentWindSource === "setup") {
+    thoughts.push("Live wind was missing here, so the board fell back to the saved current-wind setup.");
+  } else if (snapshot.liveContext.currentWindSource === "missing") {
+    thoughts.push("Current wind was not set yet, so this frame still depended on saved geometry more than live inputs.");
+  }
+
+  if (!snapshot.liveContext.usesActiveLegBearing) {
+    thoughts.push("Mark geometry in this frame still came from the saved tactical-board setup instead of the active-leg bearing.");
+  }
+
+  return thoughts.slice(0, 4);
+}
+
+function tacticalBoardSourceDetail(snapshot: TacticalBoardSnapshot) {
+  const windCopy =
+    snapshot.liveContext.currentWindSource === "live"
+      ? `Live wind came from ${snapshot.liveContext.windSourceLabel} in ${snapshot.liveContext.windSourceMode} mode with ${snapshot.liveContext.windFreshness} freshness.`
+      : snapshot.liveContext.currentWindSource === "setup"
+        ? "Live wind was unavailable, so the board used the saved current-wind setup."
+        : "No current-wind source was available for this frame.";
+  const geometryCopy = snapshot.liveContext.usesActiveLegBearing
+    ? " Active-leg bearing was feeding the board geometry automatically."
+    : " Board geometry was still coming from the saved tactical setup.";
+
+  return `${windCopy}${geometryCopy}`;
+}
+
+function getTacticalBoardReplayMetrics(snapshot: TacticalBoardSnapshot) {
+  if (snapshot.liveContext.legMode === "downwind") {
+    return [
+      { label: "Jibe", value: formatDeg(snapshot.board.downwind.jibeBearingDeg) },
+      { label: "Stbd Gybe", value: formatDeg(snapshot.board.downwind.starboardGybeHeadingDeg) },
+      { label: "Port Gybe", value: formatDeg(snapshot.board.downwind.portGybeHeadingDeg) },
+      { label: "Reach", value: formatTacticalBoardSide(snapshot.board.downwind.dominantReach) },
+    ];
+  }
+
+  if (snapshot.liveContext.legMode === "upwind") {
+    return [
+      { label: "Stbd Tack", value: formatDeg(snapshot.board.upwind.starboardTackHeadingDeg) },
+      { label: "Port Tack", value: formatDeg(snapshot.board.upwind.portTackHeadingDeg) },
+      { label: "Mark Offset", value: formatSignedDeg(snapshot.board.upwind.windwardMarkOffsetDeg) },
+      { label: "Favored Tack", value: formatTacticalBoardSide(snapshot.board.upwind.favoredTack) },
+    ];
+  }
+
+  return [
+    { label: "Shift", value: formatSignedDeg(snapshot.board.shift.deltaDeg) },
+    { label: "Bias", value: formatSignedDeg(snapshot.board.startLine.biasDeg) },
+    { label: "Favored End", value: formatTacticalBoardSide(snapshot.board.startLine.favoredEnd) },
+    { label: "Jibe", value: formatDeg(snapshot.board.downwind.jibeBearingDeg) },
+  ];
+}
+
 function formatDecisionSourceMode(mode?: string) {
   if (!mode) return "--";
   return mode.replace(/_/g, " ");
@@ -153,6 +307,16 @@ export default function RaceReviewPage() {
   const review = session ? buildRaceSessionReview(session) : null;
   const reviewCourseData = session?.courseId ? getCourseData(session.courseId) : null;
   const latestRaceStateSnapshot = session?.raceStateSnapshots.at(-1) ?? null;
+  const latestTacticalBoardSnapshot = session?.tacticalBoardSnapshots.at(-1) ?? null;
+  const [selectedTacticalBoardSnapshotISO, setSelectedTacticalBoardSnapshotISO] = useState("");
+  const tacticalBoardReplayFrames =
+    session?.tacticalBoardSnapshots
+      .slice()
+      .sort((left, right) => right.capturedAtISO.localeCompare(left.capturedAtISO)) ?? [];
+  const selectedTacticalBoardSnapshot =
+    tacticalBoardReplayFrames.find(
+      (snapshot) => snapshot.capturedAtISO === selectedTacticalBoardSnapshotISO,
+    ) ?? latestTacticalBoardSnapshot;
 
   useEffect(() => subscribeRaceSessionStore(() => refresh()), []);
 
@@ -304,12 +468,13 @@ export default function RaceReviewPage() {
               </button>
             </div>
 
-            <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-8">
+            <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-9">
               <Metric label="Minutes" value={formatNumber(review.durationMin, 0)} />
               <Metric label="GPS" value={String(review.gpsPointCount)} />
               <Metric label="Weather" value={String(review.weatherSampleCount)} />
               <Metric label="Choices" value={String(review.decisionCount)} />
               <Metric label="State" value={String(session.raceStateSnapshots.length)} />
+              <Metric label="Board" value={String(session.tacticalBoardSnapshots.length)} />
               <Metric label="Tacks" value={String(session.tackCalibrations.length)} />
               <Metric label="Avg SOG" value={`${formatNumber(review.averageSogKt)} kt`} />
               <Metric label="Max SOG" value={`${formatNumber(review.maxSogKt)} kt`} />
@@ -440,6 +605,135 @@ export default function RaceReviewPage() {
                       ))}
                   </div>
                 )}
+              </>
+            )}
+          </section>
+
+          <section className="layline-panel p-4">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h2 className="text-xl font-black">Tactical Board Replay</h2>
+                <p className="mt-1 text-sm text-[color:var(--muted)]">
+                  Replay saved board frames to see what the tactical overlay was signaling during the race.
+                </p>
+              </div>
+              <div className="text-xs font-bold uppercase tracking-wide text-[color:var(--muted)]">
+                {session.tacticalBoardSnapshots.length} saved frame
+                {session.tacticalBoardSnapshots.length === 1 ? "" : "s"}
+              </div>
+            </div>
+
+            {!selectedTacticalBoardSnapshot ? (
+              <div className="mt-4 rounded-xl border border-white/10 bg-white/5 p-4 text-sm text-[color:var(--muted)]">
+                No tactical-board snapshots were saved for this session.
+              </div>
+            ) : (
+              <>
+                <div className="mt-4 grid gap-3 md:grid-cols-[1fr_auto] md:items-end">
+                  <label className="space-y-1">
+                    <div className="text-xs font-black uppercase tracking-[0.16em] text-[color:var(--muted)]">
+                      Replay frame
+                    </div>
+                    <select
+                      className="w-full rounded-xl border border-[color:var(--divider)] bg-black/30 p-3"
+                      value={selectedTacticalBoardSnapshot.capturedAtISO}
+                      onChange={(event) => setSelectedTacticalBoardSnapshotISO(event.target.value)}
+                    >
+                      {tacticalBoardReplayFrames.map((snapshot) => (
+                        <option
+                          key={snapshot.capturedAtISO}
+                          value={snapshot.capturedAtISO}
+                          className="bg-slate-900"
+                        >
+                          {formatDateTime(snapshot.capturedAtISO)} ·{" "}
+                          {snapshot.liveContext.activeLegLabel ??
+                            formatTacticalBoardLegMode(snapshot.liveContext.legMode)}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <div
+                    className={[
+                      "rounded-full border px-3 py-2 text-xs font-black uppercase tracking-wide",
+                      confidenceTone(selectedTacticalBoardSnapshot.liveContext.overallConfidence),
+                    ].join(" ")}
+                  >
+                    {selectedTacticalBoardSnapshot.liveContext.overallConfidence} confidence
+                  </div>
+                </div>
+
+                <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
+                  <Metric
+                    label="Status"
+                    value={formatTacticalBoardStatus(selectedTacticalBoardSnapshot.board.readiness.status)}
+                  />
+                  <Metric
+                    label="Focus"
+                    value={formatTacticalBoardLegMode(selectedTacticalBoardSnapshot.liveContext.legMode)}
+                  />
+                  <Metric
+                    label="Leg"
+                    value={selectedTacticalBoardSnapshot.liveContext.activeLegLabel ?? "--"}
+                  />
+                  <Metric
+                    label="Wind Feed"
+                    value={formatTacticalBoardCurrentWindSource(
+                      selectedTacticalBoardSnapshot.liveContext.currentWindSource,
+                    )}
+                  />
+                </div>
+
+                <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-4">
+                  <Metric
+                    label="Baseline"
+                    value={formatDeg(selectedTacticalBoardSnapshot.board.shift.referenceFromDeg)}
+                  />
+                  <Metric
+                    label="Live Wind"
+                    value={formatDeg(selectedTacticalBoardSnapshot.board.shift.currentFromDeg)}
+                  />
+                  {getTacticalBoardReplayMetrics(selectedTacticalBoardSnapshot)
+                    .slice(0, 2)
+                    .map((metric) => (
+                      <Metric key={metric.label} label={metric.label} value={metric.value} />
+                    ))}
+                </div>
+
+                <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-4">
+                  {getTacticalBoardReplayMetrics(selectedTacticalBoardSnapshot)
+                    .slice(2)
+                    .map((metric) => (
+                      <Metric key={metric.label} label={metric.label} value={metric.value} />
+                    ))}
+                  <Metric
+                    label="Shift"
+                    value={formatSignedDeg(selectedTacticalBoardSnapshot.board.shift.deltaDeg)}
+                  />
+                  <Metric
+                    label="Trend"
+                    value={selectedTacticalBoardSnapshot.board.setup.windTrend}
+                  />
+                </div>
+
+                <div className="mt-3 rounded-xl border border-white/10 bg-black/20 p-4">
+                  <div className="text-xs font-black uppercase tracking-[0.16em] text-[color:var(--muted)]">
+                    Source detail
+                  </div>
+                  <div className="mt-2 text-sm leading-6">
+                    {tacticalBoardSourceDetail(selectedTacticalBoardSnapshot)}
+                  </div>
+                </div>
+
+                <div className="mt-3 grid gap-2 md:grid-cols-2">
+                  {buildTacticalBoardThoughts(selectedTacticalBoardSnapshot).map((thought) => (
+                    <div
+                      key={thought}
+                      className="rounded-xl border border-cyan-400/20 bg-cyan-400/10 p-3 text-sm leading-6"
+                    >
+                      {thought}
+                    </div>
+                  ))}
+                </div>
               </>
             )}
           </section>

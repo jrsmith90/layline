@@ -1,11 +1,18 @@
 import type { WindTrend } from "@/data/race/getRouteBiasInputs";
 import type { CourseSummary } from "@/data/race/getCourseData";
+import type {
+  RaceStateConfidenceLevel,
+  RaceStateSourceFreshness,
+  RaceStateWindSourceMode,
+} from "@/lib/race/state/types";
 
 export type TacticalBoardStatus = "ready" | "partial" | "setup_needed";
 export type TacticalBoardShiftDirection = "starboard" | "port" | "neutral" | "unknown";
 export type TacticalBoardMemoryColor = "green" | "red" | "neutral" | "muted";
 export type TacticalBoardSide = "starboard" | "port" | "even" | "unknown";
 export type TacticalBoardLineEnd = "starboard" | "port" | "square" | "unknown";
+export type TacticalBoardLiveLegMode = "upwind" | "downwind" | "reach" | "unknown";
+export type TacticalBoardCurrentWindSource = "live" | "setup" | "missing";
 export type TacticalBoardInputKey =
   | "meanWindDirectionDeg"
   | "tackAngleDeg"
@@ -98,4 +105,22 @@ export type TacticalBoard = {
   upwind: TacticalBoardUpwind;
   downwind: TacticalBoardDownwind;
   startLine: TacticalBoardStartLine;
+};
+
+export type TacticalBoardSnapshotLiveContext = {
+  activeLegLabel: string | null;
+  legMode: TacticalBoardLiveLegMode;
+  currentWindSource: TacticalBoardCurrentWindSource;
+  usesActiveLegBearing: boolean;
+  windSourceLabel: string;
+  windSourceMode: RaceStateWindSourceMode;
+  windFreshness: RaceStateSourceFreshness;
+  overallConfidence: RaceStateConfidenceLevel;
+};
+
+export type TacticalBoardSnapshot = {
+  capturedAtISO: string;
+  boardGeneratedAt: string;
+  board: TacticalBoard;
+  liveContext: TacticalBoardSnapshotLiveContext;
 };
