@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Route, Sailboat, Wind } from "lucide-react";
 import { useAppMode } from "@/components/display/AppModeProvider";
 import type { TacticalUpdateAction } from "@/lib/race/checkPlanValidity";
-import type { RaceState } from "@/lib/race/state/types";
+import type { RaceState } from "@/lib/race/race-state/types";
 import type { RouteBiasConfidence, RouteBiasDecision } from "@/lib/race/scoreRouteBias";
 import { deriveTacticalBoardFromRaceState } from "@/lib/race/tacticalBoard/deriveTacticalBoardFromRaceState";
 import {
@@ -14,10 +14,12 @@ import {
   selectTacticalBoardStatus,
 } from "@/lib/race/tacticalBoard/selectors";
 import {
+  buildTacticalBoardDraftDefaults,
   getStoredTacticalBoardDraft,
   subscribeTacticalBoardStore,
   type TacticalBoardDraft,
 } from "@/lib/race/tacticalBoard/store";
+import { getDefaultCourseId } from "@/data/race/getCourseData";
 
 function formatDeg(value: number | null) {
   return value == null ? "--" : `${Math.round(value)} deg`;
@@ -202,9 +204,14 @@ function FocusMetric(props: { label: string; value: string }) {
 
 export function LiveTacticalBoardCard({ raceState }: { raceState: RaceState }) {
   const { isRaceMode } = useAppMode();
-  const [draft, setDraft] = useState<TacticalBoardDraft>(() => getStoredTacticalBoardDraft());
+  const [draft, setDraft] = useState<TacticalBoardDraft>(() =>
+    buildTacticalBoardDraftDefaults(getDefaultCourseId())
+  );
 
   useEffect(() => {
+    // Sync stored draft immediately after hydration
+    setDraft(getStoredTacticalBoardDraft());
+    // Then subscribe for future store changes
     return subscribeTacticalBoardStore(() => {
       setDraft(getStoredTacticalBoardDraft());
     });

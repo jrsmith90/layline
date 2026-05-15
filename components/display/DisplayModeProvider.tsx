@@ -5,6 +5,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -140,10 +141,28 @@ export function DisplayModeControl() {
 }
 
 export function DisplayModeProvider({ children }: { children: ReactNode }) {
-  const [mode, setModeState] = useState<DisplayMode>(() => readSavedMode());
-  const [autoMode, setAutoMode] = useState<EffectiveDisplayMode>(() => getAutoDisplayMode());
+  const [mode, setModeState] = useState<DisplayMode>("auto");
+  const [autoMode, setAutoMode] = useState<EffectiveDisplayMode>("phone");
+  const initializedRef = useRef(false);
 
   useEffect(() => {
+    // Initialize display mode from localStorage after hydration
+    if (!initializedRef.current) {
+      initializedRef.current = true;
+      const saved = localStorage.getItem(DISPLAY_MODE_KEY);
+      const savedMode: DisplayMode =
+        saved === "phone" ||
+        saved === "ipad" ||
+        saved === "desktop" ||
+        saved === "auto"
+          ? saved
+          : "auto";
+      if (savedMode !== "auto") {
+        setModeState(savedMode);
+      }
+    }
+
+    // Set up media query listeners and sync auto mode
     const tabletQuery = window.matchMedia(IPAD_WIDTH_QUERY);
     const desktopQuery = window.matchMedia(DESKTOP_WIDTH_QUERY);
 

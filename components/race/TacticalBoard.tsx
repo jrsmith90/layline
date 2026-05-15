@@ -27,6 +27,7 @@ import {
   selectTacticalBoardStatus,
 } from "@/lib/race/tacticalBoard/selectors";
 import {
+  buildTacticalBoardDraftDefaults,
   copyTacticalBoardMeanWindToCurrentWind,
   getStoredTacticalBoardDraft,
   seedTacticalBoardMarkBearings,
@@ -163,7 +164,9 @@ function describeRouteBiasSample(answers?: RouteBiasAnswers | null) {
 
 export default function TacticalBoard() {
   const { isRaceMode } = useAppMode();
-  const [draft, setDraft] = useState<TacticalBoardDraft>(() => getStoredTacticalBoardDraft());
+  const [draft, setDraft] = useState<TacticalBoardDraft>(() =>
+    buildTacticalBoardDraftDefaults(courseIds[0]!)
+  );
   const courseData = useMemo(() => getCourseData(draft.courseId), [draft.courseId]);
   const routeBiasInputModel = useMemo(
     () => getRouteBiasInputs(draft.courseId),
@@ -196,6 +199,9 @@ export default function TacticalBoard() {
   const openingBiasSample = draft.routeBias.latestAnswers ?? draft.routeBias.originalAnswers;
 
   useEffect(() => {
+    // Sync stored draft immediately after hydration
+    setDraft(getStoredTacticalBoardDraft());
+    // Then subscribe for future store changes
     return subscribeTacticalBoardStore(() => {
       setDraft(getStoredTacticalBoardDraft());
     });

@@ -74,7 +74,7 @@ export function deriveTacticalBoardFromRaceState(params: {
   const activeLegBearingDeg = activeLeg?.bearingDeg ?? null;
   const legMode = classifyLegMode({
     activeLegBearingDeg,
-    windFromDeg: liveCurrentWindDeg,
+    windFromDeg: liveCurrentWindDeg ?? manualCurrentWindDeg,
   });
   const usesActiveLegBearing =
     activeLegBearingDeg != null && (legMode === "upwind" || legMode === "downwind");

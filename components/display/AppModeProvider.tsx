@@ -5,6 +5,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -38,12 +39,25 @@ export function useAppMode() {
 }
 
 export function AppModeProvider({ children }: { children: ReactNode }) {
-  const [mode, setModeState] = useState<AppMode>(() => readSavedMode());
+  const [mode, setModeState] = useState<AppMode>("learning");
+  const initializedRef = useRef(false);
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      localStorage.setItem(APP_MODE_KEY, mode);
+    // Only run initialization once after hydration
+    if (!initializedRef.current) {
+      initializedRef.current = true;
+      const saved = localStorage.getItem(APP_MODE_KEY);
+      const savedMode = isAppMode(saved) ? saved : "learning";
+      if (savedMode !== "learning") {
+        setModeState(savedMode);
+      }
     }
+  }, []);
+
+  useEffect(() => {
+    // Save mode to localStorage whenever it changes
+    localStorage.setItem(APP_MODE_KEY, mode);
+    // Update document attribute
     document.documentElement.dataset.laylineAppMode = mode;
   }, [mode]);
 
