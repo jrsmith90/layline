@@ -156,10 +156,24 @@ export type RaceSessionRepositorySnapshot = {
   updatedAtISO: string;
 };
 
+export type RaceSessionRecoverySource = "shared" | "local" | "merged" | "empty";
+
+export type RaceSessionRepositoryRecoveryResult = {
+  snapshot: RaceSessionRepositorySnapshot;
+  source: RaceSessionRecoverySource;
+  fallbackUsed: boolean;
+  error: string | null;
+};
+
+export type RecoverTodayRaceSessionResult = {
+  session: RaceSession;
+  recovery: RaceSessionRepositoryRecoveryResult;
+};
+
 type RaceSessionStoreListener = () => void;
 
 let cachedSnapshot: RaceSessionRepositorySnapshot | null = null;
-let repositoryHydrationPromise: Promise<RaceSessionRepositorySnapshot | null> | null = null;
+let repositoryHydrationPromise: Promise<RaceSessionRepositoryRecoveryResult> | null = null;
 const storeListeners = new Set<RaceSessionStoreListener>();
 
 function hasLocalStorage() {
@@ -308,6 +322,10 @@ function normalizeSnapshot(
         ? snapshot.updatedAtISO
         : sessions[0]?.updatedAtISO ?? sessions[0]?.startedAtISO ?? nowISO(),
   };
+}
+
+function hasSnapshotData(snapshot: RaceSessionRepositorySnapshot) {
+  return snapshot.sessions.length > 0 || snapshot.activeSessionId != null;
 }
 
 function mergeSnapshots(
@@ -641,46 +659,90 @@ export function subscribeRaceSessionStore(listener: RaceSessionStoreListener) {
   };
 }
 
-export async function syncRaceSessionsFromRepository() {
-  if (typeof window === "undefined") return getCachedSnapshot();
+function errorMessage(error: unknown) {
+  return error instanceof Error ? error.message : "Shared race session recovery failed.";
+}
+
+export async function recoverRaceSessionsFromRepository() {
+  if (typeof window === "undefined") {
+    const snapshot = getCachedSnapshot();
+    return {
+      snapshot,
+      source: hasSnapshotData(snapshot) ? ("local" as const) : ("empty" as const),
+      fallbackUsed: false,
+      error: null,
+    };
+  }
   if (repositoryHydrationPromise) return repositoryHydrationPromise;
 
   repositoryHydrationPromise = (async () => {
     const localSnapshot = getCachedSnapshot();
+    const localHasData = hasSnapshotData(localSnapshot);
 
     try {
       const remoteSnapshot = await fetchRepositorySnapshot();
-      const mergedSnapshot = mergeSnapshots(localSnapshot, remoteSnapshot);
-      const remoteHasData =
-        remoteSnapshot.sessions.length > 0 || remoteSnapshot.activeSessionId != null;
-      const localHasData =
-        localSnapshot.sessions.length > 0 || localSnapshot.activeSessionId != null;
+      const remoteHasData = hasSnapshotData(remoteSnapshot);
 
-      if (!remoteHasData && localHasData) {
-        const savedSnapshot = await postRepositorySnapshot(localSnapshot);
-        return applySnapshot(savedSnapshot);
+      if (remoteHasData) {
+        const mergedSnapshot = localHasData
+          ? mergeSnapshots(localSnapshot, remoteSnapshot)
+          : remoteSnapshot;
+        const appliedSnapshot = applySnapshot(mergedSnapshot);
+
+        if (localHasData) {
+          const remoteSignature = JSON.stringify(remoteSnapshot);
+          const mergedSignature = JSON.stringify(mergedSnapshot);
+
+          if (remoteSignature !== mergedSignature) {
+            queueRepositoryPersist(appliedSnapshot);
+          }
+        }
+
+        return {
+          snapshot: appliedSnapshot,
+          source: localHasData ? ("merged" as const) : ("shared" as const),
+          fallbackUsed: false,
+          error: null,
+        };
       }
-
-      const appliedSnapshot = applySnapshot(mergedSnapshot);
 
       if (localHasData) {
-        const remoteSignature = JSON.stringify(remoteSnapshot);
-        const mergedSignature = JSON.stringify(mergedSnapshot);
-
-        if (remoteSignature !== mergedSignature) {
-          queueRepositoryPersist(appliedSnapshot);
-        }
+        const appliedSnapshot = applySnapshot(localSnapshot);
+        queueRepositoryPersist(appliedSnapshot);
+        return {
+          snapshot: appliedSnapshot,
+          source: "local" as const,
+          fallbackUsed: true,
+          error: null,
+        };
       }
 
-      return appliedSnapshot;
-    } catch {
-      return localSnapshot;
+      const appliedSnapshot = applySnapshot(remoteSnapshot);
+      return {
+        snapshot: appliedSnapshot,
+        source: "empty" as const,
+        fallbackUsed: false,
+        error: null,
+      };
+    } catch (error) {
+      const appliedSnapshot = applySnapshot(localSnapshot);
+      return {
+        snapshot: appliedSnapshot,
+        source: localHasData ? ("local" as const) : ("empty" as const),
+        fallbackUsed: true,
+        error: errorMessage(error),
+      };
     } finally {
       repositoryHydrationPromise = null;
     }
   })();
 
   return repositoryHydrationPromise;
+}
+
+export async function syncRaceSessionsFromRepository() {
+  const recovery = await recoverRaceSessionsFromRepository();
+  return recovery.snapshot;
 }
 
 export function getRaceSessions(): RaceSession[] {
@@ -975,11 +1037,20 @@ function isSameLocalDay(iso: string, date = new Date()) {
   );
 }
 
-export function recoverTodayRaceSession() {
+export async function recoverTodayRaceSession(): Promise<RecoverTodayRaceSessionResult> {
+  const recovery = await recoverRaceSessionsFromRepository();
   const today = new Date();
-  const existing = getRaceSessions().find(
-    (session) => session.createdFrom === "recovered" && isSameLocalDay(session.startedAtISO, today),
-  );
+  const existing =
+    recovery.snapshot.sessions.find(
+      (session) => session.status === "active" && isSameLocalDay(session.startedAtISO, today),
+    ) ??
+    recovery.snapshot.sessions.find((session) =>
+      isSameLocalDay(session.startedAtISO, today),
+    ) ??
+    recovery.snapshot.sessions.find(
+      (session) =>
+        session.createdFrom === "recovered" && isSameLocalDay(session.startedAtISO, today),
+    );
   const storedTrack = readJson<GpsTrackPoint[]>(GPS_TRACK_KEY, []).filter((point) =>
     isSameLocalDay(point.at, today),
   );
@@ -1013,7 +1084,10 @@ export function recoverTodayRaceSession() {
   attachTackCalibrationsToSession(session.id, todayCalibrations);
 
   const refreshed = getRaceSession(session.id);
-  return refreshed ?? session;
+  return {
+    session: refreshed ?? session,
+    recovery,
+  };
 }
 
 function average(values: number[]) {

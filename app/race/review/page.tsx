@@ -13,11 +13,12 @@ import {
   exportRaceSessionJson,
   getMostRecentRaceSession,
   getRaceSessions,
+  recoverRaceSessionsFromRepository,
   recoverTodayRaceSession,
   subscribeRaceSessionStore,
-  syncRaceSessionsFromRepository,
   updateRaceDecision,
   type RaceDecisionRecord,
+  type RaceSessionRepositoryRecoveryResult,
 } from "@/lib/raceSessionStore";
 
 function formatDateTime(iso?: string) {
@@ -96,11 +97,56 @@ function formatCourseSectionRelevance(value?: string) {
   return value.replace(/_/g, " ");
 }
 
+function buildRecoveryNotice(
+  recovery: RaceSessionRepositoryRecoveryResult,
+): { message: string; tone: "info" | "warning" } | null {
+  if (recovery.error && recovery.source === "empty") {
+    return {
+      message: "Shared session recovery failed, and no local race sessions were available.",
+      tone: "warning",
+    };
+  }
+
+  if (recovery.error && recovery.source === "local") {
+    return {
+      message: "Shared session recovery failed. Review is using this browser's saved race data.",
+      tone: "warning",
+    };
+  }
+
+  if (recovery.source === "shared") {
+    return {
+      message: "Loaded race sessions from shared storage.",
+      tone: "info",
+    };
+  }
+
+  if (recovery.source === "merged") {
+    return {
+      message: "Loaded shared race sessions and merged local browser fallback data.",
+      tone: "info",
+    };
+  }
+
+  if (recovery.source === "local") {
+    return {
+      message: "Shared storage had no race sessions, so review resumed from this browser.",
+      tone: "warning",
+    };
+  }
+
+  return null;
+}
+
 export default function RaceReviewPage() {
   const [, refresh] = useReducer((value: number) => value + 1, 0);
   const sessions = getRaceSessions();
   const mostRecent = getMostRecentRaceSession();
   const [selectedId, setSelectedId] = useState(mostRecent?.id ?? "");
+  const [recoveryNotice, setRecoveryNotice] = useState<{
+    message: string;
+    tone: "info" | "warning";
+  } | null>(null);
   const effectiveSelectedId = selectedId || mostRecent?.id || "";
   const session =
     sessions.find((candidate) => candidate.id === effectiveSelectedId) ?? mostRecent;
@@ -111,12 +157,30 @@ export default function RaceReviewPage() {
   useEffect(() => subscribeRaceSessionStore(() => refresh()), []);
 
   useEffect(() => {
-    void syncRaceSessionsFromRepository().then(() => refresh());
+    let cancelled = false;
+
+    void recoverRaceSessionsFromRepository().then((recovery) => {
+      if (cancelled) return;
+
+      setSelectedId((current) =>
+        current &&
+        recovery.snapshot.sessions.some((candidate) => candidate.id === current)
+          ? current
+          : recovery.snapshot.activeSessionId ?? recovery.snapshot.sessions[0]?.id ?? "",
+      );
+      setRecoveryNotice(buildRecoveryNotice(recovery));
+      refresh();
+    });
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  function recoverToday() {
-    const recovered = recoverTodayRaceSession();
-    setSelectedId(recovered.id);
+  async function recoverToday() {
+    const recovered = await recoverTodayRaceSession();
+    setSelectedId(recovered.session.id);
+    setRecoveryNotice(buildRecoveryNotice(recovered.recovery));
     refresh();
   }
 
@@ -196,6 +260,19 @@ export default function RaceReviewPage() {
             </button>
           )}
         </div>
+
+        {recoveryNotice && (
+          <div
+            className={[
+              "mt-3 rounded-xl border p-3 text-sm",
+              recoveryNotice.tone === "warning"
+                ? "border-amber-300/35 bg-amber-300/10 text-amber-50"
+                : "border-cyan-400/30 bg-cyan-400/10 text-cyan-50",
+            ].join(" ")}
+          >
+            {recoveryNotice.message}
+          </div>
+        )}
       </section>
 
       {!session || !review ? (

@@ -18,10 +18,11 @@ import {
   exportRaceSessionJson,
   getActiveRaceSession,
   getRaceSession,
+  recoverRaceSessionsFromRepository,
   recoverTodayRaceSession,
   startRaceSession,
   subscribeRaceSessionStore,
-  syncRaceSessionsFromRepository,
+  type RaceSessionRepositoryRecoveryResult,
   type RaceDecisionSourceMeta,
   type RaceStateSnapshotCaptureInput,
   type RaceWeatherSample,
@@ -99,6 +100,55 @@ function buildWeatherSample(weather: WeatherPayload): RaceWeatherSample {
   };
 }
 
+function buildRecorderRecoveryStatus(
+  recovery: RaceSessionRepositoryRecoveryResult,
+  options: { activeSession?: boolean; recoveredToday?: boolean } = {},
+) {
+  if (options.recoveredToday) {
+    if (recovery.error && recovery.source === "local") {
+      return "Shared recovery was unavailable. Recovered today from this browser's GPS, trim, and tack data.";
+    }
+
+    if (recovery.source === "shared") {
+      return "Recovered today's session from shared storage.";
+    }
+
+    if (recovery.source === "merged") {
+      return "Recovered today's session from shared storage and merged local browser data.";
+    }
+
+    if (recovery.source === "local") {
+      return "Shared storage had no session for today, so recovery used this browser's saved GPS, trim, and tack data.";
+    }
+
+    return "Recovered today's race data.";
+  }
+
+  if (!options.activeSession) {
+    return recovery.error && recovery.source === "local"
+      ? "Shared recovery was unavailable. Recorder is using this browser's saved race data."
+      : null;
+  }
+
+  if (recovery.error && recovery.source === "local") {
+    return "Shared recovery was unavailable. Resumed the active session from this browser.";
+  }
+
+  if (recovery.source === "shared") {
+    return "Resumed the active session from shared storage.";
+  }
+
+  if (recovery.source === "merged") {
+    return "Resumed the active session from shared storage and merged local browser data.";
+  }
+
+  if (recovery.source === "local") {
+    return "Shared storage had no active session, so recorder resumed from this browser.";
+  }
+
+  return null;
+}
+
 export function RaceRecorderPanel({
   courseId,
   gpsTrack,
@@ -127,7 +177,20 @@ export function RaceRecorderPanel({
   useEffect(() => subscribeRaceSessionStore(() => refresh()), []);
 
   useEffect(() => {
-    void syncRaceSessionsFromRepository();
+    let cancelled = false;
+
+    void recoverRaceSessionsFromRepository().then((recovery) => {
+      if (cancelled) return;
+
+      const message = buildRecorderRecoveryStatus(recovery, {
+        activeSession: recovery.snapshot.activeSessionId != null,
+      });
+      if (message) setStatus(message);
+    });
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -254,10 +317,13 @@ export function RaceRecorderPanel({
     setStatus("Race recording ended. Review is ready.");
   }
 
-  function recoverToday() {
-    const recovered = recoverTodayRaceSession();
-    setSessionId(recovered.id);
-    setStatus("Recovered today from this phone's saved GPS, trim, and tack data.");
+  async function recoverToday() {
+    const recovered = await recoverTodayRaceSession();
+    setSessionId(recovered.session.id);
+    setStatus(
+      buildRecorderRecoveryStatus(recovered.recovery, { recoveredToday: true }) ??
+        "Recovered today's race data.",
+    );
   }
 
   function saveNote() {
