@@ -23,6 +23,14 @@ import { getDefaultCourseId } from "@/data/race/getCourseData";
 
 const DEFAULT_TACTICAL_BOARD_DRAFT = buildTacticalBoardDraftDefaults(getDefaultCourseId());
 
+type TacticalHeadlineTone = "favorable" | "caution" | "neutral";
+type TacticalHeadline = {
+  eyebrow: string;
+  title: string;
+  detail: string;
+  tone: TacticalHeadlineTone;
+};
+
 function formatDeg(value: number | null) {
   return value == null ? "--" : `${Math.round(value)} deg`;
 }
@@ -67,6 +75,23 @@ function formatRouteBiasConfidence(confidence: RouteBiasConfidence) {
   return confidence.charAt(0).toUpperCase() + confidence.slice(1);
 }
 
+function formatTrend(value: TacticalBoardDraft["windTrend"]) {
+  switch (value) {
+    case "building":
+      return "Building";
+    case "fading":
+      return "Fading";
+    case "steady":
+      return "Steady";
+    case "oscillating":
+      return "Oscillating";
+    case "unstable":
+      return "Unstable";
+    default:
+      return "Unknown";
+  }
+}
+
 function formatUpdateAction(action: TacticalUpdateAction) {
   switch (action) {
     case "hold_course":
@@ -103,6 +128,20 @@ function getLegModeCopy(mode: ReturnType<typeof deriveTacticalBoardFromRaceState
       return "Reach focus";
     default:
       return "General read";
+  }
+}
+
+function getSourceBadgeLabel(
+  currentWindSource: ReturnType<typeof deriveTacticalBoardFromRaceState>["currentWindSource"],
+  windSourceLabel: string,
+) {
+  switch (currentWindSource) {
+    case "live":
+      return `Live wind · ${windSourceLabel}`;
+    case "setup":
+      return "Saved wind setup";
+    default:
+      return "Wind input needed";
   }
 }
 
@@ -154,22 +193,169 @@ function getOpeningBiasCallout(
   )} (${formatRouteBiasConfidence(draft.routeBias.originalPlan.confidence)} confidence).`;
 }
 
-function getCallouts(
+function getHeadlineToneClass(tone: TacticalHeadlineTone) {
+  switch (tone) {
+    case "favorable":
+      return "border-[color:var(--favorable)]/40 bg-[radial-gradient(circle_at_top,rgba(20,184,166,0.18),transparent_58%),linear-gradient(180deg,rgba(9,27,31,0.92),rgba(7,22,37,0.75))] text-teal-50";
+    case "caution":
+      return "border-[color:var(--warning)]/40 bg-[radial-gradient(circle_at_top,rgba(251,191,36,0.14),transparent_58%),linear-gradient(180deg,rgba(38,27,10,0.92),rgba(21,16,7,0.75))] text-amber-50";
+    default:
+      return "border-white/10 bg-[radial-gradient(circle_at_top,rgba(59,130,246,0.12),transparent_58%),linear-gradient(180deg,rgba(10,20,34,0.92),rgba(7,22,37,0.75))] text-[color:var(--text)]";
+  }
+}
+
+function getSupportItemClasses(index: number) {
+  if (index === 0) {
+    return "border-[color:var(--divider)] bg-white/[0.07] text-[color:var(--text)]";
+  }
+
+  return "border-[color:var(--divider)] bg-black/20 text-[color:var(--text-soft)]";
+}
+
+function getPrimaryHeadline(
+  params: ReturnType<typeof deriveTacticalBoardFromRaceState>,
+  draft: TacticalBoardDraft,
+  safeLegIndex: RaceState["course"]["safeLegIndex"],
+): TacticalHeadline {
+  const { board, legMode, currentWindSource } = params;
+  const latestUpdate = draft.routeBias.latestUpdate;
+  const originalPlan = draft.routeBias.originalPlan;
+
+  if (safeLegIndex === 0 && originalPlan) {
+    if (latestUpdate) {
+      const tone: TacticalHeadlineTone =
+        latestUpdate.action === "change_side_bias" ||
+        latestUpdate.action === "prepare_to_change_side_bias"
+          ? "caution"
+          : latestUpdate.action === "hold_course"
+            ? "favorable"
+            : "neutral";
+
+      return {
+        eyebrow: "Opening Bias",
+        title: formatUpdateAction(latestUpdate.action),
+        detail:
+          latestUpdate.reasons[0] ??
+          `Latest check still points to ${formatRouteBiasDecision(
+            (draft.routeBias.latestPlan ?? originalPlan).decision,
+          ).toLowerCase()}.`,
+        tone,
+      };
+    }
+
+    return {
+      eyebrow: "Opening Bias",
+      title: formatRouteBiasDecision(originalPlan.decision),
+      detail: `${formatRouteBiasConfidence(originalPlan.confidence)} confidence opening-leg plan from the saved pre-race setup.`,
+      tone: originalPlan.confidence === "high" ? "favorable" : "neutral",
+    };
+  }
+
+  if (legMode === "upwind") {
+    if (board.upwind.favoredTack === "starboard" || board.upwind.favoredTack === "port") {
+      return {
+        eyebrow: "Upwind Read",
+        title: `${formatSide(board.upwind.favoredTack)} tack first`,
+        detail: `${selectShiftHeadline(board)} Target the cleaner lane before the next cross.`,
+        tone: "favorable",
+      };
+    }
+
+    return {
+      eyebrow: "Upwind Read",
+      title: "Stay lane-flexible",
+      detail:
+        currentWindSource === "missing"
+          ? "The geometry is not pushing a single tack yet, and current wind still needs to be set."
+          : "The geometry is close enough to centered that pressure and lane quality matter more than a forced-side tack.",
+      tone: "neutral",
+    };
+  }
+
+  if (legMode === "downwind") {
+    if (
+      board.downwind.dominantReach === "starboard" ||
+      board.downwind.dominantReach === "port"
+    ) {
+      return {
+        eyebrow: "Run Read",
+        title: `${formatSide(board.downwind.dominantReach)} reach leads`,
+        detail: "Use the jibe bearing and pressure side together before you commit to the next turn.",
+        tone: "favorable",
+      };
+    }
+
+    return {
+      eyebrow: "Run Read",
+      title: "Keep the run balanced",
+      detail: "The run is sitting close to the jibe bearing, so stay free to play pressure and mode changes.",
+      tone: "neutral",
+    };
+  }
+
+  if (board.startLine.favoredEnd === "port" || board.startLine.favoredEnd === "starboard") {
+    return {
+      eyebrow: "Start Line",
+      title: `${formatSide(board.startLine.favoredEnd)} end favored`,
+      detail: selectStartLineHeadline(board),
+      tone: "favorable",
+    };
+  }
+
+  if (board.startLine.favoredEnd === "square") {
+    return {
+      eyebrow: "Start Line",
+      title: "Line is close to square",
+      detail: "Acceleration, lane freedom, and time-on-distance matter more than end bias right now.",
+      tone: "neutral",
+    };
+  }
+
+  if (currentWindSource === "missing") {
+    return {
+      eyebrow: "Setup",
+      title: "Current wind still needed",
+      detail: "The board can hold the saved geometry, but it needs a current wind read before it can turn that into live tactical calls.",
+      tone: "caution",
+    };
+  }
+
+  return {
+    eyebrow: "Live Tactical Board",
+    title: "Board is tracking",
+    detail: sourceCopyFallback(board, currentWindSource),
+    tone: board.readiness.status === "ready" ? "neutral" : "caution",
+  };
+}
+
+function sourceCopyFallback(
+  board: ReturnType<typeof deriveTacticalBoardFromRaceState>["board"],
+  currentWindSource: ReturnType<typeof deriveTacticalBoardFromRaceState>["currentWindSource"],
+) {
+  if (currentWindSource === "live") {
+    return board.shift.referenceFromDeg == null
+      ? "Live wind is flowing in, but the saved baseline still needs a mean wind to unlock shift memory."
+      : "Live wind and saved board geometry are both active.";
+  }
+
+  return board.shift.referenceFromDeg == null
+    ? "Complete the saved board setup to unlock cleaner calls."
+    : "Saved board geometry is active while the live feed catches up.";
+}
+
+function getSupportItems(
   params: ReturnType<typeof deriveTacticalBoardFromRaceState>,
   draft: TacticalBoardDraft,
   safeLegIndex: RaceState["course"]["safeLegIndex"],
 ) {
   const { board, legMode, currentWindSource } = params;
   const callouts: string[] = [];
-  const openingBiasCallout = getOpeningBiasCallout(draft, safeLegIndex);
-
-  if (openingBiasCallout) {
-    callouts.push(openingBiasCallout);
-  }
 
   if (legMode === "upwind") {
     if (board.upwind.favoredTack === "even") {
-      callouts.push("Windward leg is centered enough that lanes and pressure matter more than a forced-side bias.");
+      callouts.push(
+        "Windward leg is centered enough that lanes and pressure matter more than a forced-side bias.",
+      );
     } else if (board.upwind.favoredTack !== "unknown") {
       callouts.push(
         `${formatSide(board.upwind.favoredTack)} tack has the cleaner first look on this upwind leg.`,
@@ -188,6 +374,11 @@ function getCallouts(
   }
 
   callouts.push(selectShiftHeadline(board));
+
+  const openingBiasCallout = getOpeningBiasCallout(draft, safeLegIndex);
+  if (openingBiasCallout) {
+    callouts.unshift(openingBiasCallout);
+  }
 
   if (currentWindSource === "missing") {
     callouts.push("Set live or manual current wind to turn the saved board geometry into active calls.");
@@ -223,7 +414,8 @@ export function LiveTacticalBoardCard({ raceState }: { raceState: RaceState }) {
   );
   const board = liveBoard.board;
   const status = selectTacticalBoardStatus(board);
-  const callouts = getCallouts(liveBoard, draft, raceState.course.safeLegIndex).slice(
+  const headline = getPrimaryHeadline(liveBoard, draft, raceState.course.safeLegIndex);
+  const supportItems = getSupportItems(liveBoard, draft, raceState.course.safeLegIndex).slice(
     0,
     isRaceMode ? 2 : 3,
   );
@@ -239,13 +431,13 @@ export function LiveTacticalBoardCard({ raceState }: { raceState: RaceState }) {
         { label: "Baseline", value: formatDeg(board.shift.referenceFromDeg) },
         { label: "Live Wind", value: formatDeg(board.shift.currentFromDeg) },
         { label: "Jibe", value: formatDeg(board.downwind.jibeBearingDeg) },
-        { label: "Reach", value: formatSide(board.downwind.dominantReach) },
+        { label: "Favored", value: formatSide(board.downwind.dominantReach) },
       ];
     }
 
     if (liveBoard.legMode === "upwind") {
       return [
-        { label: "Baseline", value: formatDeg(board.shift.referenceFromDeg) },
+        { label: "Mean Wind", value: formatDeg(board.shift.referenceFromDeg) },
         { label: "Live Wind", value: formatDeg(board.shift.currentFromDeg) },
         { label: "Stbd Tack", value: formatDeg(board.upwind.starboardTackHeadingDeg) },
         { label: "Port Tack", value: formatDeg(board.upwind.portTackHeadingDeg) },
@@ -253,48 +445,88 @@ export function LiveTacticalBoardCard({ raceState }: { raceState: RaceState }) {
     }
 
     return [
-      { label: "Baseline", value: formatDeg(board.shift.referenceFromDeg) },
+      { label: "Mean Wind", value: formatDeg(board.shift.referenceFromDeg) },
       { label: "Live Wind", value: formatDeg(board.shift.currentFromDeg) },
       { label: "Shift", value: formatSignedDeg(board.shift.deltaDeg) },
-      { label: "Line Bias", value: formatSide(board.startLine.favoredEnd) },
+      { label: "Favored End", value: formatSide(board.startLine.favoredEnd) },
     ];
   }, [board, liveBoard.legMode]);
 
   return (
-    <section className="layline-panel p-4">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <div className="layline-kicker">Live Tactical Board</div>
-          <div className="mt-1 text-lg font-black">
-            {liveBoard.activeLegLabel ?? "Course tactical overlay"}
+    <section className="layline-panel overflow-hidden p-0">
+      <div className="p-4">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <div className="layline-kicker">Live Tactical Board</div>
+            <div className="mt-1 text-lg font-black">
+              {liveBoard.activeLegLabel ?? "Course tactical overlay"}
+            </div>
           </div>
-          <p className="mt-2 text-sm leading-6 text-[color:var(--text-soft)]">{sourceCopy}</p>
+          <div className="text-right text-[10px] font-black uppercase tracking-[0.16em] text-[color:var(--muted)]">
+            <div>{getStatusCopy(status)}</div>
+            <div className="mt-2">{getLegModeCopy(liveBoard.legMode)}</div>
+          </div>
         </div>
-        <div className="text-right text-[10px] font-black uppercase tracking-[0.16em] text-[color:var(--muted)]">
-          <div>{getStatusCopy(status)}</div>
-          <div className="mt-2">{getLegModeCopy(liveBoard.legMode)}</div>
+
+        <div className={["mt-4 rounded-2xl border p-4", getHeadlineToneClass(headline.tone)].join(" ")}>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <div className="text-[10px] font-black uppercase tracking-[0.16em] opacity-75">
+                {headline.eyebrow}
+              </div>
+              <div className="mt-2 text-2xl font-black uppercase tracking-tight">
+                {headline.title}
+              </div>
+              <p className="mt-2 text-sm leading-6 opacity-90">{headline.detail}</p>
+            </div>
+            <div className="rounded-full border border-white/15 bg-black/20 px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] opacity-85">
+              {liveBoard.activeLegLabel ?? "Live read"}
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-3 flex flex-wrap gap-2">
+          <div className="rounded-full border border-[color:var(--divider)] bg-black/20 px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-[color:var(--text)]">
+            {getSourceBadgeLabel(liveBoard.currentWindSource, raceState.wind.sourceLabel)}
+          </div>
+          <div className="rounded-full border border-[color:var(--divider)] bg-black/20 px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-[color:var(--text)]">
+            {liveBoard.usesActiveLegBearing ? "Active leg geometry" : "Saved board geometry"}
+          </div>
+          <div className="rounded-full border border-[color:var(--divider)] bg-black/20 px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-[color:var(--text)]">
+            Trend · {formatTrend(board.setup.windTrend)}
+          </div>
+        </div>
+
+        <p className="mt-3 text-sm leading-6 text-[color:var(--text-soft)]">{sourceCopy}</p>
+
+        <div className="mt-4 grid grid-cols-2 gap-2">
+          {metrics.map((metric) => (
+            <FocusMetric key={metric.label} label={metric.label} value={metric.value} />
+          ))}
         </div>
       </div>
 
-      <div className="mt-4 grid grid-cols-2 gap-2">
-        {metrics.map((metric) => (
-          <FocusMetric key={metric.label} label={metric.label} value={metric.value} />
-        ))}
-      </div>
-
-      <div className="mt-4 space-y-2">
-        {callouts.map((callout) => (
+      <div className="border-t border-white/10 px-4 py-4">
+        <div className="text-[10px] font-black uppercase tracking-[0.16em] text-[color:var(--muted)]">
+          Right Now
+        </div>
+        <div className="mt-3 space-y-2">
+          {supportItems.map((callout, index) => (
           <div
             key={callout}
-            className="rounded-xl border border-[color:var(--divider)] bg-black/20 px-3 py-2 text-sm leading-6 text-[color:var(--text-soft)]"
+            className={[
+              "rounded-xl border px-3 py-2 text-sm leading-6",
+              getSupportItemClasses(index),
+            ].join(" ")}
           >
             {callout}
           </div>
-        ))}
+          ))}
+        </div>
       </div>
 
       {!isRaceMode && (
-        <div className="mt-4 flex items-start gap-2 rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm leading-6 text-[color:var(--muted)]">
+        <div className="mx-4 mb-4 flex items-start gap-2 rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm leading-6 text-[color:var(--muted)]">
           {liveBoard.legMode === "downwind" ? (
             <Sailboat className="mt-0.5 shrink-0" size={16} />
           ) : liveBoard.legMode === "upwind" ? (
@@ -310,8 +542,10 @@ export function LiveTacticalBoardCard({ raceState }: { raceState: RaceState }) {
         </div>
       )}
 
-      <div className="mt-4 flex items-center justify-between gap-3 text-xs font-bold uppercase tracking-[0.16em]">
-        <div className="text-[color:var(--muted)]">Trend: {board.setup.windTrend}</div>
+      <div className="flex items-center justify-between gap-3 border-t border-white/10 px-4 py-4 text-xs font-bold uppercase tracking-[0.16em]">
+        <div className="text-[color:var(--muted)]">
+          {liveBoard.activeLegLabel ? "Live board linked to current leg" : "Live board using saved setup"}
+        </div>
         <Link
           href="/race/tactical-board"
           className="rounded-lg border border-[color:var(--divider)] bg-black/20 px-3 py-2 text-[color:var(--text)] transition active:scale-[0.98]"
