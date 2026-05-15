@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 import {
   getRouteBiasInputs,
   type CurrentSide,
@@ -89,12 +89,6 @@ export default function PreRaceRouteBiasForm({
   const [error, setError] = useState<string | null>(null);
 
   const config = useMemo(() => getRouteBiasInputs(values.courseId), [values.courseId]);
-
-  useEffect(() => {
-    setValues(toFormValues(initialAnswers));
-    setResult(initialResult ?? null);
-    setError(null);
-  }, [initialAnswers, initialResult]);
 
   function updateField<K extends keyof FormValues>(key: K, value: FormValues[K]) {
     setValues((prev) => ({

@@ -1,11 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useSyncExternalStore } from "react";
 import { Route, Sailboat, Wind } from "lucide-react";
 import { useAppMode } from "@/components/display/AppModeProvider";
 import type { TacticalUpdateAction } from "@/lib/race/checkPlanValidity";
-import type { RaceState } from "@/lib/race/race-state/types";
+import type { RaceState } from "@/lib/race/state/types";
 import type { RouteBiasConfidence, RouteBiasDecision } from "@/lib/race/scoreRouteBias";
 import { deriveTacticalBoardFromRaceState } from "@/lib/race/tacticalBoard/deriveTacticalBoardFromRaceState";
 import {
@@ -20,6 +20,8 @@ import {
   type TacticalBoardDraft,
 } from "@/lib/race/tacticalBoard/store";
 import { getDefaultCourseId } from "@/data/race/getCourseData";
+
+const DEFAULT_TACTICAL_BOARD_DRAFT = buildTacticalBoardDraftDefaults(getDefaultCourseId());
 
 function formatDeg(value: number | null) {
   return value == null ? "--" : `${Math.round(value)} deg`;
@@ -110,13 +112,18 @@ function getSourceCopy(params: {
   >["currentWindSource"];
   windSourceLabel: string;
   usesActiveLegBearing: boolean;
+  hasOpeningBiasPlan: boolean;
 }) {
   const windCopy =
     params.currentWindSource === "live"
       ? `Current wind is coming from ${params.windSourceLabel}.`
       : params.currentWindSource === "setup"
-        ? "Live wind is missing, so the board is falling back to the saved current-wind setup."
-        : "Current wind is not set yet, so live tactical reads are still limited.";
+        ? params.hasOpeningBiasPlan
+          ? "Live wind is missing, so the board is leaning on the saved tactical-board setup and opening-bias plan."
+          : "Live wind is missing, so the board is falling back to the saved current-wind setup."
+        : params.hasOpeningBiasPlan
+          ? "Current wind is not set yet, but the saved opening-bias plan is still available as the first-leg fallback."
+          : "Current wind is not set yet, so live tactical reads are still limited.";
 
   const legCopy = params.usesActiveLegBearing
     ? " Active leg geometry is feeding the mark bearing automatically."
@@ -204,18 +211,11 @@ function FocusMetric(props: { label: string; value: string }) {
 
 export function LiveTacticalBoardCard({ raceState }: { raceState: RaceState }) {
   const { isRaceMode } = useAppMode();
-  const [draft, setDraft] = useState<TacticalBoardDraft>(() =>
-    buildTacticalBoardDraftDefaults(getDefaultCourseId())
+  const draft = useSyncExternalStore(
+    subscribeTacticalBoardStore,
+    getStoredTacticalBoardDraft,
+    () => DEFAULT_TACTICAL_BOARD_DRAFT,
   );
-
-  useEffect(() => {
-    // Sync stored draft immediately after hydration
-    setDraft(getStoredTacticalBoardDraft());
-    // Then subscribe for future store changes
-    return subscribeTacticalBoardStore(() => {
-      setDraft(getStoredTacticalBoardDraft());
-    });
-  }, []);
 
   const liveBoard = useMemo(
     () => deriveTacticalBoardFromRaceState({ raceState, draft }),
@@ -231,6 +231,7 @@ export function LiveTacticalBoardCard({ raceState }: { raceState: RaceState }) {
     currentWindSource: liveBoard.currentWindSource,
     windSourceLabel: raceState.wind.sourceLabel,
     usesActiveLegBearing: liveBoard.usesActiveLegBearing,
+    hasOpeningBiasPlan: draft.routeBias.originalPlan != null,
   });
   const metrics = useMemo(() => {
     if (liveBoard.legMode === "downwind") {

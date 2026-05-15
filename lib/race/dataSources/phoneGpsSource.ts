@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useReducer, useRef, useState, useSyncExternalStore } from "react";
 import type {
   RaceInputSourceSnapshot,
   RaceInputSourceState,
@@ -21,6 +21,9 @@ const GPS_FRESH_MS = 5000;
 const GPS_STALE_MS = 15000;
 const LOW_CONFIDENCE_ACCURACY_M = 35;
 const LOW_CONFIDENCE_SOG_KT = 1.2;
+const EMPTY_TRACK: RaceInputTrackPoint[] = [];
+let cachedTrackRaw: string | null | undefined;
+let cachedTrackSnapshot: RaceInputTrackPoint[] = EMPTY_TRACK;
 
 function toRad(deg: number) {
   return (deg * Math.PI) / 180;
@@ -52,21 +55,47 @@ function bearingDeg(lat1: number, lon1: number, lat2: number, lon2: number) {
 }
 
 function readStoredTrack(): RaceInputTrackPoint[] {
-  if (typeof window === "undefined") return [];
+  if (typeof window === "undefined") return EMPTY_TRACK;
 
   try {
     const raw = localStorage.getItem(TRACK_STORAGE_KEY);
-    if (!raw) return [];
+    if (raw === cachedTrackRaw) {
+      return cachedTrackSnapshot;
+    }
+
+    cachedTrackRaw = raw;
+
+    if (!raw) {
+      cachedTrackSnapshot = EMPTY_TRACK;
+      return cachedTrackSnapshot;
+    }
+
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
+    cachedTrackSnapshot = Array.isArray(parsed) ? parsed : EMPTY_TRACK;
+    return cachedTrackSnapshot;
   } catch {
-    return [];
+    cachedTrackSnapshot = EMPTY_TRACK;
+    return cachedTrackSnapshot;
   }
 }
 
 function writeStoredTrack(points: RaceInputTrackPoint[]) {
   if (typeof window === "undefined") return;
-  localStorage.setItem(TRACK_STORAGE_KEY, JSON.stringify(points));
+  cachedTrackSnapshot = points;
+  cachedTrackRaw = JSON.stringify(points);
+  localStorage.setItem(TRACK_STORAGE_KEY, cachedTrackRaw);
+}
+
+function subscribeNever() {
+  return () => undefined;
+}
+
+function getSupportedSnapshot() {
+  return typeof navigator !== "undefined" && "geolocation" in navigator;
+}
+
+function getEmptyTrackSnapshot() {
+  return EMPTY_TRACK;
 }
 
 function getFreshness(observedAt: string | null, nowMs: number): RaceSourceFreshness {
@@ -113,7 +142,8 @@ function getConfidenceHint(params: {
 }
 
 export function usePhoneGpsSource(enabled: boolean): RaceInputSourceState {
-  const supported = typeof navigator !== "undefined" && "geolocation" in navigator;
+  const supported = useSyncExternalStore(subscribeNever, getSupportedSnapshot, () => false);
+  const storedTrack = useSyncExternalStore(subscribeNever, readStoredTrack, getEmptyTrackSnapshot);
   const [snapshot, setSnapshot] = useState<PhoneGpsSnapshotState>({
     permission: "unknown",
     position: null,
@@ -122,15 +152,24 @@ export function usePhoneGpsSource(enabled: boolean): RaceInputSourceState {
     accuracyM: null,
     observedAt: null,
   });
-  const [track, setTrack] = useState<RaceInputTrackPoint[]>(readStoredTrack);
-  const [clockMs, setClockMs] = useState(() => Date.now());
+  const [trackOverride, setTrackOverride] = useReducer(
+    (_current: RaceInputTrackPoint[] | null, next: RaceInputTrackPoint[]) => next,
+    null,
+  );
+  const [clockMs, setClockMs] = useState(0);
+  const track = trackOverride ?? storedTrack;
 
   const watchIdRef = useRef<number | null>(null);
   const lastPosRef = useRef<{ lat: number; lon: number } | null>(null);
   const lastTrackAtRef = useRef(0);
+  const trackRef = useRef(track);
+
+  useEffect(() => {
+    trackRef.current = track;
+  }, [track]);
 
   function clearTrack() {
-    setTrack([]);
+    setTrackOverride([]);
     writeStoredTrack([]);
     lastTrackAtRef.current = 0;
   }
@@ -183,23 +222,20 @@ export function usePhoneGpsSource(enabled: boolean): RaceInputSourceState {
 
         if (nowMs - lastTrackAtRef.current >= MIN_TRACK_INTERVAL_MS) {
           lastTrackAtRef.current = nowMs;
+          const nextTrack = [
+            ...trackRef.current,
+            {
+              at: observedAt,
+              lat: latitude,
+              lon: longitude,
+              cogDeg,
+              sogMps: typeof speed === "number" ? speed : null,
+              accuracyM: typeof accuracy === "number" ? accuracy : null,
+            },
+          ].slice(-MAX_TRACK_POINTS);
 
-          setTrack((currentTrack) => {
-            const nextTrack = [
-              ...currentTrack,
-              {
-                at: observedAt,
-                lat: latitude,
-                lon: longitude,
-                cogDeg,
-                sogMps: typeof speed === "number" ? speed : null,
-                accuracyM: typeof accuracy === "number" ? accuracy : null,
-              },
-            ].slice(-MAX_TRACK_POINTS);
-
-            writeStoredTrack(nextTrack);
-            return nextTrack;
-          });
+          writeStoredTrack(nextTrack);
+          setTrackOverride(nextTrack);
         }
       },
       (error) => {

@@ -4,7 +4,7 @@ import {
   createContext,
   useContext,
   useMemo,
-  useState,
+  useSyncExternalStore,
   type ReactNode,
 } from "react";
 import { Navigation } from "lucide-react";
@@ -12,6 +12,7 @@ import { useDisplayMode } from "@/components/display/DisplayModeProvider";
 import { useGpsCourse } from "@/lib/useGpsCourse";
 
 const GPS_ENABLED_KEY = "layline-phone-gps-enabled";
+const GPS_ENABLED_EVENT = "layline:phone-gps-enabled";
 
 type PhoneGpsContextValue = ReturnType<typeof useGpsCourse> & {
   enabled: boolean;
@@ -29,6 +30,31 @@ export function usePhoneGps() {
   }
 
   return context;
+}
+
+function subscribeGpsEnabled(listener: () => void) {
+  if (typeof window === "undefined") {
+    return () => undefined;
+  }
+
+  const handleStorage = (event: StorageEvent) => {
+    if (event.key === GPS_ENABLED_KEY) {
+      listener();
+    }
+  };
+
+  window.addEventListener(GPS_ENABLED_EVENT, listener);
+  window.addEventListener("storage", handleStorage);
+
+  return () => {
+    window.removeEventListener(GPS_ENABLED_EVENT, listener);
+    window.removeEventListener("storage", handleStorage);
+  };
+}
+
+function getGpsEnabledSnapshot() {
+  if (typeof window === "undefined") return false;
+  return localStorage.getItem(GPS_ENABLED_KEY) === "true";
 }
 
 function formatSpeedKt(sogMps: number | null) {
@@ -114,15 +140,17 @@ function FloatingGpsControl() {
 }
 
 export function PhoneGpsProvider({ children }: { children: ReactNode }) {
-  const [enabled, setEnabledState] = useState(() => {
-    if (typeof window === "undefined") return false;
-    return localStorage.getItem(GPS_ENABLED_KEY) === "true";
-  });
+  const enabled = useSyncExternalStore(
+    subscribeGpsEnabled,
+    getGpsEnabledSnapshot,
+    () => false,
+  );
   const gps = useGpsCourse(enabled);
 
   function setEnabled(nextEnabled: boolean) {
-    setEnabledState(nextEnabled);
+    if (typeof window === "undefined") return;
     localStorage.setItem(GPS_ENABLED_KEY, String(nextEnabled));
+    window.dispatchEvent(new CustomEvent(GPS_ENABLED_EVENT));
   }
 
   const value = useMemo<PhoneGpsContextValue>(

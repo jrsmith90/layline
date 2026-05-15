@@ -1,10 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useAppMode } from "@/components/display/AppModeProvider";
 import { Flag, LocateFixed, TimerReset, Wind } from "lucide-react";
-import { formatCourseLabel, getAllCourseIds, getCourseData } from "@/data/race/getCourseData";
+import {
+  formatCourseLabel,
+  getAllCourseIds,
+  getCourseData,
+  getDefaultCourseId,
+} from "@/data/race/getCourseData";
 import { usePhoneGps } from "@/components/gps/PhoneGpsProvider";
 import { LiveTacticalBoardCard } from "@/components/race/LiveTacticalBoardCard";
 import { RaceRecorderPanel } from "@/components/race/RaceRecorderPanel";
@@ -20,6 +25,7 @@ import {
   setTrackerWindSource,
   subscribeStoredTrackerState,
   syncAutomaticLegTransition,
+  type StoredTrackerState,
   type WindSourceMode,
 } from "@/lib/race/legDetection";
 import { type MarkProgressResult, wrap360 } from "@/lib/race/courseTracker";
@@ -39,14 +45,14 @@ import {
 } from "@/lib/race/state/selectors";
 import {
   getActiveRaceSession,
+  subscribeRaceSessionStore,
   syncRaceSessionsFromRepository,
-  type RaceSession,
 } from "@/lib/raceSessionStore";
 import { deriveTacticalBoardFromRaceState } from "@/lib/race/tacticalBoard/deriveTacticalBoardFromRaceState";
 import {
+  buildTacticalBoardDraftDefaults,
   getStoredTacticalBoardDraft,
   subscribeTacticalBoardStore,
-  type TacticalBoardDraft,
 } from "@/lib/race/tacticalBoard/store";
 import {
   calculateTackCalibration,
@@ -62,6 +68,30 @@ import {
 const courseIds = getAllCourseIds();
 const CALIBRATION_DURATION_MS = 35_000;
 const MARK_APPROACH_DISTANCE_NM = 0.08;
+const DEFAULT_TACTICAL_BOARD_DRAFT = buildTacticalBoardDraftDefaults(getDefaultCourseId());
+const DEFAULT_TRACKER_STATE = buildDefaultTrackerState();
+const EMPTY_TACK_CALIBRATIONS: TackCalibrationResult[] = [];
+
+function subscribeNever() {
+  return () => undefined;
+}
+
+function buildDefaultTrackerState(): StoredTrackerState {
+  return {
+    courseId: getDefaultCourseId(),
+    legIndex: 0,
+    windFrom: "",
+    windSource: "nearest",
+    legDetection: {
+      armedLegIndex: null,
+      armedMarkId: null,
+      armedAtISO: null,
+      closestDistanceNm: null,
+      lastDistanceToMarkNm: null,
+    },
+    lastTransition: null,
+  };
+}
 
 type LiveWeatherPayload = {
   stationName?: string;
@@ -337,9 +367,15 @@ function getCockpitAnswer(params: {
 export default function RaceLiveCockpit() {
   const { mode, isRaceMode } = useAppMode();
   const gps = usePhoneGps();
-  const [trackerState, setTrackerState] = useState(() => getStoredTrackerStateSnapshot());
-  const [tacticalBoardDraft, setTacticalBoardDraft] = useState<TacticalBoardDraft>(() =>
-    getStoredTacticalBoardDraft(),
+  const trackerState = useSyncExternalStore(
+    subscribeStoredTrackerState,
+    getStoredTrackerStateSnapshot,
+    () => DEFAULT_TRACKER_STATE,
+  );
+  const tacticalBoardDraft = useSyncExternalStore(
+    subscribeTacticalBoardStore,
+    getStoredTacticalBoardDraft,
+    () => DEFAULT_TACTICAL_BOARD_DRAFT,
   );
   const courseId = trackerState.courseId;
   const courseData = useMemo(() => getCourseData(courseId), [courseId]);
@@ -347,18 +383,28 @@ export default function RaceLiveCockpit() {
   const windFrom = trackerState.windFrom;
   const windSource = trackerState.windSource;
   const [startedAtMs, setStartedAtMs] = useState<number | null>(null);
-  const [nowMs, setNowMs] = useState(Date.now());
-  const [calibrations, setCalibrations] =
-    useState<TackCalibrationResult[]>(readTackCalibrations);
+  const [nowMs, setNowMs] = useState(0);
+  const storedCalibrations = useSyncExternalStore(
+    subscribeNever,
+    readTackCalibrations,
+    () => EMPTY_TACK_CALIBRATIONS,
+  );
+  const [calibrationOverride, setCalibrationOverride] = useState<TackCalibrationResult[] | null>(
+    null,
+  );
   const [calibrationError, setCalibrationError] = useState<string | null>(null);
   const [liveWeather, setLiveWeather] = useState<LiveWeatherPayload | null>(null);
   const [nearbyWind, setNearbyWind] = useState<NearbyWindPayload | null>(null);
-  const [activeSession, setActiveSession] = useState<RaceSession | null>(() =>
-    getActiveRaceSession(),
+  const activeSession = useSyncExternalStore(
+    subscribeRaceSessionStore,
+    getActiveRaceSession,
+    () => null,
   );
   const [windError, setWindError] = useState<string | null>(null);
   const [showWeather, setShowWeather] = useState(false);
   const [showSetup, setShowSetup] = useState(false);
+  const calibrations = calibrationOverride ?? storedCalibrations;
+  const calibrationsRef = useRef(calibrations);
   const fallbackTackAngle = useMemo(
     () => Math.round(getRaceDayHalfAngle(calibrations) ?? 42),
     [calibrations],
@@ -371,16 +417,9 @@ export default function RaceLiveCockpit() {
       ? 0
       : Math.max(0, Math.ceil((startedAtMs + CALIBRATION_DURATION_MS - nowMs) / 1000));
 
-  useEffect(
-    () => subscribeStoredTrackerState(() => setTrackerState(getStoredTrackerStateSnapshot())),
-    [],
-  );
-
   useEffect(() => {
-    return subscribeTacticalBoardStore(() => {
-      setTacticalBoardDraft(getStoredTacticalBoardDraft());
-    });
-  }, []);
+    calibrationsRef.current = calibrations;
+  }, [calibrations]);
 
   useEffect(() => {
     let cancelled = false;
@@ -414,7 +453,6 @@ export default function RaceLiveCockpit() {
 
   useEffect(() => {
     if (gps.lat == null || gps.lon == null) {
-      setNearbyWind(null);
       return;
     }
 
@@ -468,24 +506,17 @@ export default function RaceLiveCockpit() {
   }, []);
 
   useEffect(() => {
-    const refreshActiveSession = () => setActiveSession(getActiveRaceSession());
-    refreshActiveSession();
-    const interval = window.setInterval(refreshActiveSession, 1500);
-    return () => window.clearInterval(interval);
-  }, []);
-
-  useEffect(() => {
     const detected = detectAutomaticTackCalibrations(gps.track);
     if (detected.length === 0) return;
 
-    setCalibrations((current) => {
-      const nextCalibrations = mergeTackCalibrations(current, detected);
-      if (JSON.stringify(nextCalibrations) === JSON.stringify(current)) return current;
-      saveTackCalibrations(nextCalibrations);
-      const raceDayHalfAngle = getRaceDayHalfAngle(nextCalibrations);
-      if (raceDayHalfAngle != null) setTrackerTackAngle(Math.round(raceDayHalfAngle));
-      return nextCalibrations;
-    });
+    const current = calibrationsRef.current;
+    const nextCalibrations = mergeTackCalibrations(current, detected);
+    if (JSON.stringify(nextCalibrations) === JSON.stringify(current)) return;
+
+    saveTackCalibrations(nextCalibrations);
+    const raceDayHalfAngle = getRaceDayHalfAngle(nextCalibrations);
+    if (raceDayHalfAngle != null) setTrackerTackAngle(Math.round(raceDayHalfAngle));
+    queueMicrotask(() => setCalibrationOverride(nextCalibrations));
   }, [gps.track]);
 
   useEffect(() => {
@@ -495,13 +526,15 @@ export default function RaceLiveCockpit() {
     try {
       const calibration = calculateTackCalibration(gps.track, startedAtMs);
       const nextCalibrations = mergeTackCalibrations(calibrations, [calibration]);
-      setCalibrations(nextCalibrations);
       saveTackCalibrations(nextCalibrations);
       setTrackerTackAngle(Math.round(calibration.halfAngleDeg));
-      setCalibrationError(null);
+      queueMicrotask(() => setCalibrationError(null));
+      queueMicrotask(() => setCalibrationOverride(nextCalibrations));
     } catch (error) {
-      setCalibrationError(
-        error instanceof Error ? error.message : "Could not calculate tack angle."
+      queueMicrotask(() =>
+        setCalibrationError(
+          error instanceof Error ? error.message : "Could not calculate tack angle.",
+        ),
       );
     } finally {
       setStartedAtMs(null);

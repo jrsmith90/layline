@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useSyncExternalStore } from "react";
 import { Flag, Route, Sailboat, Wind } from "lucide-react";
 import { useAppMode } from "@/components/display/AppModeProvider";
 import { LiveInstrumentsPanel } from "@/components/gps/LiveInstrumentsPanel";
@@ -9,6 +9,7 @@ import type { WindTrend } from "@/data/race/getRouteBiasInputs";
 import { getRouteBiasInputs } from "@/data/race/getRouteBiasInputs";
 import {
   formatCourseLabel,
+  getDefaultCourseId,
   getAllCourseIds,
   getCourseData,
 } from "@/data/race/getCourseData";
@@ -34,10 +35,10 @@ import {
   setTacticalBoardCourseId,
   setTacticalBoardDraftField,
   subscribeTacticalBoardStore,
-  type TacticalBoardDraft,
 } from "@/lib/race/tacticalBoard/store";
 
 const courseIds = getAllCourseIds();
+const DEFAULT_TACTICAL_BOARD_DRAFT = buildTacticalBoardDraftDefaults(getDefaultCourseId());
 
 function formatDeg(value: number | null) {
   return value == null ? "--" : `${Math.round(value)} deg`;
@@ -164,8 +165,10 @@ function describeRouteBiasSample(answers?: RouteBiasAnswers | null) {
 
 export default function TacticalBoard() {
   const { isRaceMode } = useAppMode();
-  const [draft, setDraft] = useState<TacticalBoardDraft>(() =>
-    buildTacticalBoardDraftDefaults(courseIds[0]!)
+  const draft = useSyncExternalStore(
+    subscribeTacticalBoardStore,
+    getStoredTacticalBoardDraft,
+    () => DEFAULT_TACTICAL_BOARD_DRAFT,
   );
   const courseData = useMemo(() => getCourseData(draft.courseId), [draft.courseId]);
   const routeBiasInputModel = useMemo(
@@ -197,15 +200,6 @@ export default function TacticalBoard() {
   const currentBiasPlan = draft.routeBias.latestPlan ?? openingBiasPlan;
   const openingBiasUpdate = draft.routeBias.latestUpdate;
   const openingBiasSample = draft.routeBias.latestAnswers ?? draft.routeBias.originalAnswers;
-
-  useEffect(() => {
-    // Sync stored draft immediately after hydration
-    setDraft(getStoredTacticalBoardDraft());
-    // Then subscribe for future store changes
-    return subscribeTacticalBoardStore(() => {
-      setDraft(getStoredTacticalBoardDraft());
-    });
-  }, []);
 
   function handleCourseChange(nextCourseId: string) {
     setTacticalBoardCourseId(nextCourseId);

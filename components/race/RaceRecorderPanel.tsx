@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useReducer, useRef, useState } from "react";
+import { useEffect, useMemo, useReducer, useRef, useState, useSyncExternalStore } from "react";
 import { Circle, Download, Flag, NotebookPen, Square } from "lucide-react";
 import type { GpsTrackPoint } from "@/lib/useGpsCourse";
 import {
@@ -161,7 +161,7 @@ export function RaceRecorderPanel({
   tackContext,
 }: RaceRecorderPanelProps) {
   const [, refresh] = useReducer((value: number) => value + 1, 0);
-  const [sessionId, setSessionId] = useState(() => getActiveRaceSession()?.id ?? null);
+  const [sessionId, setSessionId] = useState<string | null>(null);
   const [note, setNote] = useState("");
   const [status, setStatus] = useState<string | null>(null);
   const lastDecisionRef = useRef<string | null>(null);
@@ -171,9 +171,17 @@ export function RaceRecorderPanel({
   const latestTacticalBoardCaptureRef = useRef<TacticalBoardSnapshotCaptureInput | null>(
     tacticalBoardCapture ?? null,
   );
-  const activeSession = getActiveRaceSession();
+  const activeSession = useSyncExternalStore(
+    subscribeRaceSessionStore,
+    getActiveRaceSession,
+    () => null,
+  );
   const effectiveSessionId = activeSession?.id ?? sessionId;
-  const session = effectiveSessionId ? getRaceSession(effectiveSessionId) : null;
+  const session = useSyncExternalStore(
+    subscribeRaceSessionStore,
+    () => (effectiveSessionId ? getRaceSession(effectiveSessionId) : null),
+    () => null,
+  );
   const decisionSourceMeta = useMemo(
     () =>
       currentDecision?.sourceMeta ??
