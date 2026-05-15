@@ -6,6 +6,7 @@ import { useAppMode } from "@/components/display/AppModeProvider";
 import { Flag, LocateFixed, TimerReset, Wind } from "lucide-react";
 import { formatCourseLabel, getAllCourseIds, getCourseData } from "@/data/race/getCourseData";
 import { usePhoneGps } from "@/components/gps/PhoneGpsProvider";
+import { LiveTacticalBoardCard } from "@/components/race/LiveTacticalBoardCard";
 import { RaceRecorderPanel } from "@/components/race/RaceRecorderPanel";
 import { TackHistoryPanel } from "@/components/race/TackHistoryPanel";
 import { readJsonResponse } from "@/lib/readJsonResponse";
@@ -800,6 +801,8 @@ export default function RaceLiveCockpit() {
           />
         </div>
       </section>
+
+      <LiveTacticalBoardCard raceState={raceState} />
 
       <section className="layline-panel p-4">
         <div className="flex items-center justify-between gap-3">

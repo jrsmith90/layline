@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useAppMode } from "@/components/display/AppModeProvider";
 import { formatCourseLabel, getAllCourseIds, getCourseData } from "@/data/race/getCourseData";
 import { LiveInstrumentsPanel } from "@/components/gps/LiveInstrumentsPanel";
+import { LiveTacticalBoardCard } from "@/components/race/LiveTacticalBoardCard";
 import { usePhoneGps } from "@/components/gps/PhoneGpsProvider";
 import { TackCalibrationPanel } from "@/components/race/TackCalibrationPanel";
 import {
@@ -374,6 +375,8 @@ export default function ActiveCourseTracker() {
           </div>
         )}
       </section>
+
+      <LiveTacticalBoardCard raceState={raceState} />
 
       {leg && fromMark && toMark && result && (
         <>

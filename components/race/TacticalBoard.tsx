@@ -11,7 +11,6 @@ import {
   formatCourseLabel,
   getAllCourseIds,
   getCourseData,
-  getDefaultCourseId,
 } from "@/data/race/getCourseData";
 import { wrap360 } from "@/lib/race/courseTracker";
 import { deriveTacticalBoard } from "@/lib/race/tacticalBoard/deriveTacticalBoard";
@@ -21,22 +20,17 @@ import {
   selectStartLineHeadline,
   selectTacticalBoardStatus,
 } from "@/lib/race/tacticalBoard/selectors";
+import {
+  copyTacticalBoardMeanWindToCurrentWind,
+  getStoredTacticalBoardDraft,
+  seedTacticalBoardMarkBearings,
+  setTacticalBoardCourseId,
+  setTacticalBoardDraftField,
+  subscribeTacticalBoardStore,
+  type TacticalBoardDraft,
+} from "@/lib/race/tacticalBoard/store";
 
 const courseIds = getAllCourseIds();
-const TACTICAL_BOARD_DRAFT_KEY = "layline-tactical-board-draft-v1";
-
-type TacticalBoardDraft = {
-  courseId: string;
-  meanWindDirectionDeg: string;
-  currentWindDirectionDeg: string;
-  tackAngleDeg: string;
-  windwardMarkBearingDeg: string;
-  downwindMarkBearingDeg: string;
-  linePortEndBearingDeg: string;
-  lineStarboardEndBearingDeg: string;
-  downwindTrueWindAngleDeg: string;
-  windTrend: WindTrend;
-};
 
 function formatDeg(value: number | null) {
   return value == null ? "--" : `${Math.round(value)} deg`;
@@ -64,60 +58,6 @@ function parseNumber(value: string) {
   if (!trimmed) return null;
   const parsed = Number(trimmed);
   return Number.isNaN(parsed) ? null : parsed;
-}
-
-function createDraftDefaults(courseId: string): TacticalBoardDraft {
-  const courseData = getCourseData(courseId);
-  const firstLegBearingDeg = courseData.firstLeg?.bearingDeg ?? null;
-
-  return {
-    courseId,
-    meanWindDirectionDeg: "",
-    currentWindDirectionDeg: "",
-    tackAngleDeg: "42",
-    windwardMarkBearingDeg:
-      firstLegBearingDeg == null ? "" : String(Math.round(firstLegBearingDeg)),
-    downwindMarkBearingDeg:
-      firstLegBearingDeg == null ? "" : String(Math.round(wrap360(firstLegBearingDeg + 180))),
-    linePortEndBearingDeg: "",
-    lineStarboardEndBearingDeg: "",
-    downwindTrueWindAngleDeg: "135",
-    windTrend: "unknown",
-  };
-}
-
-function readSavedDraft(): TacticalBoardDraft {
-  if (typeof window === "undefined") {
-    return createDraftDefaults(getDefaultCourseId());
-  }
-
-  try {
-    const raw = localStorage.getItem(TACTICAL_BOARD_DRAFT_KEY);
-    if (!raw) return createDraftDefaults(getDefaultCourseId());
-    const parsed = JSON.parse(raw) as Partial<TacticalBoardDraft>;
-    const courseId =
-      typeof parsed.courseId === "string" && courseIds.includes(parsed.courseId)
-        ? parsed.courseId
-        : getDefaultCourseId();
-    const defaults = createDraftDefaults(courseId);
-
-    return {
-      ...defaults,
-      ...parsed,
-      courseId,
-      windTrend:
-        parsed.windTrend === "building" ||
-        parsed.windTrend === "fading" ||
-        parsed.windTrend === "steady" ||
-        parsed.windTrend === "oscillating" ||
-        parsed.windTrend === "unstable" ||
-        parsed.windTrend === "unknown"
-          ? parsed.windTrend
-          : defaults.windTrend,
-    };
-  } catch {
-    return createDraftDefaults(getDefaultCourseId());
-  }
 }
 
 function getStatusCopy(status: ReturnType<typeof selectTacticalBoardStatus>) {
@@ -177,7 +117,7 @@ function getSideCopy(value: string) {
 
 export default function TacticalBoard() {
   const { isRaceMode } = useAppMode();
-  const [draft, setDraft] = useState<TacticalBoardDraft>(() => readSavedDraft());
+  const [draft, setDraft] = useState<TacticalBoardDraft>(() => getStoredTacticalBoardDraft());
   const courseData = useMemo(() => getCourseData(draft.courseId), [draft.courseId]);
   const routeBiasInputModel = useMemo(
     () => getRouteBiasInputs(draft.courseId),
@@ -206,45 +146,21 @@ export default function TacticalBoard() {
   const lineHeadline = selectStartLineHeadline(board);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    localStorage.setItem(TACTICAL_BOARD_DRAFT_KEY, JSON.stringify(draft));
-  }, [draft]);
-
-  function updateDraft<K extends keyof TacticalBoardDraft>(key: K, value: TacticalBoardDraft[K]) {
-    setDraft((current) => ({
-      ...current,
-      [key]: value,
-    }));
-  }
+    return subscribeTacticalBoardStore(() => {
+      setDraft(getStoredTacticalBoardDraft());
+    });
+  }, []);
 
   function handleCourseChange(nextCourseId: string) {
-    const seeded = createDraftDefaults(nextCourseId);
-    setDraft((current) => ({
-      ...current,
-      ...seeded,
-      courseId: nextCourseId,
-      meanWindDirectionDeg: current.meanWindDirectionDeg,
-      currentWindDirectionDeg: current.currentWindDirectionDeg,
-      tackAngleDeg: current.tackAngleDeg,
-      downwindTrueWindAngleDeg: current.downwindTrueWindAngleDeg,
-      windTrend: current.windTrend,
-    }));
+    setTacticalBoardCourseId(nextCourseId);
   }
 
   function seedMarkBearingsFromCourse() {
-    const seeded = createDraftDefaults(draft.courseId);
-    setDraft((current) => ({
-      ...current,
-      windwardMarkBearingDeg: seeded.windwardMarkBearingDeg,
-      downwindMarkBearingDeg: seeded.downwindMarkBearingDeg,
-    }));
+    seedTacticalBoardMarkBearings(draft.courseId);
   }
 
   function useMeanWindAsCurrent() {
-    setDraft((current) => ({
-      ...current,
-      currentWindDirectionDeg: current.meanWindDirectionDeg,
-    }));
+    copyTacticalBoardMeanWindToCurrentWind();
   }
 
   return (
@@ -334,7 +250,9 @@ export default function TacticalBoard() {
               <select
                 className="w-full rounded-xl border border-[color:var(--divider)] bg-black/30 px-3 py-2.5"
                 value={draft.windTrend}
-                onChange={(event) => updateDraft("windTrend", event.target.value as WindTrend)}
+                onChange={(event) =>
+                  setTacticalBoardDraftField("windTrend", event.target.value as WindTrend)
+                }
               >
                 <option value="unknown" className="bg-slate-900">Unclear</option>
                 <option value="steady" className="bg-slate-900">Steady</option>
@@ -348,13 +266,15 @@ export default function TacticalBoard() {
             <AngleInput
               label="Mean wind from"
               value={draft.meanWindDirectionDeg}
-              onChange={(value) => updateDraft("meanWindDirectionDeg", value)}
+              onChange={(value) => setTacticalBoardDraftField("meanWindDirectionDeg", value)}
             />
             <div className="space-y-1">
               <AngleInput
                 label="Current wind from"
                 value={draft.currentWindDirectionDeg}
-                onChange={(value) => updateDraft("currentWindDirectionDeg", value)}
+                onChange={(value) =>
+                  setTacticalBoardDraftField("currentWindDirectionDeg", value)
+                }
               />
               <button
                 type="button"
@@ -369,35 +289,43 @@ export default function TacticalBoard() {
               label="Tack angle"
               unit="deg"
               value={draft.tackAngleDeg}
-              onChange={(value) => updateDraft("tackAngleDeg", value)}
+              onChange={(value) => setTacticalBoardDraftField("tackAngleDeg", value)}
             />
             <NumberInput
               label="Run TWA"
               unit="deg"
               value={draft.downwindTrueWindAngleDeg}
-              onChange={(value) => updateDraft("downwindTrueWindAngleDeg", value)}
+              onChange={(value) =>
+                setTacticalBoardDraftField("downwindTrueWindAngleDeg", value)
+              }
             />
 
             <AngleInput
               label="Windward mark bearing"
               value={draft.windwardMarkBearingDeg}
-              onChange={(value) => updateDraft("windwardMarkBearingDeg", value)}
+              onChange={(value) =>
+                setTacticalBoardDraftField("windwardMarkBearingDeg", value)
+              }
             />
             <AngleInput
               label="Downwind mark bearing"
               value={draft.downwindMarkBearingDeg}
-              onChange={(value) => updateDraft("downwindMarkBearingDeg", value)}
+              onChange={(value) =>
+                setTacticalBoardDraftField("downwindMarkBearingDeg", value)
+              }
             />
 
             <AngleInput
               label="Port-end line bearing"
               value={draft.linePortEndBearingDeg}
-              onChange={(value) => updateDraft("linePortEndBearingDeg", value)}
+              onChange={(value) => setTacticalBoardDraftField("linePortEndBearingDeg", value)}
             />
             <AngleInput
               label="Starboard-end line bearing"
               value={draft.lineStarboardEndBearingDeg}
-              onChange={(value) => updateDraft("lineStarboardEndBearingDeg", value)}
+              onChange={(value) =>
+                setTacticalBoardDraftField("lineStarboardEndBearingDeg", value)
+              }
             />
           </div>
         </section>
@@ -425,9 +353,9 @@ export default function TacticalBoard() {
             </div>
             {!isRaceMode && (
               <p className="mt-4 text-sm leading-6 text-[color:var(--muted)]">
-                This board is manual-first in the current slice. Use it as a reference
-                memory for shifts, mark geometry, and favored ends while we wire the live
-                race-state bridge later.
+                This board now sets the baseline for the live tactical overlay. Use it to
+                lock in mean wind, line bearings, and mark geometry, then let the live
+                cockpit and tracker layer current wind and active-leg context on top.
               </p>
             )}
           </section>
