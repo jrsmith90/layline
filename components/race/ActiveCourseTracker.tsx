@@ -1,11 +1,17 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useAppMode } from "@/components/display/AppModeProvider";
 import { formatCourseLabel, getAllCourseIds, getCourseData, getDefaultCourseId } from "@/data/race/getCourseData";
 import { LiveInstrumentsPanel } from "@/components/gps/LiveInstrumentsPanel";
 import { usePhoneGps } from "@/components/gps/PhoneGpsProvider";
 import { TackCalibrationPanel } from "@/components/race/TackCalibrationPanel";
 import { type MarkProgressResult, wrap360 } from "@/lib/race/courseTracker";
+import {
+  getConfidencePanelCopy,
+  getMarkApproachCopy,
+  getTrackerRecommendationCopy,
+} from "@/lib/race/liveViewMode";
 import { deriveRaceState } from "@/lib/race/state/deriveRaceState";
 import {
   selectActiveLeg,
@@ -80,6 +86,7 @@ function callClass(call: MarkProgressResult["call"]) {
 }
 
 export default function ActiveCourseTracker() {
+  const { mode, isLearningMode } = useAppMode();
   const gps = usePhoneGps();
   const [courseId, setCourseId] = useState<string>(() => {
     const stored = readStoredTrackerState();
@@ -209,11 +216,24 @@ export default function ActiveCourseTracker() {
     [raceState],
   );
   const lowConfidence = selectHasLowConfidence(raceState);
+  const confidencePanelCopy = useMemo(
+    () =>
+      getConfidencePanelCopy({
+        mode,
+        lowConfidence,
+        signals: confidenceSignals,
+      }),
+    [confidenceSignals, lowConfidence, mode],
+  );
 
   const result = useMemo(() => {
     return selectMarkProgress(raceState);
   }, [raceState]);
   const approachingMark = selectIsApproachingMark(raceState, result);
+  const trackerRecommendationCopy = useMemo(
+    () => (result ? getTrackerRecommendationCopy({ mode, result }) : null),
+    [mode, result],
+  );
 
   function goToLeg(nextIndex: number) {
     setLegIndex(Math.min(Math.max(nextIndex, 0), courseData.course.legs.length - 1));
@@ -344,19 +364,17 @@ export default function ActiveCourseTracker() {
           {raceState.confidence.overall}
         </div>
         <p className="mt-2 text-sm leading-6 text-[color:var(--text-soft)]">
-          {lowConfidence
-            ? "Treat the recommendation as provisional until the weakest inputs improve."
-            : "Inputs are usable, but keep these caveats in mind while you sail the leg."}
+          {confidencePanelCopy.body}
         </p>
-        {confidenceSignals.length > 0 ? (
+        {confidencePanelCopy.visibleSignals.length > 0 ? (
           <div className="mt-3 space-y-2 text-sm leading-5 text-[color:var(--text-soft)]">
-            {confidenceSignals.map((signal) => (
+            {confidencePanelCopy.visibleSignals.map((signal) => (
               <div key={signal.key}>{signal.message}</div>
             ))}
           </div>
         ) : (
           <div className="mt-3 text-sm text-[color:var(--text-soft)]">
-            GPS, course, and wind inputs are aligned right now.
+            {confidencePanelCopy.fallback}
           </div>
         )}
       </section>
@@ -370,8 +388,7 @@ export default function ActiveCourseTracker() {
               </div>
               <div className="mt-1 text-xl font-black">Approaching {leg.toMark}</div>
               <p className="mt-2 text-sm leading-5 opacity-85">
-                You are within about {MARK_APPROACH_DISTANCE_NM.toFixed(2)} nm of the next mark.
-                Confirm the rounding, then advance to the next leg.
+                {getMarkApproachCopy(mode, MARK_APPROACH_DISTANCE_NM)}
               </p>
               <button
                 type="button"
@@ -391,10 +408,17 @@ export default function ActiveCourseTracker() {
             <div className="mt-2 text-3xl font-black uppercase tracking-tight">
               {result.headline}
             </div>
-            <p className="mt-3 max-w-2xl text-sm leading-6 opacity-85">{result.detail}</p>
-            {result.warnings.length > 0 && (
+            <p className="mt-3 max-w-2xl text-sm leading-6 opacity-85">
+              {trackerRecommendationCopy?.detail ?? result.detail}
+            </p>
+            {isLearningMode && trackerRecommendationCopy?.teachingNote && (
+              <div className="mt-3 rounded-xl border border-white/10 bg-black/20 p-3 text-sm leading-6 opacity-90">
+                {trackerRecommendationCopy.teachingNote}
+              </div>
+            )}
+            {(trackerRecommendationCopy?.visibleWarnings.length ?? 0) > 0 && (
               <ul className="mt-4 list-disc space-y-1 pl-5 text-sm opacity-85">
-                {result.warnings.map((warning) => (
+                {(trackerRecommendationCopy?.visibleWarnings ?? []).map((warning) => (
                   <li key={warning}>{warning}</li>
                 ))}
               </ul>

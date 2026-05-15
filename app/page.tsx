@@ -2,11 +2,11 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useState, useEffect } from "react";
 import {
   DisplayModeControl,
   useDisplayMode,
 } from "@/components/display/DisplayModeProvider";
+import { useAppMode } from "@/components/display/AppModeProvider";
 import {
   CloudSun,
   Flag,
@@ -153,15 +153,7 @@ const moduleGroups = [
 
 export default function HomePage() {
   const { effectiveMode } = useDisplayMode();
-  const [raceMode, setRaceMode] = useState(() => {
-    if (typeof window === "undefined") return false;
-    const saved = localStorage.getItem("race-mode");
-    return saved === "true";
-  });
-
-  useEffect(() => {
-    localStorage.setItem("race-mode", raceMode ? "true" : "false");
-  }, [raceMode]);
+  const { isRaceMode, toggleMode } = useAppMode();
 
   const isIpadLayout = effectiveMode === "ipad";
   const isDesktopLayout = effectiveMode === "desktop";
@@ -211,18 +203,18 @@ export default function HomePage() {
                   Active Mode
                 </div>
                 <div className="text-sm font-semibold text-[color:var(--text)]">
-                  {raceMode ? "Race Mode" : "Learning Mode"}
+                  {isRaceMode ? "Race Mode" : "Learning Mode"}
                 </div>
               </div>
 
               <button
-                onClick={() => setRaceMode((v) => !v)}
+                onClick={toggleMode}
                 className="layline-pill relative flex w-40 items-center justify-between p-1 text-xs font-bold uppercase tracking-wide transition active:scale-[0.98]"
                 aria-label="Toggle race mode"
               >
                 <span
                   className={`absolute top-1 h-8 w-[4.65rem] rounded-full transition-all duration-200 ${
-                    raceMode
+                    isRaceMode
                       ? "left-[4.85rem] bg-[color:var(--unfavorable)]"
                       : "left-1 bg-[color:var(--favorable)]"
                   }`}
@@ -297,7 +289,7 @@ export default function HomePage() {
                         href={item.href}
                         className="group flex items-center gap-3 rounded-lg border border-[color:var(--divider)] bg-[color:var(--panel-soft)] px-3 py-2.5 transition duration-150 active:scale-[0.99]"
                         aria-label={`${item.label}: ${
-                          raceMode ? item.race : item.learn
+                          isRaceMode ? item.race : item.learn
                         }`}
                         title={item.label}
                       >
@@ -315,7 +307,7 @@ export default function HomePage() {
                             {item.label}
                           </div>
                           <div className="truncate text-xs leading-4 text-[color:var(--muted)]">
-                            {raceMode ? item.race : item.learn}
+                            {isRaceMode ? item.race : item.learn}
                           </div>
                         </div>
                       </Link>

@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { AppModeProvider } from "@/components/display/AppModeProvider";
 import { DisplayModeProvider } from "@/components/display/DisplayModeProvider";
 import { PhoneGpsProvider } from "@/components/gps/PhoneGpsProvider";
 import { AppNavigationButtons } from "@/components/navigation/AppNavigationButtons";
@@ -22,14 +23,16 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <DisplayModeProvider>
-          <PhoneGpsProvider>
-            <div className="min-h-screen overflow-x-hidden pb-24">
-              <AppNavigationButtons />
-              {children}
-            </div>
-          </PhoneGpsProvider>
-        </DisplayModeProvider>
+        <AppModeProvider>
+          <DisplayModeProvider>
+            <PhoneGpsProvider>
+              <div className="min-h-screen overflow-x-hidden pb-24">
+                <AppNavigationButtons />
+                {children}
+              </div>
+            </PhoneGpsProvider>
+          </DisplayModeProvider>
+        </AppModeProvider>
       </body>
     </html>
   );

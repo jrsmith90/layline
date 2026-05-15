@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { useAppMode } from "@/components/display/AppModeProvider";
 import { Flag, LocateFixed, TimerReset, Wind } from "lucide-react";
 import { formatCourseLabel, getAllCourseIds, getCourseData, getDefaultCourseId } from "@/data/race/getCourseData";
 import { usePhoneGps } from "@/components/gps/PhoneGpsProvider";
@@ -9,6 +10,10 @@ import { RaceRecorderPanel } from "@/components/race/RaceRecorderPanel";
 import { TackHistoryPanel } from "@/components/race/TackHistoryPanel";
 import { readJsonResponse } from "@/lib/readJsonResponse";
 import { type MarkProgressResult, wrap360 } from "@/lib/race/courseTracker";
+import {
+  getCockpitModeCopy,
+  getConfidencePanelCopy,
+} from "@/lib/race/liveViewMode";
 import { deriveRaceState } from "@/lib/race/state/deriveRaceState";
 import {
   selectActiveLeg,
@@ -351,6 +356,7 @@ function getCockpitAnswer(params: {
 }
 
 export default function RaceLiveCockpit() {
+  const { mode, isRaceMode } = useAppMode();
   const gps = usePhoneGps();
   const [courseId, setCourseId] = useState<string>(() => {
     const stored = readStoredTrackerState();
@@ -619,6 +625,15 @@ export default function RaceLiveCockpit() {
     [raceState],
   );
   const lowConfidence = selectHasLowConfidence(raceState);
+  const confidencePanelCopy = useMemo(
+    () =>
+      getConfidencePanelCopy({
+        mode,
+        lowConfidence,
+        signals: confidenceSignals,
+      }),
+    [confidenceSignals, lowConfidence, mode],
+  );
 
   useEffect(() => {
     if (
@@ -657,6 +672,16 @@ export default function RaceLiveCockpit() {
     approachingMark,
     markId: leg?.toMark,
   });
+  const cockpitModeCopy = useMemo(
+    () =>
+      getCockpitModeCopy({
+        mode,
+        why: cockpitAnswer.why,
+        fix: cockpitAnswer.fix,
+        result,
+      }),
+    [cockpitAnswer.fix, cockpitAnswer.why, mode, result],
+  );
   const recorderDecision = result
     ? {
         kind: approachingMark ? ("mark" as const) : ("route" as const),
@@ -726,23 +751,41 @@ export default function RaceLiveCockpit() {
           {cockpitAnswer.line}
         </div>
         <div className="mt-4 space-y-3">
-          <div>
-            <div className="text-xs font-black uppercase tracking-[0.16em] opacity-65">
-              Why
+          {cockpitModeCopy.showWhy ? (
+            <div>
+              <div className="text-xs font-black uppercase tracking-[0.16em] opacity-65">
+                Why
+              </div>
+              <p className="mt-1 text-base font-semibold leading-6 opacity-95">
+                {cockpitAnswer.why}
+              </p>
             </div>
-            <p className="mt-1 text-base font-semibold leading-6 opacity-95">
-              {cockpitAnswer.why}
-            </p>
-          </div>
-          <div>
-            <div className="text-xs font-black uppercase tracking-[0.16em] opacity-65">
-              Fix
+          ) : (
+            <p className="text-base font-black leading-6">{cockpitModeCopy.primaryDetail}</p>
+          )}
+          {cockpitModeCopy.showFix && (
+            <div>
+              <div className="text-xs font-black uppercase tracking-[0.16em] opacity-65">
+                Fix
+              </div>
+              <p className="mt-1 text-base font-black leading-6">{cockpitAnswer.fix}</p>
             </div>
-            <p className="mt-1 text-base font-black leading-6">{cockpitAnswer.fix}</p>
-          </div>
+          )}
+          {!isRaceMode && cockpitModeCopy.teachingNote && (
+            <div className="rounded-2xl border border-white/15 bg-black/20 p-3">
+              <div className="text-xs font-black uppercase tracking-[0.16em] opacity-70">
+                Coach
+              </div>
+              <p className="mt-2 text-sm font-semibold leading-5 opacity-90">
+                {cockpitModeCopy.teachingNote}
+              </p>
+            </div>
+          )}
         </div>
-        {result?.warnings.length ? (
-          <div className="mt-3 text-xs leading-5 opacity-80">{result.warnings.join(" ")}</div>
+        {cockpitModeCopy.visibleWarnings.length ? (
+          <div className="mt-3 text-xs leading-5 opacity-80">
+            {cockpitModeCopy.visibleWarnings.join(" ")}
+          </div>
         ) : null}
         <div className="mt-3 rounded-2xl border border-white/15 bg-black/20 p-3">
           <div className="flex items-center justify-between gap-3">
@@ -754,19 +797,17 @@ export default function RaceLiveCockpit() {
             </div>
           </div>
           <p className="mt-2 text-sm font-semibold leading-5 opacity-90">
-            {lowConfidence
-              ? "Treat this live call as provisional until the weakest inputs improve."
-              : "Live inputs are usable, with a couple of caveats worth tracking."}
+            {confidencePanelCopy.body}
           </p>
-          {confidenceSignals.length > 0 ? (
+          {confidencePanelCopy.visibleSignals.length > 0 ? (
             <div className="mt-2 space-y-1 text-xs leading-5 opacity-80">
-              {confidenceSignals.map((signal) => (
+              {confidencePanelCopy.visibleSignals.map((signal) => (
                 <div key={signal.key}>{signal.message}</div>
               ))}
             </div>
           ) : (
             <div className="mt-2 text-xs leading-5 opacity-75">
-              GPS, course, and wind inputs are aligned right now.
+              {confidencePanelCopy.fallback}
             </div>
           )}
         </div>
