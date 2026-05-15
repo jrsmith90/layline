@@ -40,6 +40,9 @@ export type TackRecord = {
 };
 
 export const TACK_CALIBRATION_STORAGE_KEY = "layline-tack-calibrations-v1";
+const EMPTY_TACK_CALIBRATIONS: TackCalibrationResult[] = [];
+let cachedTackCalibrationRaw: string | null | undefined;
+let cachedTackCalibrationSnapshot: TackCalibrationResult[] = EMPTY_TACK_CALIBRATIONS;
 
 const BEFORE_WINDOW_MS = 20_000;
 const AFTER_SETTLE_MS = 10_000;
@@ -385,24 +388,38 @@ export function mergeTackCalibrations(
 }
 
 export function readTackCalibrations(): TackCalibrationResult[] {
-  if (typeof window === "undefined") return [];
+  if (typeof window === "undefined") return EMPTY_TACK_CALIBRATIONS;
 
   try {
     const raw = localStorage.getItem(TACK_CALIBRATION_STORAGE_KEY);
-    if (!raw) return [];
+    if (raw === cachedTackCalibrationRaw) {
+      return cachedTackCalibrationSnapshot;
+    }
+
+    cachedTackCalibrationRaw = raw;
+
+    if (!raw) {
+      cachedTackCalibrationSnapshot = EMPTY_TACK_CALIBRATIONS;
+      return cachedTackCalibrationSnapshot;
+    }
+
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
+    cachedTackCalibrationSnapshot = Array.isArray(parsed)
+      ? parsed
+      : EMPTY_TACK_CALIBRATIONS;
+    return cachedTackCalibrationSnapshot;
   } catch {
-    return [];
+    cachedTackCalibrationSnapshot = EMPTY_TACK_CALIBRATIONS;
+    return cachedTackCalibrationSnapshot;
   }
 }
 
 export function saveTackCalibrations(results: TackCalibrationResult[]) {
   if (typeof window === "undefined") return;
-  localStorage.setItem(
-    TACK_CALIBRATION_STORAGE_KEY,
-    JSON.stringify(results.slice(-MAX_STORED_CALIBRATIONS))
-  );
+  const trimmedResults = results.slice(-MAX_STORED_CALIBRATIONS);
+  cachedTackCalibrationSnapshot = trimmedResults;
+  cachedTackCalibrationRaw = JSON.stringify(trimmedResults);
+  localStorage.setItem(TACK_CALIBRATION_STORAGE_KEY, cachedTackCalibrationRaw);
 }
 
 export function getRaceDayHalfAngle(results: TackCalibrationResult[]) {

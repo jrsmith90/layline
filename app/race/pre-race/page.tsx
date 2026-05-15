@@ -1,7 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import dynamic from "next/dynamic";
+import { AppPageHeader } from "@/components/layout/AppPageHeader";
+import { WorkflowQuickLinks } from "@/components/navigation/WorkflowQuickLinks";
 import CoursePreviewCard from "@/components/race/CoursePreviewCard";
 import PreRaceRouteBiasWorkflow from "@/components/race/PreRaceRouteBiasWorkflow";
 
@@ -12,54 +13,34 @@ const RaceConditionsMap = dynamic(
 
 export default function Page() {
   return (
-    <main className="mx-auto max-w-4xl p-6 space-y-4">
-      <div className="flex flex-wrap gap-2">
-        <Link
-          href="/race/map"
-          className="inline-flex rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm font-semibold transition active:scale-[0.98]"
-        >
-          Race map
-        </Link>
-        <Link
-          href="/weather/current"
-          className="inline-flex rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm font-semibold transition active:scale-[0.98]"
-        >
-          Course conditions
-        </Link>
-        <Link
-          href="/race/pre-race/sail-selection"
-          className="inline-flex rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm font-semibold transition active:scale-[0.98]"
-        >
-          Sail selection
-        </Link>
-        <Link
-          href="/race/tracker"
-          className="inline-flex rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm font-semibold transition active:scale-[0.98]"
-        >
-          Active course tracker
-        </Link>
-        <Link
-          href="/race/live"
-          className="inline-flex rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm font-semibold transition active:scale-[0.98]"
-        >
-          Race live cockpit
-        </Link>
-        <Link
-          href="/race/tactical-board"
-          className="inline-flex rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm font-semibold transition active:scale-[0.98]"
-        >
-          Tactical board
-        </Link>
-        <Link
-          href="/race/review"
-          className="inline-flex rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm font-semibold transition active:scale-[0.98]"
-        >
-          After Action Report
-        </Link>
-      </div>
-      <RaceConditionsMap />
-      <CoursePreviewCard />
-      <PreRaceRouteBiasWorkflow />
+    <main className="mx-auto max-w-5xl space-y-5 px-4 pb-8 pt-4">
+      <AppPageHeader
+        eyebrow="Race Setup"
+        title="Build the opening picture before the gun."
+        description="Keep pre-race decisions in one lane: confirm conditions, review the course, and leave with a single opening-bias and sail plan instead of a scattered set of notes."
+        badges={["Conditions", "Course", "Opening Bias"]}
+      />
+
+      <WorkflowQuickLinks
+        title="Next Steps"
+        items={[
+          { href: "/race/map", label: "Race Map", detail: "Check chart, current, and wind pattern" },
+          { href: "/weather/current", label: "Current Weather", detail: "Confirm the latest course weather read" },
+          { href: "/race/pre-race/sail-selection", label: "Sail Selection", detail: "Translate the conditions into a sail call" },
+          { href: "/race/live", label: "Race Live", detail: "Carry the plan into the cockpit view" },
+        ]}
+      />
+
+      <section className="grid gap-5 xl:grid-cols-[1.1fr_0.9fr]">
+        <div className="space-y-5">
+          <RaceConditionsMap />
+          <PreRaceRouteBiasWorkflow />
+        </div>
+
+        <div className="space-y-5">
+          <CoursePreviewCard />
+        </div>
+      </section>
     </main>
   );
 }

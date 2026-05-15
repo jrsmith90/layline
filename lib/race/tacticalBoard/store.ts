@@ -46,6 +46,9 @@ const TACTICAL_BOARD_DRAFT_KEY = "layline-tactical-board-draft-v1";
 const TACTICAL_BOARD_STORE_EVENT = "layline:tactical-board-store";
 
 let memoryDraft: TacticalBoardDraft = buildTacticalBoardDraftDefaults(getDefaultCourseId());
+let cachedDraftRaw: string | null | undefined;
+let cachedDraftLinkedCourseId = memoryDraft.courseId;
+let cachedDraftSnapshot = memoryDraft;
 let trackerCourseLinkStop: (() => void) | null = null;
 let tacticalBoardSubscriberCount = 0;
 
@@ -349,24 +352,25 @@ function sanitizeDraft(input: Partial<TacticalBoardDraft> | null | undefined): T
   };
 }
 
-function alignDraftCourseWithTracker(draft: TacticalBoardDraft) {
-  const linkedCourseId = readLinkedCourseId();
-  return draft.courseId === linkedCourseId ? draft : applyCourseToDraft(draft, linkedCourseId);
-}
-
 function shallowDraftEqual(left: TacticalBoardDraft, right: TacticalBoardDraft) {
   return JSON.stringify(left) === JSON.stringify(right);
 }
 
 function writeStoredTacticalBoardDraft(nextDraft: TacticalBoardDraft) {
   memoryDraft = nextDraft;
+  cachedDraftSnapshot = nextDraft;
+  cachedDraftLinkedCourseId = nextDraft.courseId;
 
   if (hasLocalStorage()) {
     try {
-      localStorage.setItem(TACTICAL_BOARD_DRAFT_KEY, JSON.stringify(nextDraft));
+      cachedDraftRaw = JSON.stringify(nextDraft);
+      localStorage.setItem(TACTICAL_BOARD_DRAFT_KEY, cachedDraftRaw);
     } catch {
       // Keep the in-memory fallback if persistence is unavailable.
+      cachedDraftRaw = undefined;
     }
+  } else {
+    cachedDraftRaw = undefined;
   }
 
   if (typeof window !== "undefined") {
@@ -374,17 +378,45 @@ function writeStoredTacticalBoardDraft(nextDraft: TacticalBoardDraft) {
   }
 }
 
-function readRawDraft() {
+function readStoredTacticalBoardDraftSnapshot() {
+  const linkedCourseId = readLinkedCourseId();
+
   if (!hasLocalStorage()) {
+    if (memoryDraft.courseId !== linkedCourseId) {
+      memoryDraft = applyCourseToDraft(memoryDraft, linkedCourseId);
+    }
+    cachedDraftLinkedCourseId = linkedCourseId;
+    cachedDraftSnapshot = memoryDraft;
+    cachedDraftRaw = undefined;
     return memoryDraft;
   }
 
   try {
     const raw = localStorage.getItem(TACTICAL_BOARD_DRAFT_KEY);
-    if (!raw) return memoryDraft;
-    const parsed = JSON.parse(raw);
-    return typeof parsed === "object" && parsed != null ? parsed : memoryDraft;
+    if (raw === cachedDraftRaw && linkedCourseId === cachedDraftLinkedCourseId) {
+      return cachedDraftSnapshot;
+    }
+
+    cachedDraftRaw = raw;
+    cachedDraftLinkedCourseId = linkedCourseId;
+
+    const parsed =
+      raw != null
+        ? JSON.parse(raw)
+        : memoryDraft;
+    const sanitized =
+      typeof parsed === "object" && parsed != null ? sanitizeDraft(parsed) : memoryDraft;
+    const aligned =
+      sanitized.courseId === linkedCourseId
+        ? sanitized
+        : applyCourseToDraft(sanitized, linkedCourseId);
+
+    memoryDraft = aligned;
+    cachedDraftSnapshot = aligned;
+    return aligned;
   } catch {
+    cachedDraftSnapshot = memoryDraft;
+    cachedDraftLinkedCourseId = linkedCourseId;
     return memoryDraft;
   }
 }
@@ -425,7 +457,7 @@ export function buildTacticalBoardDraftDefaults(courseId: string): TacticalBoard
 }
 
 export function getStoredTacticalBoardDraft() {
-  return alignDraftCourseWithTracker(sanitizeDraft(readRawDraft()));
+  return readStoredTacticalBoardDraftSnapshot();
 }
 
 export function subscribeTacticalBoardStore(listener: () => void) {

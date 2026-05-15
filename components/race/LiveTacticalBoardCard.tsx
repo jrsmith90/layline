@@ -391,11 +391,13 @@ function getSupportItems(
 
 function FocusMetric(props: { label: string; value: string }) {
   return (
-    <div className="rounded-xl border border-[color:var(--divider)] bg-black/20 p-3">
+    <div className="rounded-xl border border-[color:var(--divider)] bg-black/20 p-2.5 sm:p-3">
       <div className="text-[10px] font-black uppercase tracking-[0.16em] text-[color:var(--muted)]">
         {props.label}
       </div>
-      <div className="mt-1 text-lg font-black text-[color:var(--text)]">{props.value}</div>
+      <div className="mt-1 text-[1.05rem] font-black text-[color:var(--text)] sm:text-lg">
+        {props.value}
+      </div>
     </div>
   );
 }
@@ -474,25 +476,25 @@ export function LiveTacticalBoardCard({ raceState }: { raceState: RaceState }) {
               <div className="text-[10px] font-black uppercase tracking-[0.16em] opacity-75">
                 {headline.eyebrow}
               </div>
-              <div className="mt-2 text-2xl font-black uppercase tracking-tight">
+              <div className="mt-2 text-xl font-black uppercase tracking-tight sm:text-2xl">
                 {headline.title}
               </div>
               <p className="mt-2 text-sm leading-6 opacity-90">{headline.detail}</p>
             </div>
-            <div className="rounded-full border border-white/15 bg-black/20 px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] opacity-85">
+            <div className="rounded-full border border-white/15 bg-black/20 px-3 py-1 text-[9px] font-black uppercase tracking-[0.16em] opacity-85 sm:text-[10px]">
               {liveBoard.activeLegLabel ?? "Live read"}
             </div>
           </div>
         </div>
 
         <div className="mt-3 flex flex-wrap gap-2">
-          <div className="rounded-full border border-[color:var(--divider)] bg-black/20 px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-[color:var(--text)]">
+          <div className="rounded-full border border-[color:var(--divider)] bg-black/20 px-3 py-1 text-[9px] font-black uppercase tracking-[0.16em] text-[color:var(--text)] sm:text-[10px]">
             {getSourceBadgeLabel(liveBoard.currentWindSource, raceState.wind.sourceLabel)}
           </div>
-          <div className="rounded-full border border-[color:var(--divider)] bg-black/20 px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-[color:var(--text)]">
+          <div className="rounded-full border border-[color:var(--divider)] bg-black/20 px-3 py-1 text-[9px] font-black uppercase tracking-[0.16em] text-[color:var(--text)] sm:text-[10px]">
             {liveBoard.usesActiveLegBearing ? "Active leg geometry" : "Saved board geometry"}
           </div>
-          <div className="rounded-full border border-[color:var(--divider)] bg-black/20 px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-[color:var(--text)]">
+          <div className="rounded-full border border-[color:var(--divider)] bg-black/20 px-3 py-1 text-[9px] font-black uppercase tracking-[0.16em] text-[color:var(--text)] sm:text-[10px]">
             Trend · {formatTrend(board.setup.windTrend)}
           </div>
         </div>

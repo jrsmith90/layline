@@ -230,35 +230,60 @@ function sanitizeTrackerState(input: StoredTrackerStateInput): StoredTrackerStat
 }
 
 let memoryTrackerState = sanitizeTrackerState({});
+let cachedTrackerRaw: string | null | undefined;
+let cachedTrackerSnapshot = memoryTrackerState;
 
-function readRawTrackerState(): StoredTrackerStateInput {
+function readStoredTrackerStateSnapshot(): StoredTrackerState {
   if (!canUseLocalStorage()) {
+    cachedTrackerRaw = undefined;
+    cachedTrackerSnapshot = memoryTrackerState;
     return memoryTrackerState;
   }
 
   try {
     const raw = localStorage.getItem(TRACKER_STORAGE_KEY);
-    if (!raw) return memoryTrackerState;
-    const parsed = JSON.parse(raw);
-    return typeof parsed === "object" && parsed != null ? parsed : memoryTrackerState;
+    if (raw === cachedTrackerRaw) {
+      return cachedTrackerSnapshot;
+    }
+
+    cachedTrackerRaw = raw;
+
+    const parsed =
+      raw != null
+        ? JSON.parse(raw)
+        : memoryTrackerState;
+    const sanitized =
+      typeof parsed === "object" && parsed != null
+        ? sanitizeTrackerState(parsed)
+        : memoryTrackerState;
+
+    memoryTrackerState = sanitized;
+    cachedTrackerSnapshot = sanitized;
+    return sanitized;
   } catch {
+    cachedTrackerSnapshot = memoryTrackerState;
     return memoryTrackerState;
   }
 }
 
 export function getStoredTrackerStateSnapshot() {
-  return sanitizeTrackerState(readRawTrackerState());
+  return readStoredTrackerStateSnapshot();
 }
 
 function writeStoredTrackerState(nextState: StoredTrackerState) {
   memoryTrackerState = nextState;
+  cachedTrackerSnapshot = nextState;
 
   if (canUseLocalStorage()) {
     try {
-      localStorage.setItem(TRACKER_STORAGE_KEY, JSON.stringify(nextState));
+      cachedTrackerRaw = JSON.stringify(nextState);
+      localStorage.setItem(TRACKER_STORAGE_KEY, cachedTrackerRaw);
     } catch {
       // Keep the in-memory state if persistence is unavailable.
+      cachedTrackerRaw = undefined;
     }
+  } else {
+    cachedTrackerRaw = undefined;
   }
 
   if (typeof window !== "undefined") {

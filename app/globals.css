@@ -77,6 +77,21 @@ button {
   background: color-mix(in srgb, var(--panel-soft) 72%, transparent);
 }
 
+.layline-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 2rem;
+  border-radius: var(--radius-pill);
+  border: 1px solid color-mix(in srgb, var(--divider) 76%, transparent);
+  background: color-mix(in srgb, var(--panel) 68%, transparent);
+  padding: 0.4rem 0.8rem;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
 .layline-kicker {
   color: var(--muted);
   font-size: 0.72rem;

@@ -763,20 +763,20 @@ export default function RaceLiveCockpit() {
   }
 
   return (
-    <main className="mx-auto max-w-md space-y-3 px-3 pb-28 pt-3">
-      <section className={["rounded-2xl border p-5", callClass(primaryCall)].join(" ")}>
+    <main className="mx-auto max-w-md space-y-4 px-3 pb-28 pt-4">
+      <section className={["rounded-2xl border p-4 sm:p-5", callClass(primaryCall)].join(" ")}>
         <div className="flex items-center justify-between gap-3">
           <div className="text-xs font-black uppercase tracking-[0.18em] opacity-75">
             Race Live
           </div>
-          <div className="text-xs font-bold uppercase tracking-wide opacity-75">
+          <div className="text-[11px] font-bold uppercase tracking-wide opacity-75">
             {formatCourseLabel(courseId)} · Leg {safeLegIndex + 1}
           </div>
         </div>
-        <div className="mt-3 text-5xl font-black uppercase leading-none tracking-tight">
+        <div className="mt-3 text-[2.65rem] font-black uppercase leading-none tracking-tight sm:text-5xl">
           {cockpitAnswer.action}
         </div>
-        <div className="mt-3 inline-flex rounded-full border border-white/20 bg-black/20 px-3 py-1 text-sm font-black uppercase tracking-wide">
+        <div className="mt-3 inline-flex rounded-full border border-white/20 bg-black/20 px-3 py-1 text-[11px] font-black uppercase tracking-[0.14em] sm:text-sm">
           {cockpitAnswer.line}
         </div>
         <div className="mt-4 space-y-3">
@@ -785,19 +785,23 @@ export default function RaceLiveCockpit() {
               <div className="text-xs font-black uppercase tracking-[0.16em] opacity-65">
                 Why
               </div>
-              <p className="mt-1 text-base font-semibold leading-6 opacity-95">
+              <p className="mt-1 text-[0.95rem] font-semibold leading-6 opacity-95 sm:text-base">
                 {cockpitAnswer.why}
               </p>
             </div>
           ) : (
-            <p className="text-base font-black leading-6">{cockpitModeCopy.primaryDetail}</p>
+            <p className="text-[0.98rem] font-black leading-6 sm:text-base">
+              {cockpitModeCopy.primaryDetail}
+            </p>
           )}
           {cockpitModeCopy.showFix && (
             <div>
               <div className="text-xs font-black uppercase tracking-[0.16em] opacity-65">
                 Fix
               </div>
-              <p className="mt-1 text-base font-black leading-6">{cockpitAnswer.fix}</p>
+              <p className="mt-1 text-[0.95rem] font-black leading-6 sm:text-base">
+                {cockpitAnswer.fix}
+              </p>
             </div>
           )}
           {!isRaceMode && cockpitModeCopy.teachingNote && (
@@ -841,13 +845,14 @@ export default function RaceLiveCockpit() {
           )}
         </div>
 
-        <div className="mt-4 grid grid-cols-3 gap-2">
+        <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
           <BigMetric label="Off Line" value={`${formatNumber(result?.degreesOffLaylineDeg ?? null, 0)} deg`} />
           <BigMetric
             label="Tack Hdg"
             value={`${formatDeg(result?.currentTackHeadingDeg ?? null)} (${formatDeg(result?.nextTackHeadingDeg ?? null)})`}
           />
           <BigMetric
+            className="col-span-2 sm:col-span-1"
             label="Tack In"
             value={
               result?.distanceToTackNm == null
@@ -1087,13 +1092,21 @@ export default function RaceLiveCockpit() {
   );
 }
 
-function BigMetric({ label, value }: { label: string; value: string }) {
+function BigMetric({
+  label,
+  value,
+  className = "",
+}: {
+  label: string;
+  value: string;
+  className?: string;
+}) {
   return (
-    <div className="rounded-xl border border-[color:var(--divider)] bg-black/20 p-3">
+    <div className={["rounded-xl border border-[color:var(--divider)] bg-black/20 p-2.5 sm:p-3", className].join(" ")}>
       <div className="text-[10px] font-black uppercase tracking-[0.16em] text-[color:var(--muted)]">
         {label}
       </div>
-      <div className="mt-1 text-2xl font-black leading-none text-[color:var(--text)]">
+      <div className="mt-1 text-[1.3rem] font-black leading-none text-[color:var(--text)] sm:text-2xl">
         {value}
       </div>
     </div>

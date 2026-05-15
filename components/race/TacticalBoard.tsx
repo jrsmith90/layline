@@ -214,28 +214,7 @@ export default function TacticalBoard() {
   }
 
   return (
-    <main className="mx-auto max-w-6xl space-y-5 px-4 pb-8 pt-3">
-      <div className="flex flex-wrap gap-2">
-        <Link
-          href="/race/pre-race"
-          className="inline-flex rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm font-semibold transition active:scale-[0.98]"
-        >
-          Pre-race
-        </Link>
-        <Link
-          href="/race/live"
-          className="inline-flex rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm font-semibold transition active:scale-[0.98]"
-        >
-          Race live
-        </Link>
-        <Link
-          href="/race/tracker"
-          className="inline-flex rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm font-semibold transition active:scale-[0.98]"
-        >
-          Course tracker
-        </Link>
-      </div>
-
+    <main className="mx-auto max-w-5xl space-y-5 px-4 pb-8 pt-4">
       <LiveInstrumentsPanel context="route" />
 
       <section className={["layline-panel overflow-hidden p-5", getShiftPanelClasses(board.shift.memoryColor)].join(" ")}>
