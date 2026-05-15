@@ -9,11 +9,15 @@ import { LiveInstrumentsPanel } from "@/components/gps/LiveInstrumentsPanel";
 import { TroubleshootLiveContextPanel } from "@/components/troubleshoot/TroubleshootLiveContextPanel";
 import { getLiveRouteUpdate } from "@/lib/race/getLiveRouteUpdate";
 import { readJsonResponse } from "@/lib/readJsonResponse";
-import type { RouteBiasSnapshot } from "@/lib/race/checkPlanValidity";
-import type { RouteBiasAnswers } from "@/lib/race/scoreRouteBias";
+import { scoreRouteBias, type RouteBiasAnswers, type RouteBiasResult } from "@/lib/race/scoreRouteBias";
 import type { OpeningLegType, WindTrend, PressureSide, CurrentSide, EdgeStrength } from "@/data/race/getRouteBiasInputs";
-
-type RouteBiasResult = RouteBiasSnapshot;
+import {
+  getStoredTacticalBoardDraft,
+  setTacticalBoardRouteBiasLatest,
+  setTacticalBoardRouteBiasPlan,
+  subscribeTacticalBoardStore,
+  type TacticalBoardDraft,
+} from "@/lib/race/tacticalBoard/store";
 
 type LiveWeatherSource = {
   windAvgKt?: number;
@@ -63,6 +67,21 @@ const initialLatestValues: LatestConditionsValues = {
   currentSide: "unclear",
   edgeStrength: "unclear"
 };
+
+function toLatestValues(initialAnswers?: RouteBiasAnswers | null): LatestConditionsValues {
+  if (!initialAnswers) return initialLatestValues;
+
+  return {
+    courseId: initialAnswers.courseId,
+    openingLegType: initialAnswers.openingLegType,
+    windDirectionDeg: String(initialAnswers.windDirectionDeg),
+    windSpeedKt: String(initialAnswers.windSpeedKt),
+    windTrend: initialAnswers.windTrend,
+    pressureSide: initialAnswers.pressureSide,
+    currentSide: initialAnswers.currentSide,
+    edgeStrength: initialAnswers.edgeStrength,
+  };
+}
 
 function formatDecision(decision: string): string {
   switch (decision) {
@@ -129,18 +148,29 @@ function getPrimaryLiveWind(context: LiveWeatherContext | null) {
 }
 
 export default function PreRaceRouteBiasWorkflow() {
-  const [originalPlan, setOriginalPlan] = useState<RouteBiasResult | null>(null);
-  const [latestValues, setLatestValues] = useState<LatestConditionsValues>(initialLatestValues);
-  const [liveUpdate, setLiveUpdate] = useState<ReturnType<typeof getLiveRouteUpdate> | null>(null);
+  const initialDraft = getStoredTacticalBoardDraft();
+  const [draft, setDraft] = useState<TacticalBoardDraft>(initialDraft);
+  const [latestValues, setLatestValues] = useState<LatestConditionsValues>(() =>
+    toLatestValues(initialDraft.routeBias.latestAnswers ?? initialDraft.routeBias.originalAnswers),
+  );
   const [latestError, setLatestError] = useState<string | null>(null);
   const [liveWeather, setLiveWeather] = useState<LiveWeatherContext | null>(null);
   const [liveWeatherError, setLiveWeatherError] = useState<string | null>(null);
+  const originalPlan = draft.routeBias.originalPlan;
+  const liveUpdate = draft.routeBias.latestUpdate;
+  const storedOriginalAnswers = draft.routeBias.originalAnswers;
 
   const latestConfig = useMemo(
     () => getRouteBiasInputs(latestValues.courseId),
     [latestValues.courseId]
   );
   const primaryLiveWind = useMemo(() => getPrimaryLiveWind(liveWeather), [liveWeather]);
+
+  useEffect(() => {
+    return subscribeTacticalBoardStore(() => {
+      setDraft(getStoredTacticalBoardDraft());
+    });
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -187,19 +217,8 @@ export default function PreRaceRouteBiasWorkflow() {
     }));
   }
 
-  function seedLatestValuesFromOriginal(plan: RouteBiasResult, answers: RouteBiasAnswers) {
-    setOriginalPlan(plan);
-    setLatestValues({
-      courseId: answers.courseId,
-      openingLegType: answers.openingLegType,
-      windDirectionDeg: String(answers.windDirectionDeg),
-      windSpeedKt: String(answers.windSpeedKt),
-      windTrend: answers.windTrend,
-      pressureSide: answers.pressureSide,
-      currentSide: answers.currentSide,
-      edgeStrength: answers.edgeStrength
-    });
-    setLiveUpdate(null);
+  function seedLatestValuesFromOriginal(answers: RouteBiasAnswers) {
+    setLatestValues(toLatestValues(answers));
     setLatestError(null);
   }
 
@@ -207,7 +226,11 @@ export default function PreRaceRouteBiasWorkflow() {
     result: RouteBiasResult;
     answers: RouteBiasAnswers;
   }) {
-    seedLatestValuesFromOriginal(payload.result, payload.answers);
+    setTacticalBoardRouteBiasPlan({
+      answers: payload.answers,
+      plan: payload.result,
+    });
+    seedLatestValuesFromOriginal(payload.answers);
   }
 
   function buildLatestAnswers(): RouteBiasAnswers {
@@ -256,12 +279,17 @@ export default function PreRaceRouteBiasWorkflow() {
 
     try {
       const latestAnswers = buildLatestAnswers();
+      const latestPlan = scoreRouteBias(latestAnswers);
       const update = getLiveRouteUpdate({
         originalPlan,
         latestAnswers
       });
 
-      setLiveUpdate(update);
+      setTacticalBoardRouteBiasLatest({
+        answers: latestAnswers,
+        latestPlan,
+        latestUpdate: update,
+      });
     } catch (error) {
       setLatestError(error instanceof Error ? error.message : "Unknown error");
     }
@@ -290,7 +318,11 @@ export default function PreRaceRouteBiasWorkflow() {
       <LiveInstrumentsPanel context="route" />
       <TroubleshootLiveContextPanel />
 
-      <PreRaceRouteBiasForm onPlanReady={handleOriginalPlanReady} />
+      <PreRaceRouteBiasForm
+        initialAnswers={storedOriginalAnswers}
+        initialResult={originalPlan}
+        onPlanReady={handleOriginalPlanReady}
+      />
 
       {originalPlan && (
         <div className="rounded-xl border border-white/10 bg-black/20 p-5">

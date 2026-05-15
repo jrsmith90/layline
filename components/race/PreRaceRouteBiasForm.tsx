@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import {
   getRouteBiasInputs,
   type CurrentSide,
@@ -11,31 +11,11 @@ import {
 } from "@/data/race/getRouteBiasInputs";
 import { getDefaultCourseId } from "@/data/race/getCourseData";
 import { readJsonResponse } from "@/lib/readJsonResponse";
-
-type RouteBiasDecision = "shore_first" | "bay_first" | "neutral" | "mixed_signal";
-type RouteBiasConfidence = "low" | "medium" | "high";
-
-type RouteBiasResult = {
-  decision: RouteBiasDecision;
-  confidence: RouteBiasConfidence;
-  shoreScore: number;
-  bayScore: number;
-  reasons: string[];
-  warnings: string[];
-};
-
-type RouteBiasAnswers = {
-  courseId: string;
-  openingLegType: OpeningLegType;
-  windDirectionDeg: number;
-  windSpeedKt: number;
-  windTrend: WindTrend;
-  pressureSide: PressureSide;
-  currentSide: CurrentSide;
-  edgeStrength: EdgeStrength;
-};
+import type { RouteBiasAnswers, RouteBiasResult } from "@/lib/race/scoreRouteBias";
 
 type PreRaceRouteBiasFormProps = {
+  initialAnswers?: RouteBiasAnswers | null;
+  initialResult?: RouteBiasResult | null;
   onPlanReady?: (payload: {
     result: RouteBiasResult;
     answers: RouteBiasAnswers;
@@ -64,7 +44,22 @@ const initialValues: FormValues = {
   edgeStrength: "unclear"
 };
 
-function formatDecision(decision: RouteBiasDecision): string {
+function toFormValues(initialAnswers?: RouteBiasAnswers | null): FormValues {
+  if (!initialAnswers) return initialValues;
+
+  return {
+    courseId: initialAnswers.courseId,
+    openingLegType: initialAnswers.openingLegType,
+    windDirectionDeg: String(initialAnswers.windDirectionDeg),
+    windSpeedKt: String(initialAnswers.windSpeedKt),
+    windTrend: initialAnswers.windTrend,
+    pressureSide: initialAnswers.pressureSide,
+    currentSide: initialAnswers.currentSide,
+    edgeStrength: initialAnswers.edgeStrength,
+  };
+}
+
+function formatDecision(decision: RouteBiasResult["decision"]): string {
   switch (decision) {
     case "shore_first":
       return "Favor shore early";
@@ -79,17 +74,27 @@ function formatDecision(decision: RouteBiasDecision): string {
   }
 }
 
-function formatConfidence(confidence: RouteBiasConfidence): string {
+function formatConfidence(confidence: RouteBiasResult["confidence"]): string {
   return confidence.charAt(0).toUpperCase() + confidence.slice(1);
 }
 
-export default function PreRaceRouteBiasForm({ onPlanReady }: PreRaceRouteBiasFormProps) {
-  const [values, setValues] = useState<FormValues>(initialValues);
+export default function PreRaceRouteBiasForm({
+  initialAnswers,
+  initialResult,
+  onPlanReady,
+}: PreRaceRouteBiasFormProps) {
+  const [values, setValues] = useState<FormValues>(() => toFormValues(initialAnswers));
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [result, setResult] = useState<RouteBiasResult | null>(null);
+  const [result, setResult] = useState<RouteBiasResult | null>(() => initialResult ?? null);
   const [error, setError] = useState<string | null>(null);
 
   const config = useMemo(() => getRouteBiasInputs(values.courseId), [values.courseId]);
+
+  useEffect(() => {
+    setValues(toFormValues(initialAnswers));
+    setResult(initialResult ?? null);
+    setError(null);
+  }, [initialAnswers, initialResult]);
 
   function updateField<K extends keyof FormValues>(key: K, value: FormValues[K]) {
     setValues((prev) => ({

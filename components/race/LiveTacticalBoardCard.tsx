@@ -4,7 +4,9 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { Route, Sailboat, Wind } from "lucide-react";
 import { useAppMode } from "@/components/display/AppModeProvider";
+import type { TacticalUpdateAction } from "@/lib/race/checkPlanValidity";
 import type { RaceState } from "@/lib/race/state/types";
+import type { RouteBiasConfidence, RouteBiasDecision } from "@/lib/race/scoreRouteBias";
 import { deriveTacticalBoardFromRaceState } from "@/lib/race/tacticalBoard/deriveTacticalBoardFromRaceState";
 import {
   selectShiftHeadline,
@@ -39,6 +41,40 @@ function formatSide(value: "starboard" | "port" | "even" | "unknown" | "square")
       return "Square";
     default:
       return "Unknown";
+  }
+}
+
+function formatRouteBiasDecision(decision: RouteBiasDecision) {
+  switch (decision) {
+    case "shore_first":
+      return "Favor shore early";
+    case "bay_first":
+      return "Favor bay early";
+    case "neutral":
+      return "Stay central";
+    case "mixed_signal":
+      return "Mixed signal";
+    default:
+      return decision;
+  }
+}
+
+function formatRouteBiasConfidence(confidence: RouteBiasConfidence) {
+  return confidence.charAt(0).toUpperCase() + confidence.slice(1);
+}
+
+function formatUpdateAction(action: TacticalUpdateAction) {
+  switch (action) {
+    case "hold_course":
+      return "Hold course";
+    case "stay_flexible":
+      return "Stay flexible";
+    case "prepare_to_change_side_bias":
+      return "Prepare to shift";
+    case "change_side_bias":
+      return "Change side bias";
+    default:
+      return action;
   }
 }
 
@@ -87,9 +123,40 @@ function getSourceCopy(params: {
   return `${windCopy}${legCopy}`;
 }
 
-function getCallouts(params: ReturnType<typeof deriveTacticalBoardFromRaceState>) {
+function getOpeningBiasCallout(
+  draft: TacticalBoardDraft,
+  safeLegIndex: RaceState["course"]["safeLegIndex"],
+) {
+  if (safeLegIndex !== 0 || !draft.routeBias.originalPlan) {
+    return null;
+  }
+
+  const latestPlan = draft.routeBias.latestPlan ?? draft.routeBias.originalPlan;
+  const latestUpdate = draft.routeBias.latestUpdate;
+
+  if (latestUpdate) {
+    return `Opening bias update: ${formatUpdateAction(latestUpdate.action)}. ${
+      latestUpdate.reasons[0] ?? `Latest check: ${formatRouteBiasDecision(latestPlan.decision)}.`
+    }`;
+  }
+
+  return `Opening bias: ${formatRouteBiasDecision(
+    draft.routeBias.originalPlan.decision,
+  )} (${formatRouteBiasConfidence(draft.routeBias.originalPlan.confidence)} confidence).`;
+}
+
+function getCallouts(
+  params: ReturnType<typeof deriveTacticalBoardFromRaceState>,
+  draft: TacticalBoardDraft,
+  safeLegIndex: RaceState["course"]["safeLegIndex"],
+) {
   const { board, legMode, currentWindSource } = params;
   const callouts: string[] = [];
+  const openingBiasCallout = getOpeningBiasCallout(draft, safeLegIndex);
+
+  if (openingBiasCallout) {
+    callouts.push(openingBiasCallout);
+  }
 
   if (legMode === "upwind") {
     if (board.upwind.favoredTack === "even") {
@@ -149,7 +216,10 @@ export function LiveTacticalBoardCard({ raceState }: { raceState: RaceState }) {
   );
   const board = liveBoard.board;
   const status = selectTacticalBoardStatus(board);
-  const callouts = getCallouts(liveBoard).slice(0, isRaceMode ? 2 : 3);
+  const callouts = getCallouts(liveBoard, draft, raceState.course.safeLegIndex).slice(
+    0,
+    isRaceMode ? 2 : 3,
+  );
   const sourceCopy = getSourceCopy({
     currentWindSource: liveBoard.currentWindSource,
     windSourceLabel: raceState.wind.sourceLabel,

@@ -1,4 +1,10 @@
-import type { WindTrend } from "@/data/race/getRouteBiasInputs";
+import type {
+  CurrentSide,
+  EdgeStrength,
+  OpeningLegType,
+  PressureSide,
+  WindTrend,
+} from "@/data/race/getRouteBiasInputs";
 import { getAllCourseIds, getCourseData, getDefaultCourseId } from "@/data/race/getCourseData";
 import { wrap360 } from "@/lib/race/courseTracker";
 import {
@@ -6,6 +12,20 @@ import {
   setTrackerCourseId,
   subscribeStoredTrackerState,
 } from "@/lib/race/legDetection";
+import type {
+  PlanValidityResult,
+  RouteBiasSnapshot,
+  TacticalUpdateAction,
+} from "@/lib/race/checkPlanValidity";
+import type { RouteBiasAnswers } from "@/lib/race/scoreRouteBias";
+
+export type TacticalBoardRouteBiasState = {
+  originalAnswers: RouteBiasAnswers | null;
+  originalPlan: RouteBiasSnapshot | null;
+  latestAnswers: RouteBiasAnswers | null;
+  latestPlan: RouteBiasSnapshot | null;
+  latestUpdate: PlanValidityResult | null;
+};
 
 export type TacticalBoardDraft = {
   courseId: string;
@@ -18,6 +38,7 @@ export type TacticalBoardDraft = {
   lineStarboardEndBearingDeg: string;
   downwindTrueWindAngleDeg: string;
   windTrend: WindTrend;
+  routeBias: TacticalBoardRouteBiasState;
 };
 
 const KNOWN_COURSE_IDS = new Set(getAllCourseIds());
@@ -46,6 +67,59 @@ function isWindTrend(value: unknown): value is WindTrend {
     value === "unknown";
 }
 
+function isOpeningLegType(value: unknown): value is OpeningLegType {
+  return value === "mostly_upwind" ||
+    value === "close_reach" ||
+    value === "beam_reach" ||
+    value === "broad_reach" ||
+    value === "unknown";
+}
+
+function isPressureSide(value: unknown): value is PressureSide {
+  return value === "shore" || value === "bay" || value === "even" || value === "unclear";
+}
+
+function isCurrentSide(value: unknown): value is CurrentSide {
+  return value === "shore_less_adverse" ||
+    value === "bay_less_adverse" ||
+    value === "shore_more_favorable" ||
+    value === "bay_more_favorable" ||
+    value === "even" ||
+    value === "unclear";
+}
+
+function isEdgeStrength(value: unknown): value is EdgeStrength {
+  return value === "strong" ||
+    value === "moderate" ||
+    value === "weak" ||
+    value === "unclear";
+}
+
+function isRouteBiasDecision(value: unknown): value is RouteBiasSnapshot["decision"] {
+  return value === "shore_first" ||
+    value === "bay_first" ||
+    value === "neutral" ||
+    value === "mixed_signal";
+}
+
+function isRouteBiasConfidence(value: unknown): value is RouteBiasSnapshot["confidence"] {
+  return value === "low" || value === "medium" || value === "high";
+}
+
+function isPlanValidityState(value: unknown): value is PlanValidityResult["validityState"] {
+  return value === "on_plan" ||
+    value === "plan_weakening" ||
+    value === "plan_invalidated" ||
+    value === "new_edge_detected";
+}
+
+function isTacticalUpdateAction(value: unknown): value is TacticalUpdateAction {
+  return value === "hold_course" ||
+    value === "stay_flexible" ||
+    value === "prepare_to_change_side_bias" ||
+    value === "change_side_bias";
+}
+
 function normalizeCourseId(value: unknown) {
   return typeof value === "string" && KNOWN_COURSE_IDS.has(value)
     ? value
@@ -59,6 +133,122 @@ function readLinkedCourseId() {
 
 function sanitizeText(value: unknown, fallback = "") {
   return typeof value === "string" ? value : fallback;
+}
+
+function sanitizeStringList(value: unknown) {
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === "string")
+    : [];
+}
+
+function sanitizeNumber(value: unknown, fallback = 0) {
+  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+}
+
+function sanitizeRouteBiasAnswers(value: unknown): RouteBiasAnswers | null {
+  if (!value || typeof value !== "object") return null;
+
+  const input = value as Partial<RouteBiasAnswers>;
+  const courseId = normalizeCourseId(input.courseId);
+  const windDirectionDeg =
+    typeof input.windDirectionDeg === "number" && Number.isFinite(input.windDirectionDeg)
+      ? wrap360(input.windDirectionDeg)
+      : null;
+  const windSpeedKt =
+    typeof input.windSpeedKt === "number" && Number.isFinite(input.windSpeedKt)
+      ? input.windSpeedKt
+      : null;
+
+  if (
+    windDirectionDeg == null ||
+    windSpeedKt == null ||
+    !isOpeningLegType(input.openingLegType) ||
+    !isWindTrend(input.windTrend) ||
+    !isPressureSide(input.pressureSide) ||
+    !isCurrentSide(input.currentSide) ||
+    !isEdgeStrength(input.edgeStrength)
+  ) {
+    return null;
+  }
+
+  return {
+    courseId,
+    openingLegType: input.openingLegType,
+    windDirectionDeg,
+    windSpeedKt,
+    windTrend: input.windTrend,
+    pressureSide: input.pressureSide,
+    currentSide: input.currentSide,
+    edgeStrength: input.edgeStrength,
+  };
+}
+
+function sanitizeRouteBiasPlan(value: unknown): RouteBiasSnapshot | null {
+  if (!value || typeof value !== "object") return null;
+
+  const input = value as Partial<RouteBiasSnapshot>;
+  if (!isRouteBiasDecision(input.decision) || !isRouteBiasConfidence(input.confidence)) {
+    return null;
+  }
+
+  return {
+    decision: input.decision,
+    confidence: input.confidence,
+    shoreScore: sanitizeNumber(input.shoreScore),
+    bayScore: sanitizeNumber(input.bayScore),
+    reasons: sanitizeStringList(input.reasons),
+    warnings: sanitizeStringList(input.warnings),
+  };
+}
+
+function sanitizeRouteBiasUpdate(value: unknown): PlanValidityResult | null {
+  if (!value || typeof value !== "object") return null;
+
+  const input = value as Partial<PlanValidityResult>;
+  if (
+    !isPlanValidityState(input.validityState) ||
+    !isTacticalUpdateAction(input.action) ||
+    !isRouteBiasConfidence(input.confidence)
+  ) {
+    return null;
+  }
+
+  return {
+    validityState: input.validityState,
+    action: input.action,
+    confidence: input.confidence,
+    reasons: sanitizeStringList(input.reasons),
+    warnings: sanitizeStringList(input.warnings),
+    scoreDelta: {
+      shore: sanitizeNumber(input.scoreDelta?.shore),
+      bay: sanitizeNumber(input.scoreDelta?.bay),
+    },
+  };
+}
+
+function createEmptyRouteBiasState(): TacticalBoardRouteBiasState {
+  return {
+    originalAnswers: null,
+    originalPlan: null,
+    latestAnswers: null,
+    latestPlan: null,
+    latestUpdate: null,
+  };
+}
+
+function sanitizeRouteBiasState(value: unknown): TacticalBoardRouteBiasState {
+  if (!value || typeof value !== "object") {
+    return createEmptyRouteBiasState();
+  }
+
+  const input = value as Partial<TacticalBoardRouteBiasState>;
+  return {
+    originalAnswers: sanitizeRouteBiasAnswers(input.originalAnswers),
+    originalPlan: sanitizeRouteBiasPlan(input.originalPlan),
+    latestAnswers: sanitizeRouteBiasAnswers(input.latestAnswers),
+    latestPlan: sanitizeRouteBiasPlan(input.latestPlan),
+    latestUpdate: sanitizeRouteBiasUpdate(input.latestUpdate),
+  };
 }
 
 function courseSeed(courseId: string) {
@@ -86,6 +276,38 @@ function applyCourseToDraft(draft: TacticalBoardDraft, courseId: string): Tactic
     tackAngleDeg: draft.tackAngleDeg,
     downwindTrueWindAngleDeg: draft.downwindTrueWindAngleDeg,
     windTrend: draft.windTrend,
+  };
+}
+
+function syncDraftCoreFromRouteBiasAnswers(
+  draft: TacticalBoardDraft,
+  answers: RouteBiasAnswers,
+  options: {
+    updateMeanWind: boolean;
+    updateCurrentWind: boolean;
+  },
+): TacticalBoardDraft {
+  const normalizedAnswers = {
+    ...answers,
+    courseId: normalizeCourseId(answers.courseId),
+    windDirectionDeg: wrap360(answers.windDirectionDeg),
+  };
+  const courseAlignedDraft =
+    draft.courseId === normalizedAnswers.courseId
+      ? draft
+      : applyCourseToDraft(draft, normalizedAnswers.courseId);
+  const windDirectionText = String(Math.round(normalizedAnswers.windDirectionDeg));
+
+  return {
+    ...courseAlignedDraft,
+    courseId: normalizedAnswers.courseId,
+    meanWindDirectionDeg: options.updateMeanWind
+      ? windDirectionText
+      : courseAlignedDraft.meanWindDirectionDeg,
+    currentWindDirectionDeg: options.updateCurrentWind
+      ? windDirectionText
+      : courseAlignedDraft.currentWindDirectionDeg,
+    windTrend: normalizedAnswers.windTrend,
   };
 }
 
@@ -123,6 +345,7 @@ function sanitizeDraft(input: Partial<TacticalBoardDraft> | null | undefined): T
       defaults.downwindTrueWindAngleDeg,
     ),
     windTrend: isWindTrend(input?.windTrend) ? input.windTrend : defaults.windTrend,
+    routeBias: sanitizeRouteBiasState(input?.routeBias),
   };
 }
 
@@ -197,6 +420,7 @@ export function buildTacticalBoardDraftDefaults(courseId: string): TacticalBoard
     lineStarboardEndBearingDeg: "",
     downwindTrueWindAngleDeg: "135",
     windTrend: "unknown",
+    routeBias: createEmptyRouteBiasState(),
   };
 }
 
@@ -294,4 +518,80 @@ export function copyTacticalBoardMeanWindToCurrentWind() {
     ...current,
     currentWindDirectionDeg: current.meanWindDirectionDeg,
   }));
+}
+
+export function setTacticalBoardRouteBiasPlan(
+  input: {
+    answers: RouteBiasAnswers;
+    plan: RouteBiasSnapshot;
+  },
+  options: { syncTracker?: boolean } = {},
+) {
+  const normalizedAnswers = sanitizeRouteBiasAnswers(input.answers) ?? {
+    ...input.answers,
+    courseId: normalizeCourseId(input.answers.courseId),
+    windDirectionDeg: wrap360(input.answers.windDirectionDeg),
+  };
+  const sanitizedPlan = sanitizeRouteBiasPlan(input.plan) ?? input.plan;
+  const nextDraft = updateTacticalBoardDraft((current) => ({
+    ...syncDraftCoreFromRouteBiasAnswers(current, normalizedAnswers, {
+      updateMeanWind: true,
+      updateCurrentWind: true,
+    }),
+    routeBias: {
+      originalAnswers: normalizedAnswers,
+      originalPlan: sanitizedPlan,
+      latestAnswers: normalizedAnswers,
+      latestPlan: sanitizedPlan,
+      latestUpdate: null,
+    },
+  }));
+
+  if (options.syncTracker !== false) {
+    const tracker = getStoredTrackerStateSnapshot();
+    if (tracker.courseId !== normalizedAnswers.courseId) {
+      setTrackerCourseId(normalizedAnswers.courseId);
+    }
+  }
+
+  return nextDraft;
+}
+
+export function setTacticalBoardRouteBiasLatest(
+  input: {
+    answers: RouteBiasAnswers;
+    latestPlan: RouteBiasSnapshot;
+    latestUpdate: PlanValidityResult;
+  },
+  options: { syncTracker?: boolean } = {},
+) {
+  const normalizedAnswers = sanitizeRouteBiasAnswers(input.answers) ?? {
+    ...input.answers,
+    courseId: normalizeCourseId(input.answers.courseId),
+    windDirectionDeg: wrap360(input.answers.windDirectionDeg),
+  };
+  const sanitizedPlan = sanitizeRouteBiasPlan(input.latestPlan) ?? input.latestPlan;
+  const sanitizedUpdate = sanitizeRouteBiasUpdate(input.latestUpdate) ?? input.latestUpdate;
+  const nextDraft = updateTacticalBoardDraft((current) => ({
+    ...syncDraftCoreFromRouteBiasAnswers(current, normalizedAnswers, {
+      updateMeanWind: false,
+      updateCurrentWind: true,
+    }),
+    routeBias: {
+      originalAnswers: current.routeBias.originalAnswers,
+      originalPlan: current.routeBias.originalPlan,
+      latestAnswers: normalizedAnswers,
+      latestPlan: sanitizedPlan,
+      latestUpdate: sanitizedUpdate,
+    },
+  }));
+
+  if (options.syncTracker !== false) {
+    const tracker = getStoredTrackerStateSnapshot();
+    if (tracker.courseId !== normalizedAnswers.courseId) {
+      setTrackerCourseId(normalizedAnswers.courseId);
+    }
+  }
+
+  return nextDraft;
 }

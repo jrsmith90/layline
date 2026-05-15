@@ -12,7 +12,13 @@ import {
   getAllCourseIds,
   getCourseData,
 } from "@/data/race/getCourseData";
+import type { TacticalUpdateAction } from "@/lib/race/checkPlanValidity";
 import { wrap360 } from "@/lib/race/courseTracker";
+import type {
+  RouteBiasAnswers,
+  RouteBiasConfidence,
+  RouteBiasDecision,
+} from "@/lib/race/scoreRouteBias";
 import { deriveTacticalBoard } from "@/lib/race/tacticalBoard/deriveTacticalBoard";
 import {
   selectPrimaryCalls,
@@ -115,6 +121,46 @@ function getSideCopy(value: string) {
   }
 }
 
+function formatRouteBiasDecision(decision: RouteBiasDecision) {
+  switch (decision) {
+    case "shore_first":
+      return "Favor shore early";
+    case "bay_first":
+      return "Favor bay early";
+    case "neutral":
+      return "Stay central";
+    case "mixed_signal":
+      return "Mixed signal";
+    default:
+      return decision;
+  }
+}
+
+function formatRouteBiasConfidence(confidence: RouteBiasConfidence) {
+  return confidence.charAt(0).toUpperCase() + confidence.slice(1);
+}
+
+function formatUpdateAction(action: TacticalUpdateAction) {
+  switch (action) {
+    case "hold_course":
+      return "Hold course";
+    case "stay_flexible":
+      return "Stay flexible";
+    case "prepare_to_change_side_bias":
+      return "Prepare to shift";
+    case "change_side_bias":
+      return "Change side bias";
+    default:
+      return action;
+  }
+}
+
+function describeRouteBiasSample(answers?: RouteBiasAnswers | null) {
+  if (!answers) return "No sample";
+
+  return `${Math.round(answers.windDirectionDeg)} deg, ${answers.windTrend}`;
+}
+
 export default function TacticalBoard() {
   const { isRaceMode } = useAppMode();
   const [draft, setDraft] = useState<TacticalBoardDraft>(() => getStoredTacticalBoardDraft());
@@ -144,6 +190,10 @@ export default function TacticalBoard() {
   const status = selectTacticalBoardStatus(board);
   const shiftHeadline = selectShiftHeadline(board);
   const lineHeadline = selectStartLineHeadline(board);
+  const openingBiasPlan = draft.routeBias.originalPlan;
+  const currentBiasPlan = draft.routeBias.latestPlan ?? openingBiasPlan;
+  const openingBiasUpdate = draft.routeBias.latestUpdate;
+  const openingBiasSample = draft.routeBias.latestAnswers ?? draft.routeBias.originalAnswers;
 
   useEffect(() => {
     return subscribeTacticalBoardStore(() => {
@@ -357,6 +407,103 @@ export default function TacticalBoard() {
                 lock in mean wind, line bearings, and mark geometry, then let the live
                 cockpit and tracker layer current wind and active-leg context on top.
               </p>
+            )}
+          </section>
+
+          <section className="layline-panel p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-start gap-3">
+                <Route className="mt-1 text-[color:var(--muted)]" size={18} />
+                <div>
+                  <div className="layline-kicker">Opening Bias</div>
+                  <h2 className="mt-1 text-2xl font-black tracking-tight">Route Plan</h2>
+                </div>
+              </div>
+              <Link
+                href="/race/pre-race"
+                className="rounded-lg border border-[color:var(--divider)] bg-black/20 px-3 py-2 text-xs font-bold uppercase tracking-[0.16em]"
+              >
+                Edit Plan
+              </Link>
+            </div>
+
+            {openingBiasPlan ? (
+              <>
+                <div className="mt-4 grid gap-3 md:grid-cols-3">
+                  <MetricCard
+                    label="Baseline Call"
+                    value={formatRouteBiasDecision(openingBiasPlan.decision)}
+                  />
+                  <MetricCard
+                    label="Current Check"
+                    value={
+                      currentBiasPlan
+                        ? formatRouteBiasDecision(currentBiasPlan.decision)
+                        : "No check yet"
+                    }
+                  />
+                  <MetricCard
+                    label="Update Action"
+                    value={
+                      openingBiasUpdate
+                        ? formatUpdateAction(openingBiasUpdate.action)
+                        : "Hold baseline"
+                    }
+                  />
+                </div>
+
+                <div className="mt-3 grid gap-3 md:grid-cols-3">
+                  <MetricCard
+                    label="Baseline Confidence"
+                    value={formatRouteBiasConfidence(openingBiasPlan.confidence)}
+                  />
+                  <MetricCard
+                    label="Current Confidence"
+                    value={
+                      currentBiasPlan
+                        ? formatRouteBiasConfidence(currentBiasPlan.confidence)
+                        : "--"
+                    }
+                  />
+                  <MetricCard
+                    label="Latest Sample"
+                    value={describeRouteBiasSample(openingBiasSample)}
+                  />
+                </div>
+
+                <div className="mt-4 space-y-2 text-sm leading-6 text-[color:var(--text-soft)]">
+                  {(openingBiasUpdate?.reasons.length
+                    ? openingBiasUpdate.reasons
+                    : currentBiasPlan?.reasons ?? []
+                  )
+                    .slice(0, 3)
+                    .map((reason) => (
+                      <div key={reason}>{reason}</div>
+                    ))}
+                  {(openingBiasUpdate?.warnings.length
+                    ? openingBiasUpdate.warnings
+                    : currentBiasPlan?.warnings ?? []
+                  )
+                    .slice(0, 2)
+                    .map((warning) => (
+                      <div key={warning} className="text-amber-200/90">
+                        {warning}
+                      </div>
+                    ))}
+                </div>
+
+                {!isRaceMode && (
+                  <p className="mt-4 text-sm leading-6 text-[color:var(--muted)]">
+                    The pre-race route-bias workflow now seeds this board&apos;s opening-leg
+                    bias, so the saved call, live check, and cockpit overlay all stay aligned.
+                  </p>
+                )}
+              </>
+            ) : (
+              <div className="mt-4 rounded-xl border border-[color:var(--divider)] bg-black/20 p-4 text-sm leading-6 text-[color:var(--text-soft)]">
+                Lock an opening-leg route-bias plan in Pre-race to carry the first-leg side
+                call into this board and the live overlay.
+              </div>
             )}
           </section>
 
