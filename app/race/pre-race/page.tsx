@@ -5,6 +5,7 @@ import { AppPageHeader } from "@/components/layout/AppPageHeader";
 import { WorkflowQuickLinks } from "@/components/navigation/WorkflowQuickLinks";
 import CoursePreviewCard from "@/components/race/CoursePreviewCard";
 import PreRaceRouteBiasWorkflow from "@/components/race/PreRaceRouteBiasWorkflow";
+import { TacticalBoardContent } from "@/components/race/TacticalBoard";
 
 const RaceConditionsMap = dynamic(
   () => import("@/components/race/RaceConditionsMap"),
@@ -24,8 +25,8 @@ export default function Page() {
       <WorkflowQuickLinks
         title="Next Steps"
         items={[
-          { href: "/race/map", label: "Race Map", detail: "Check chart, current, and wind pattern" },
-          { href: "/weather/current", label: "Current Weather", detail: "Confirm the latest course weather read" },
+          { href: "#conditions-map", label: "Conditions Map", detail: "Jump to the chart, current, and wind view" },
+          { href: "#tactical-board", label: "Tactical Board", detail: "Jump to the saved wind and geometry board" },
           { href: "/race/pre-race/sail-selection", label: "Sail Selection", detail: "Translate the conditions into a sail call" },
           { href: "/race/live", label: "Race Live", detail: "Carry the plan into the cockpit view" },
         ]}
@@ -33,13 +34,25 @@ export default function Page() {
 
       <section className="grid gap-5 xl:grid-cols-[1.1fr_0.9fr]">
         <div className="space-y-5">
-          <RaceConditionsMap />
+          <div id="conditions-map">
+            <RaceConditionsMap />
+          </div>
           <PreRaceRouteBiasWorkflow />
         </div>
 
         <div className="space-y-5">
           <CoursePreviewCard />
         </div>
+      </section>
+
+      <section id="tactical-board" className="space-y-5">
+        <AppPageHeader
+          eyebrow="Pre-Race Tactical Board"
+          title="Keep the saved geometry with the opening plan."
+          description="The manual tactical board now lives inside Pre-Race so the baseline wind, line, and mark setup stay beside the opening-bias workflow instead of in a separate planning screen."
+          badges={["Mean Wind", "Line Bias", "Mark Geometry"]}
+        />
+        <TacticalBoardContent embedded />
       </section>
     </main>
   );

@@ -1,5 +1,5 @@
-import TacticalBoard from "@/components/race/TacticalBoard";
+import { redirect } from "next/navigation";
 
-export default function Page() {
-  return <TacticalBoard />;
+export default function RaceTacticalBoardRedirectPage() {
+  redirect("/race/pre-race#tactical-board");
 }

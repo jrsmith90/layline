@@ -1158,8 +1158,8 @@ export default function TrimJibPage() {
             <Btn tone="danger" onClick={() => ratePending("worse")} disabled={!pendingId}>
               Worse
             </Btn>
-            <BtnLink href="/logs" tone="neutral">
-              Logs
+            <BtnLink href="/race/review#logs" tone="neutral">
+              Review
             </BtnLink>
           </div>
         </div>

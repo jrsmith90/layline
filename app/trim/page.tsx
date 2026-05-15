@@ -46,7 +46,7 @@ export default function TrimHubPage() {
           <BtnLink href="/troubleshoot/slow" tone="amber">
             I’M SLOW
           </BtnLink>
-          <BtnLink href="/logs" tone="neutral">
+          <BtnLink href="/race/review#logs" tone="neutral">
             Review Logs
           </BtnLink>
         </div>

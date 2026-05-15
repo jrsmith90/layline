@@ -6,6 +6,7 @@ import { ArrowLeft, Home } from "lucide-react";
 import { useDisplayMode } from "@/components/display/DisplayModeProvider";
 
 const routeTitles = [
+  { prefix: "/library", title: "Library" },
   { prefix: "/race/pre-race/sail-selection", title: "Sail Selection" },
   { prefix: "/race/pre-race", title: "Pre-Race" },
   { prefix: "/race/tactical-board", title: "Tactical Board" },
@@ -18,8 +19,8 @@ const routeTitles = [
   { prefix: "/tactics", title: "Tactics" },
   { prefix: "/trim", title: "Trim" },
   { prefix: "/troubleshoot", title: "Troubleshoot" },
-  { prefix: "/notes", title: "Notes" },
-  { prefix: "/logs", title: "Logs" },
+  { prefix: "/notes", title: "After Action Review" },
+  { prefix: "/logs", title: "After Action Review" },
 ];
 
 export function AppNavigationButtons() {

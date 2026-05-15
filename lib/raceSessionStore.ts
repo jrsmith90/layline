@@ -1107,6 +1107,48 @@ export function attachTrimLogsToSession(id: string, logs: LaylineLog[]) {
   return updated;
 }
 
+export function updateSessionTrimLog(
+  sessionId: string,
+  logId: string,
+  patch: Partial<LaylineLog>,
+) {
+  const session = getRaceSession(sessionId);
+  if (!session || !session.trimLogs.some((log) => log.id === logId)) return session;
+
+  const updated: RaceSession = {
+    ...session,
+    trimLogs: session.trimLogs
+      .map((log) => (log.id === logId ? { ...log, ...patch } : log))
+      .sort((a, b) => b.createdAtISO.localeCompare(a.createdAtISO)),
+  };
+  upsertRaceSession(updated);
+  return updated;
+}
+
+export function deleteSessionTrimLog(sessionId: string, logId: string) {
+  const session = getRaceSession(sessionId);
+  if (!session) return session;
+
+  const updated: RaceSession = {
+    ...session,
+    trimLogs: session.trimLogs.filter((log) => log.id !== logId),
+  };
+  upsertRaceSession(updated);
+  return updated;
+}
+
+export function clearSessionTrimLogs(sessionId: string) {
+  const session = getRaceSession(sessionId);
+  if (!session) return session;
+
+  const updated: RaceSession = {
+    ...session,
+    trimLogs: [],
+  };
+  upsertRaceSession(updated);
+  return updated;
+}
+
 export function attachTackCalibrationsToSession(
   id: string,
   calibrations: TackCalibrationResult[],
@@ -1327,9 +1369,12 @@ export function buildRaceSessionReview(session: RaceSession): RaceSessionReview 
   const buildingWeather = session.weatherSamples.some(
     (sample) => sample.trend === "building",
   );
+  const scorableDecisions = session.decisions.filter(
+    (decision) => decision.kind !== "manual",
+  );
   const assessedDecisions =
-    session.decisions.length > 0
-      ? session.decisions.map((decision) => autoOutcomeForDecision(decision, session.gpsTrack))
+    scorableDecisions.length > 0
+      ? scorableDecisions.map((decision) => autoOutcomeForDecision(decision, session.gpsTrack))
       : buildAutoTrackDecisions(session);
   const incorrectChoices = assessedDecisions.filter(
     (decision) => decision.outcome === "worse" || decision.userAction === "ignored",

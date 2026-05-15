@@ -8,16 +8,7 @@ import {
 } from "@/components/display/DisplayModeProvider";
 import { useAppMode } from "@/components/display/AppModeProvider";
 import { WorkflowQuickLinks } from "@/components/navigation/WorkflowQuickLinks";
-import {
-  CloudSun,
-  Flag,
-  Library,
-  Map,
-  Notebook,
-  Route,
-  Sailboat,
-  Wrench,
-} from "lucide-react";
+import { Flag } from "lucide-react";
 
 const primaryFlow = [
   {
@@ -36,55 +27,10 @@ const primaryFlow = [
     detail: "Replay calls, snapshots, and post-race notes.",
   },
   {
-    href: "/race/tracker",
-    label: "Course Tracker",
-    detail: "Mark progress, layline timing, and manual recovery controls.",
+    href: "/library",
+    label: "Library",
+    detail: "Trim, troubleshooting, tactics, weather, and notes in one support hub.",
   },
-];
-
-const moduleGroups = [
-  {
-    title: "Race Setup",
-    icon: CloudSun,
-    summary: "Plan the race day and build the opening picture before the gun.",
-    items: [
-      { href: "/race/map", label: "Race Map", detail: "Chart, current, and wind map" },
-      { href: "/race/tactical-board", label: "Tactical Board", detail: "Shift memory and target headings" },
-      { href: "/race/pre-race/sail-selection", label: "Sail Selection", detail: "Match sails to the day" },
-      { href: "/weather/current", label: "Current Weather", detail: "Latest course weather feed" },
-    ],
-  },
-  {
-    title: "Live Decisions",
-    icon: Flag,
-    summary: "Keep the next move visible while the race is unfolding.",
-    items: [
-      { href: "/race/live", label: "Race Live", detail: "Primary cockpit display" },
-      { href: "/race/tracker", label: "Course Tracker", detail: "Leg-by-leg mark progress" },
-      { href: "/tactics", label: "Tactics", detail: "Upwind and downwind call support" },
-      { href: "/troubleshoot", label: "Troubleshoot", detail: "Fix speed, control, and lane issues fast" },
-    ],
-  },
-  {
-    title: "Reference Deck",
-    icon: Library,
-    summary: "Reach for trim references and notes without cluttering race-time decisions.",
-    items: [
-      { href: "/trim/main", label: "Main Trim", detail: "Power, balance, and depower" },
-      { href: "/trim/jib", label: "Headsail Trim", detail: "Lead, sheet, and flow" },
-      { href: "/trim/spin", label: "Spinnaker Trim", detail: "Downwind control and pace" },
-      { href: "/notes", label: "Notes", detail: "Keep logs and debrief points together" },
-    ],
-  },
-];
-
-const quickToolLinks = [
-  { href: "/start", label: "Start", icon: Flag },
-  { href: "/race/map", label: "Map", icon: Map },
-  { href: "/trim/main", label: "Trim", icon: Sailboat },
-  { href: "/tactics", label: "Tactics", icon: Route },
-  { href: "/troubleshoot", label: "Fix", icon: Wrench },
-  { href: "/notes", label: "Notes", icon: Notebook },
 ];
 
 export default function HomePage() {
@@ -120,9 +66,9 @@ export default function HomePage() {
                 Keep the next sailing decision obvious.
               </h1>
               <p className="mt-4 max-w-2xl text-sm leading-6 text-[color:var(--text-soft)] sm:text-[0.98rem]">
-                Layline now has enough live tools that the interface needs to steer attention.
-                Start from one clear workflow, keep only the next few decisions visible, and
-                leave the deeper references one step away.
+                Layline now routes everything through four top-level places. The race workflow
+                stays front and center, and the supporting tools live one step away in a calmer
+                library instead of competing with the main decision flow.
               </p>
             </div>
 
@@ -204,83 +150,36 @@ export default function HomePage() {
 
       <WorkflowQuickLinks title="Primary Workflow" items={primaryFlow} />
 
-      <section className="space-y-3">
-        <div className="flex items-center justify-between px-1">
-          <div className="layline-kicker">Quick Tools</div>
-          <div className="text-xs text-[color:var(--muted)]">Fast access</div>
-        </div>
-
-        <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
-          {quickToolLinks.map((item) => {
-            const Icon = item.icon;
-
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className="layline-panel flex flex-col items-center justify-center gap-2 px-3 py-4 text-center transition active:scale-[0.99]"
-              >
-                <Icon size={18} className="text-[color:var(--text-soft)]" />
-                <span className="text-xs font-black uppercase tracking-[0.12em] text-[color:var(--text)]">
-                  {item.label}
-                </span>
+      <section className="layline-panel p-4 sm:p-5">
+        <div className="flex items-start gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[color:var(--divider)] bg-black/20 text-[color:var(--text-soft)]">
+            <Flag size={18} strokeWidth={2.2} />
+          </div>
+          <div>
+            <div className="layline-kicker">Trimmed Structure</div>
+            <h2 className="mt-1 text-lg font-black tracking-tight text-[color:var(--text)]">
+              Everything else now lives behind the main flow.
+            </h2>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-[color:var(--muted)]">
+              Pre-Race owns setup, Race Live owns in-race decisions, Review owns debrief,
+              and Library holds supporting references. You can still jump to the advanced
+              tools from inside those sections, but they no longer crowd the front door.
+            </p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Link href="/race/pre-race" className="layline-chip text-[color:var(--text)]">
+                Pre-Race owns setup
               </Link>
-            );
-          })}
-        </div>
-      </section>
-
-      <section className="space-y-3">
-        <div className="flex items-center justify-between px-1">
-          <div className="layline-kicker">Tool Deck</div>
-          <div className="text-xs text-[color:var(--muted)]">Organized by job</div>
-        </div>
-
-        <div
-          className={[
-            "grid gap-3",
-            isDesktopLayout ? "grid-cols-3" : isWideLayout ? "grid-cols-2" : "grid-cols-1",
-          ].join(" ")}
-        >
-          {moduleGroups.map((group) => {
-            const GroupIcon = group.icon;
-
-            return (
-              <section key={group.title} className="layline-panel p-4">
-                <div className="flex items-start gap-3">
-                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-[color:var(--divider)] bg-black/20 text-[color:var(--text-soft)]">
-                    <GroupIcon size={18} strokeWidth={2.2} />
-                  </div>
-                  <div className="min-w-0">
-                    <h2 className="text-lg font-black tracking-tight text-[color:var(--text)]">
-                      {group.title}
-                    </h2>
-                    <p className="mt-1 text-sm leading-5 text-[color:var(--muted)]">
-                      {group.summary}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="mt-4 grid gap-2">
-                  {group.items.map((item) => (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      className="flex items-start justify-between gap-3 rounded-xl border border-[color:var(--divider)] bg-black/20 px-3 py-3 transition active:scale-[0.99]"
-                    >
-                      <div className="min-w-0">
-                        <div className="text-sm font-black text-[color:var(--text)]">{item.label}</div>
-                        <div className="mt-1 text-xs leading-5 text-[color:var(--muted)]">
-                          {item.detail}
-                        </div>
-                      </div>
-                      <span className="text-sm font-black text-[color:var(--muted)]">→</span>
-                    </Link>
-                  ))}
-                </div>
-              </section>
-            );
-          })}
+              <Link href="/race/live" className="layline-chip text-[color:var(--text)]">
+                Race Live owns live calls
+              </Link>
+              <Link href="/race/review" className="layline-chip text-[color:var(--text)]">
+                Review owns debrief
+              </Link>
+              <Link href="/library" className="layline-chip text-[color:var(--text)]">
+                Library owns references
+              </Link>
+            </div>
+          </div>
         </div>
       </section>
     </main>

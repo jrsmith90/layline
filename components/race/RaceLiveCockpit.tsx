@@ -1080,8 +1080,8 @@ export default function RaceLiveCockpit() {
       />
 
       <div className="flex items-center justify-between px-1 text-xs text-[color:var(--muted)]">
-        <Link href="/race/tracker" className="font-bold uppercase tracking-wide">
-          Full Tracker
+        <Link href="/race/pre-race#tactical-board" className="font-bold uppercase tracking-wide">
+          Pre-Race Board
         </Link>
         <span className="flex items-center gap-1">
           <Flag size={13} />

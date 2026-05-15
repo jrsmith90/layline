@@ -164,6 +164,10 @@ function describeRouteBiasSample(answers?: RouteBiasAnswers | null) {
 }
 
 export default function TacticalBoard() {
+  return <TacticalBoardContent />;
+}
+
+export function TacticalBoardContent({ embedded = false }: { embedded?: boolean }) {
   const { isRaceMode } = useAppMode();
   const draft = useSyncExternalStore(
     subscribeTacticalBoardStore,
@@ -213,9 +217,9 @@ export default function TacticalBoard() {
     copyTacticalBoardMeanWindToCurrentWind();
   }
 
-  return (
-    <main className="mx-auto max-w-5xl space-y-5 px-4 pb-8 pt-4">
-      <LiveInstrumentsPanel context="route" />
+  const content = (
+    <>
+      {!embedded && <LiveInstrumentsPanel context="route" />}
 
       <section className={["layline-panel overflow-hidden p-5", getShiftPanelClasses(board.shift.memoryColor)].join(" ")}>
         <div className="flex flex-wrap items-start justify-between gap-4">
@@ -603,6 +607,16 @@ export default function TacticalBoard() {
           </div>
         </section>
       </div>
+    </>
+  );
+
+  if (embedded) {
+    return <div className="space-y-5">{content}</div>;
+  }
+
+  return (
+    <main className="mx-auto max-w-5xl space-y-5 px-4 pb-8 pt-4">
+      {content}
     </main>
   );
 }

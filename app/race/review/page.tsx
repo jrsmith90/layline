@@ -5,6 +5,12 @@ import { useEffect, useReducer, useState } from "react";
 import { Download, RotateCcw, Trash2 } from "lucide-react";
 import CourseChart from "@/components/race/CourseChart";
 import { formatCourseLabel, getCourseData } from "@/data/race/getCourseData";
+import {
+  deleteLog as deleteStoredLog,
+  rateLog as rateStoredLog,
+  type LaylineLog,
+  type Rating,
+} from "@/lib/logStore";
 import type { RaceStateSnapshot } from "@/lib/race/state/types";
 import {
   selectShiftHeadline,
@@ -13,6 +19,8 @@ import {
 import type { TacticalBoardSnapshot } from "@/lib/race/tacticalBoard/types";
 import {
   buildRaceSessionReview,
+  clearSessionTrimLogs,
+  deleteSessionTrimLog,
   deleteRaceSession,
   downloadTextFile,
   exportRaceSessionJson,
@@ -22,6 +30,7 @@ import {
   recoverTodayRaceSession,
   subscribeRaceSessionStore,
   updateRaceDecision,
+  updateSessionTrimLog,
   type RaceDecisionRecord,
   type RaceSessionRepositoryRecoveryResult,
 } from "@/lib/raceSessionStore";
@@ -240,6 +249,103 @@ function formatDecisionSourceMode(mode?: string) {
   return mode.replace(/_/g, " ");
 }
 
+function logStatusTone(status: LaylineLog["status"]) {
+  if (status === "pending") {
+    return "border-blue-400/30 bg-blue-400/10 text-blue-100";
+  }
+
+  if (status === "unrated") {
+    return "border-amber-300/35 bg-amber-300/10 text-amber-50";
+  }
+
+  return "border-emerald-400/35 bg-emerald-400/10 text-emerald-50";
+}
+
+function formatLogRating(rating?: Rating) {
+  if (!rating) return "--";
+  if (rating === "better") return "Better";
+  if (rating === "same") return "Same";
+  return "Worse";
+}
+
+function escapeCsv(value: string) {
+  return `"${value.replace(/"/g, '""')}"`;
+}
+
+function exportSessionTrimLogsToJson(logs: LaylineLog[]) {
+  return JSON.stringify(logs, null, 2);
+}
+
+function exportSessionTrimLogsToCsv(logs: LaylineLog[]) {
+  const header = [
+    "id",
+    "createdAtISO",
+    "updatedAtISO",
+    "status",
+    "rating",
+    "page",
+    "sailMode",
+    "windDirTrueFromDeg",
+    "windSpeedKt",
+    "boatMode",
+    "symptom",
+    "telltales",
+    "carBefore",
+    "carSuggested",
+    "carDelta",
+    "cogDeg",
+    "sogMps",
+    "accuracyM",
+    "lat",
+    "lon",
+    "logicVersion",
+    "call",
+    "why",
+    "next",
+    "ifthen",
+  ].join(",");
+
+  const rows = logs.map((log) => {
+    const gps = log.gps ?? {
+      lat: null,
+      lon: null,
+      cogDeg: null,
+      sogMps: null,
+      accuracyM: null,
+    };
+
+    return [
+      escapeCsv(log.id),
+      escapeCsv(log.createdAtISO),
+      escapeCsv(log.updatedAtISO),
+      escapeCsv(log.status),
+      escapeCsv(log.rating ?? ""),
+      escapeCsv(log.page),
+      escapeCsv(log.sailMode),
+      escapeCsv(log.windDirTrueFromDeg == null ? "" : String(log.windDirTrueFromDeg)),
+      escapeCsv(log.windSpeedKt == null ? "" : String(log.windSpeedKt)),
+      escapeCsv(log.boatMode ?? ""),
+      escapeCsv(log.symptom),
+      escapeCsv(log.telltales),
+      escapeCsv(String(log.carBefore)),
+      escapeCsv(String(log.carSuggested)),
+      escapeCsv(String(log.carDelta)),
+      escapeCsv(gps.cogDeg == null ? "" : String(gps.cogDeg)),
+      escapeCsv(gps.sogMps == null ? "" : String(gps.sogMps)),
+      escapeCsv(gps.accuracyM == null ? "" : String(gps.accuracyM)),
+      escapeCsv(gps.lat == null ? "" : String(gps.lat)),
+      escapeCsv(gps.lon == null ? "" : String(gps.lon)),
+      escapeCsv(log.logicVersion),
+      escapeCsv(log.recommendation.call),
+      escapeCsv(log.recommendation.why),
+      escapeCsv(log.recommendation.next),
+      escapeCsv(log.recommendation.ifthen),
+    ].join(",");
+  });
+
+  return [header, ...rows].join("\n");
+}
+
 function formatCourseSectionRelevance(value?: string) {
   if (!value) return "--";
 
@@ -297,6 +403,7 @@ export default function RaceReviewPage() {
   const sessions = getRaceSessions();
   const mostRecent = getMostRecentRaceSession();
   const [selectedId, setSelectedId] = useState(mostRecent?.id ?? "");
+  const [logFilter, setLogFilter] = useState<"all" | "pending" | "unrated" | "rated">("all");
   const [recoveryNotice, setRecoveryNotice] = useState<{
     message: string;
     tone: "info" | "warning";
@@ -317,6 +424,19 @@ export default function RaceReviewPage() {
     tacticalBoardReplayFrames.find(
       (snapshot) => snapshot.capturedAtISO === selectedTacticalBoardSnapshotISO,
     ) ?? latestTacticalBoardSnapshot;
+  const manualNotes = session?.decisions.filter((decision) => decision.kind === "manual") ?? [];
+  const trimLogCounts = {
+    all: session?.trimLogs.length ?? 0,
+    pending: session?.trimLogs.filter((log) => log.status === "pending").length ?? 0,
+    unrated: session?.trimLogs.filter((log) => log.status === "unrated").length ?? 0,
+    rated: session?.trimLogs.filter((log) => log.status === "rated").length ?? 0,
+  };
+  const filteredTrimLogs =
+    session == null
+      ? []
+      : logFilter === "all"
+        ? session.trimLogs
+        : session.trimLogs.filter((log) => log.status === logFilter);
 
   useEffect(() => subscribeRaceSessionStore(() => refresh()), []);
 
@@ -358,6 +478,30 @@ export default function RaceReviewPage() {
     deleteRaceSession(id);
     const next = getMostRecentRaceSession();
     setSelectedId(next?.id ?? "");
+    refresh();
+  }
+
+  function rateSessionLog(logId: string, rating: Rating) {
+    if (!session) return;
+    updateSessionTrimLog(session.id, logId, {
+      rating,
+      status: "rated",
+      updatedAtISO: new Date().toISOString(),
+    });
+    rateStoredLog(logId, rating);
+    refresh();
+  }
+
+  function removeSessionLog(logId: string) {
+    if (!session) return;
+    deleteSessionTrimLog(session.id, logId);
+    deleteStoredLog(logId);
+    refresh();
+  }
+
+  function clearLogsForSession() {
+    if (!session) return;
+    clearSessionTrimLogs(session.id);
     refresh();
   }
 
@@ -845,23 +989,206 @@ export default function RaceReviewPage() {
             </div>
           </section>
 
-          <section className="layline-panel p-4">
-            <h2 className="text-xl font-black">Trim Logs From Today</h2>
-            <div className="mt-3 space-y-2">
-              {session.trimLogs.length === 0 && (
-                <p className="text-sm text-[color:var(--muted)]">
-                  No trim logs attached. Use Recover Today on the race phone if you made trim calls.
+          <section id="notes" className="layline-panel scroll-mt-24 p-4">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h2 className="text-xl font-black">Notes</h2>
+                <p className="mt-1 text-sm text-[color:var(--muted)]">
+                  Cockpit notes now live inside review, so debrief stays in one place.
+                </p>
+              </div>
+              <div className="text-xs font-bold uppercase tracking-wide text-[color:var(--muted)]">
+                {manualNotes.length + (session.crewNotes ? 1 : 0)} saved note
+                {manualNotes.length + (session.crewNotes ? 1 : 0) === 1 ? "" : "s"}
+              </div>
+            </div>
+
+            <div className="mt-3 space-y-3">
+              {!session.crewNotes && manualNotes.length === 0 && (
+                <p className="rounded-xl border border-white/10 bg-white/5 p-4 text-sm text-[color:var(--muted)]">
+                  No race notes were saved for this session yet. Manual notes from the live recorder
+                  will show up here automatically.
                 </p>
               )}
-              {session.trimLogs.slice(0, 12).map((log) => (
-                <div key={log.id} className="rounded-xl border border-white/10 bg-black/20 p-3">
-                  <div className="text-sm font-bold">
-                    {formatDateTime(log.createdAtISO)} · {log.symptom} ·{" "}
-                    {log.rating ?? log.status}
+
+              {session.crewNotes && (
+                <div className="rounded-xl border border-white/10 bg-black/20 p-4">
+                  <div className="text-xs font-black uppercase tracking-[0.16em] text-[color:var(--muted)]">
+                    Crew note
                   </div>
-                  <p className="mt-1 text-xs leading-5 text-[color:var(--muted)]">
-                    {log.recommendation.call}
-                  </p>
+                  <p className="mt-2 text-sm leading-6">{session.crewNotes}</p>
+                </div>
+              )}
+
+              {manualNotes.map((note) => (
+                <div key={note.id} className="rounded-xl border border-white/10 bg-black/20 p-4">
+                  <div className="text-xs font-black uppercase tracking-[0.16em] text-[color:var(--muted)]">
+                    {formatDateTime(note.atISO)}
+                  </div>
+                  <h3 className="mt-1 text-sm font-black">{note.label}</h3>
+                  <p className="mt-2 text-sm leading-6">{note.recommendation}</p>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <section id="logs" className="layline-panel scroll-mt-24 p-4">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h2 className="text-xl font-black">Trim Logs</h2>
+                <p className="mt-1 text-sm text-[color:var(--muted)]">
+                  Rate, export, and prune the trim changes attached to this race session.
+                </p>
+              </div>
+              <div className="text-xs font-bold uppercase tracking-wide text-[color:var(--muted)]">
+                {session.trimLogs.length} attached log{session.trimLogs.length === 1 ? "" : "s"}
+              </div>
+            </div>
+
+            <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
+              <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+                {([
+                  ["all", "All"],
+                  ["unrated", "Unrated"],
+                  ["pending", "Pending"],
+                  ["rated", "Rated"],
+                ] as const).map(([value, label]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setLogFilter(value)}
+                    className={[
+                      "rounded-xl border px-3 py-3 text-sm font-black uppercase tracking-wide transition active:scale-[0.98]",
+                      logFilter === value
+                        ? "border-[color:var(--favorable)] bg-[color:var(--favorable)]/15 text-teal-50"
+                        : "border-[color:var(--divider)] bg-black/20 text-[color:var(--text)]",
+                    ].join(" ")}
+                  >
+                    {label} ({trimLogCounts[value]})
+                  </button>
+                ))}
+              </div>
+
+              <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-1">
+                <button
+                  type="button"
+                  onClick={() =>
+                    downloadTextFile(
+                      `layline-trim-logs-${session.startedAtISO.slice(0, 10)}.json`,
+                      exportSessionTrimLogsToJson(session.trimLogs),
+                    )
+                  }
+                  className="rounded-xl border border-[color:var(--divider)] bg-black/20 px-4 py-3 text-sm font-black uppercase tracking-wide"
+                >
+                  Export JSON
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    downloadTextFile(
+                      `layline-trim-logs-${session.startedAtISO.slice(0, 10)}.csv`,
+                      exportSessionTrimLogsToCsv(session.trimLogs),
+                      "text/csv",
+                    )
+                  }
+                  className="rounded-xl border border-[color:var(--divider)] bg-black/20 px-4 py-3 text-sm font-black uppercase tracking-wide"
+                >
+                  Export CSV
+                </button>
+                <button
+                  type="button"
+                  onClick={clearLogsForSession}
+                  className="rounded-xl border border-red-400/35 bg-red-400/10 px-4 py-3 text-sm font-black uppercase tracking-wide text-red-100"
+                >
+                  Clear Session Logs
+                </button>
+              </div>
+            </div>
+
+            <div className="mt-4 space-y-3">
+              {filteredTrimLogs.length === 0 && (
+                <p className="rounded-xl border border-white/10 bg-white/5 p-4 text-sm text-[color:var(--muted)]">
+                  {session.trimLogs.length === 0
+                    ? "No trim logs are attached to this session yet. Recover Today on the race phone if you made trim calls."
+                    : "No logs match this filter right now."}
+                </p>
+              )}
+
+              {filteredTrimLogs.map((log) => (
+                <div key={log.id} className="rounded-xl border border-white/10 bg-black/20 p-4">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <div className="text-sm font-black">{formatDateTime(log.createdAtISO)}</div>
+                      <div className="mt-1 text-xs leading-5 text-[color:var(--muted)]">
+                        {log.page} · {log.sailMode} · Wind {log.windSpeedKt ?? "--"} kt · Dir{" "}
+                        {log.windDirTrueFromDeg ?? "--"} deg
+                      </div>
+                      <div className="text-xs leading-5 text-[color:var(--muted)]">
+                        Symptom {log.symptom} · Telltales {log.telltales}
+                        {log.boatMode ? ` · Boat mode ${log.boatMode}` : ""}
+                      </div>
+                    </div>
+
+                    <div
+                      className={[
+                        "rounded-full border px-3 py-2 text-xs font-black uppercase tracking-wide",
+                        logStatusTone(log.status),
+                      ].join(" ")}
+                    >
+                      {log.status}
+                    </div>
+                  </div>
+
+                  <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-4">
+                    <Metric label="Before" value={String(log.carBefore)} />
+                    <Metric label="Suggested" value={String(log.carSuggested)} />
+                    <Metric
+                      label="Delta"
+                      value={`${log.carDelta >= 0 ? "+" : ""}${log.carDelta}`}
+                    />
+                    <Metric label="Rated" value={formatLogRating(log.rating)} />
+                  </div>
+
+                  <div className="mt-3 rounded-xl border border-white/10 bg-black/30 p-4">
+                    <div className="text-xs font-black uppercase tracking-[0.16em] text-[color:var(--muted)]">
+                      Call
+                    </div>
+                    <div className="mt-2 text-sm leading-6 whitespace-pre-line">
+                      {log.recommendation.call}
+                    </div>
+                  </div>
+
+                  <div className="mt-3 grid grid-cols-3 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => rateSessionLog(log.id, "better")}
+                      className="rounded-xl border border-emerald-400/30 bg-emerald-400/10 px-3 py-2 text-xs font-black uppercase tracking-wide text-emerald-50"
+                    >
+                      Better
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => rateSessionLog(log.id, "same")}
+                      className="rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-xs font-black uppercase tracking-wide"
+                    >
+                      Same
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => rateSessionLog(log.id, "worse")}
+                      className="rounded-xl border border-red-400/30 bg-red-400/10 px-3 py-2 text-xs font-black uppercase tracking-wide text-red-100"
+                    >
+                      Worse
+                    </button>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => removeSessionLog(log.id)}
+                    className="mt-2 w-full rounded-xl border border-[color:var(--divider)] bg-black/20 px-3 py-2 text-xs font-black uppercase tracking-wide"
+                  >
+                    Delete Log
+                  </button>
                 </div>
               ))}
             </div>
