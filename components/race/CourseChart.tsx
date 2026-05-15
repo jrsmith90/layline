@@ -79,8 +79,9 @@ export default function CourseChart({
   title = "Course chart",
   subtitle,
 }: CourseChartProps) {
+  const courseSequence = courseData.course.sequence ?? [];
   const coursePoints =
-    courseData.course.sequence
+    courseSequence
       ?.map<ChartPoint | null>((markId) => {
         const mark = courseData.marks[markId];
         return mark
@@ -94,6 +95,7 @@ export default function CourseChart({
           : null;
       })
       .filter((point): point is ChartPoint => point != null) ?? [];
+  const courseMarkPoints = [...new Map(coursePoints.map((point) => [point.id, point])).values()];
   const trackPoints = track
     .filter((point) => Number.isFinite(point.lat) && Number.isFinite(point.lon))
     .map((point) => ({ lat: point.lat, lon: point.lon }));
@@ -222,7 +224,7 @@ export default function CourseChart({
             );
           })}
 
-          {coursePoints.map((point, index) => {
+          {courseMarkPoints.map((point, index) => {
             const plotted = project(point, bounds);
             return (
               <g key={`${point.id ?? point.label ?? "mark"}-${index}`}>

@@ -45,6 +45,7 @@ export type CourseSummary = {
   totalDistanceNmCalculated: number | null;
   startFinishMark: MarkId;
   specialRoutingNotes: string[];
+  specialRoutingConstraints: RaceCourseGeometry["specialRoutingConstraints"];
 };
 
 function getFirstRaceDate(dates: string) {
@@ -165,7 +166,8 @@ export function getCourseData(courseId: string): CourseSummary {
     totalDistanceNmSI: course.distanceNmSI,
     totalDistanceNmCalculated: course.distanceNmCalculated,
     startFinishMark: resolved.courseGeometry.startFinishMark as MarkId,
-    specialRoutingNotes: resolved.courseGeometry.specialRoutingNotes
+    specialRoutingNotes: resolved.courseGeometry.specialRoutingNotes,
+    specialRoutingConstraints: resolved.courseGeometry.specialRoutingConstraints,
   };
 }
 

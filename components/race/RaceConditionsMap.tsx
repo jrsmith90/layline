@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import {
   CircleMarker,
   MapContainer,
@@ -135,6 +135,10 @@ const WIND_MARKERS: WindMarker[] = [
     role: "Bottom-of-course wind reference",
   },
 ];
+
+function subscribeNever() {
+  return () => {};
+}
 
 type MapBounds = {
   center: [number, number];
@@ -309,14 +313,22 @@ export default function RaceConditionsMap() {
   const [payload, setPayload] = useState<TideCurrentPayload | null>(null);
   const [windPayload, setWindPayload] = useState<LiveWeatherPayload | null>(null);
   const [snapshotIndex, setSnapshotIndex] = useState(4);
-  const [isMapClientReady, setIsMapClientReady] = useState(false);
+  const isMapClientReady = useSyncExternalStore(
+    subscribeNever,
+    () => true,
+    () => false,
+  );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const courseData = useMemo(() => getCourseData(courseId), [courseId]);
-
-  useEffect(() => {
-    setIsMapClientReady(true);
-  }, []);
+  const courseSequence = useMemo(
+    () => courseData.course.sequence ?? [],
+    [courseData.course.sequence],
+  );
+  const courseMarkerIds = useMemo(
+    () => [...new Set(courseSequence)],
+    [courseSequence],
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -398,11 +410,11 @@ export default function RaceConditionsMap() {
 
   const coursePositions = useMemo(
     () =>
-      (courseData.course.sequence ?? [])
+      courseSequence
       .map((id) => courseData.marks[id])
       .filter((m) => m != null)
       .map((mark) => [mark.lat, mark.lon] as [number, number]),
-    [courseData],
+    [courseData.marks, courseSequence],
   );
 
   const windStations = useMemo<WindMarker[]>(() => {
@@ -468,7 +480,7 @@ export default function RaceConditionsMap() {
       ],
       zoom: 12,
     };
-  }, [coursePositions, currentStations, payload?.tide.lat, payload?.tide.lon, windStations]);
+  }, [coursePositions, currentStations, payload, windStations]);
 
   return (
     <section className="layline-panel overflow-hidden">
@@ -559,13 +571,13 @@ export default function RaceConditionsMap() {
                   />
                 ) : null}
 
-                {(courseData.course.sequence ?? []).map((markId, index) => {
+                {courseMarkerIds.map((markId) => {
                   const mark = courseData.marks[markId];
                   if (!mark) return null;
 
                   return (
                     <CircleMarker
-                      key={`${markId}-${index}`}
+                      key={markId}
                       center={[mark.lat, mark.lon]}
                       radius={5}
                       pathOptions={{

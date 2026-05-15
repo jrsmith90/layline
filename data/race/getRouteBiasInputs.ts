@@ -1,6 +1,5 @@
-
-
 import { formatCourseLabel, getAllCourseIds, getCourseCode, getCourseData } from "./getCourseData";
+import type { RaceCourseConstraintRecord } from "./eventDatabase";
 
 export type RouteBiasCourseType =
   | "local_short"
@@ -68,10 +67,22 @@ export type RouteBiasInputModel = {
     edgeStrength: RouteBiasPrompt<EdgeStrength>;
   };
   notes: string[];
+  routingConstraints: RaceCourseConstraintRecord[];
 };
 
 function getCourseType(courseId: string): RouteBiasCourseType {
+  const course = getCourseData(courseId);
   const courseCode = getCourseCode(courseId);
+
+  if (
+    course.eventId === "2026-scc-ewe-spirit-cup-annapolis-md" &&
+    (courseCode === "short" ||
+      courseCode === "shortR" ||
+      courseCode === "medium" ||
+      courseCode === "mediumR")
+  ) {
+    return "channel_mid";
+  }
 
   if (courseCode === "99") return "custom";
   if (courseCode === "short" || courseCode === "shortR") return "local_short";
@@ -84,7 +95,24 @@ function getCourseType(courseId: string): RouteBiasCourseType {
 }
 
 function getCourseNotes(courseId: string): string[] {
-  switch (getCourseCode(courseId)) {
+  const course = getCourseData(courseId);
+  const courseCode = getCourseCode(courseId);
+
+  if (
+    course.eventId === "2026-scc-ewe-spirit-cup-annapolis-md" &&
+    (courseCode === "short" ||
+      courseCode === "shortR" ||
+      courseCode === "medium" ||
+      courseCode === "mediumR")
+  ) {
+    return [
+      'Treat this as the EWE pursuit triangle using GC "7", G "91", and G "WR87".',
+      "All three EWE pursuit choices now use the same open-bay triangle geometry in the app overlay.",
+      "Confirm final course direction and pursuit start time before leaving the dock.",
+    ];
+  }
+
+  switch (courseCode) {
     case "short":
     case "shortR":
       return [
@@ -240,6 +268,7 @@ export function getRouteBiasInputs(courseId: string): RouteBiasInputModel {
         ]
       }
     },
-    notes: getCourseNotes(courseId)
+    notes: getCourseNotes(courseId),
+    routingConstraints: course.specialRoutingConstraints,
   };
 }

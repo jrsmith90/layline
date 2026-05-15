@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { formatCourseLabel, getAllCourseIds, getCourseData, getDefaultCourseId } from "@/data/race/getCourseData";
 import CourseChart from "@/components/race/CourseChart";
+import { RoutingConstraintsList } from "@/components/race/RoutingConstraintsList";
 
 const courseIds = getAllCourseIds();
 
@@ -49,6 +50,20 @@ export default function CoursePreviewCard() {
             : "Course sequence unavailable"
         }
       />
+
+      {courseData.specialRoutingConstraints.length > 0 && (
+        <section className="layline-panel p-4">
+          <div className="layline-kicker">Routing</div>
+          <h2 className="mt-1 text-xl font-black">Hard course constraints</h2>
+          <p className="mt-1 text-sm text-[color:var(--muted)]">
+            Keep these reference marks on the channel side regardless of which way the
+            triangle is sailed.
+          </p>
+          <div className="mt-4">
+            <RoutingConstraintsList constraints={courseData.specialRoutingConstraints} />
+          </div>
+        </section>
+      )}
     </div>
   );
 }

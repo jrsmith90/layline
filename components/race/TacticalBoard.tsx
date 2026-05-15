@@ -5,6 +5,7 @@ import { useMemo, useSyncExternalStore } from "react";
 import { Flag, Route, Sailboat, Wind } from "lucide-react";
 import { useAppMode } from "@/components/display/AppModeProvider";
 import { LiveInstrumentsPanel } from "@/components/gps/LiveInstrumentsPanel";
+import { RoutingConstraintsList } from "@/components/race/RoutingConstraintsList";
 import type { WindTrend } from "@/data/race/getRouteBiasInputs";
 import { getRouteBiasInputs } from "@/data/race/getRouteBiasInputs";
 import {
@@ -505,6 +506,18 @@ export function TacticalBoardContent({ embedded = false }: { embedded?: boolean 
                 value={formatDistance(board.course.totalDistanceNm)}
               />
             </div>
+            {board.course.summary.specialRoutingConstraints.length > 0 && (
+              <div className="mt-4">
+                <div className="text-xs font-black uppercase tracking-[0.18em] text-[color:var(--muted)]">
+                  Routing Constraints
+                </div>
+                <div className="mt-3">
+                  <RoutingConstraintsList
+                    constraints={board.course.summary.specialRoutingConstraints}
+                  />
+                </div>
+              </div>
+            )}
             <div className="mt-4 space-y-2 text-sm leading-6 text-[color:var(--text-soft)]">
               {routeBiasInputModel.notes.map((note) => (
                 <div key={note}>{note}</div>
