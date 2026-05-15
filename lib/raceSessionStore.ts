@@ -1,7 +1,14 @@
 "use client";
 
 import type { MarkProgressCall, MarkProgressResult } from "@/lib/race/courseTracker";
-import type { RaceState, RaceStateSnapshot } from "@/lib/race/state/types";
+import type {
+  RaceState,
+  RaceStateConfidenceLevel,
+  RaceStateSnapshot,
+  RaceStateSourceFreshness,
+  RaceStateSourceStatus,
+  RaceStateWindSourceMode,
+} from "@/lib/race/state/types";
 import type { GpsTrackPoint } from "@/lib/useGpsCourse";
 import type { LaylineLog } from "@/lib/logStore";
 import { getLogs } from "@/lib/logStore";
@@ -46,6 +53,30 @@ export type RaceWeatherSample = {
   trend?: "building" | "easing" | "steady" | "unknown";
 };
 
+export type RaceDecisionCourseSectionRelevance =
+  | "local_to_boat"
+  | "top_of_course"
+  | "bottom_of_course"
+  | "river_corridor"
+  | "manual_override";
+
+export type RaceDecisionWeatherSourceMeta = {
+  sourceId: string;
+  sourceMode: RaceStateWindSourceMode;
+  sourceLabel: string;
+  sourceDetail: string;
+  sourceObservedAt: string | null;
+  courseSectionRelevance: RaceDecisionCourseSectionRelevance;
+  freshness: RaceStateSourceFreshness;
+  confidence: RaceStateConfidenceLevel;
+  status: RaceStateSourceStatus;
+};
+
+export type RaceDecisionSourceMeta = {
+  overallConfidence: RaceStateConfidenceLevel;
+  weather: RaceDecisionWeatherSourceMeta;
+};
+
 export type RaceDecisionRecord = {
   id: string;
   atISO: string;
@@ -53,6 +84,7 @@ export type RaceDecisionRecord = {
   label: string;
   recommendation: string;
   inputs?: Record<string, unknown>;
+  sourceMeta?: RaceDecisionSourceMeta;
   userAction?: "followed" | "ignored" | "modified";
   outcome?: "better" | "same" | "worse";
   coachingNote?: string;
@@ -475,6 +507,61 @@ function trimRaceStateSnapshots(snapshots: RaceStateSnapshot[]) {
     .slice()
     .sort((left, right) => left.capturedAtISO.localeCompare(right.capturedAtISO))
     .slice(-MAX_RACE_STATE_SNAPSHOTS);
+}
+
+function getDecisionWeatherSourceId(state: RaceState) {
+  switch (state.wind.sourceMode) {
+    case "nearest": {
+      const nearestId = state.wind.sourceLabel.trim().match(/^([A-Za-z0-9_-]+)/)?.[1];
+      return nearestId || "nearest_wind_marker";
+    }
+    case "top":
+      return "cbibs_annapolis";
+    case "bottom":
+      return "thomas_point";
+    case "river":
+      return "knak";
+    case "manual":
+      return "manual_override";
+    default:
+      return "unknown_wind_source";
+  }
+}
+
+function getDecisionCourseSectionRelevance(
+  sourceMode: RaceStateWindSourceMode,
+): RaceDecisionCourseSectionRelevance {
+  switch (sourceMode) {
+    case "nearest":
+      return "local_to_boat";
+    case "top":
+      return "top_of_course";
+    case "bottom":
+      return "bottom_of_course";
+    case "river":
+      return "river_corridor";
+    case "manual":
+      return "manual_override";
+    default:
+      return "local_to_boat";
+  }
+}
+
+export function buildRaceDecisionSourceMeta(state: RaceState): RaceDecisionSourceMeta {
+  return {
+    overallConfidence: state.confidence.overall,
+    weather: {
+      sourceId: getDecisionWeatherSourceId(state),
+      sourceMode: state.wind.sourceMode,
+      sourceLabel: state.wind.sourceLabel,
+      sourceDetail: state.wind.sourceDetail,
+      sourceObservedAt: state.wind.observedAt,
+      courseSectionRelevance: getDecisionCourseSectionRelevance(state.wind.sourceMode),
+      freshness: state.sources.wind.freshness,
+      confidence: state.confidence.wind,
+      status: state.sources.wind.status,
+    },
+  };
 }
 
 function toRaceStateSnapshotProgress(

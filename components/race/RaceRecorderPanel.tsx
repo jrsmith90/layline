@@ -12,6 +12,7 @@ import {
   appendRaceWeatherSample,
   attachTackCalibrationsToSession,
   attachTrimLogsToSession,
+  buildRaceDecisionSourceMeta,
   downloadTextFile,
   endRaceSession,
   exportRaceSessionJson,
@@ -21,6 +22,7 @@ import {
   startRaceSession,
   subscribeRaceSessionStore,
   syncRaceSessionsFromRepository,
+  type RaceDecisionSourceMeta,
   type RaceStateSnapshotCaptureInput,
   type RaceWeatherSample,
 } from "@/lib/raceSessionStore";
@@ -58,6 +60,7 @@ export type RecorderDecisionInput = {
   label: string;
   recommendation: string;
   inputs?: Record<string, unknown>;
+  sourceMeta?: RaceDecisionSourceMeta;
 };
 
 type RaceRecorderPanelProps = {
@@ -114,6 +117,12 @@ export function RaceRecorderPanel({
   const activeSession = getActiveRaceSession();
   const effectiveSessionId = activeSession?.id ?? sessionId;
   const session = effectiveSessionId ? getRaceSession(effectiveSessionId) : null;
+  const decisionSourceMeta = useMemo(
+    () =>
+      currentDecision?.sourceMeta ??
+      (raceStateCapture ? buildRaceDecisionSourceMeta(raceStateCapture.state) : undefined),
+    [currentDecision, raceStateCapture],
+  );
 
   useEffect(() => subscribeRaceSessionStore(() => refresh()), []);
 
@@ -135,11 +144,26 @@ export function RaceRecorderPanel({
   useEffect(() => {
     if (!effectiveSessionId || session?.status !== "active" || !currentDecision) return;
 
+    const sourceMeta = decisionSourceMeta;
+    const courseIdValue =
+      typeof currentDecision.inputs?.courseId === "string" ? currentDecision.inputs.courseId : "";
+    const legIndexValue =
+      typeof currentDecision.inputs?.legIndex === "number"
+        ? String(currentDecision.inputs.legIndex)
+        : "";
+    const callValue =
+      typeof currentDecision.inputs?.call === "string" ? currentDecision.inputs.call : "";
     const key = [
       currentDecision.kind,
       currentDecision.label,
       currentDecision.recommendation,
-      JSON.stringify(currentDecision.inputs ?? {}),
+      courseIdValue,
+      legIndexValue,
+      callValue,
+      sourceMeta?.weather.sourceId ?? "",
+      sourceMeta?.weather.freshness ?? "",
+      sourceMeta?.weather.confidence ?? "",
+      sourceMeta?.weather.courseSectionRelevance ?? "",
     ].join("|");
 
     if (lastDecisionRef.current === key) return;
@@ -150,8 +174,9 @@ export function RaceRecorderPanel({
       label: currentDecision.label,
       recommendation: currentDecision.recommendation,
       inputs: currentDecision.inputs,
+      sourceMeta,
     });
-  }, [currentDecision, effectiveSessionId, session?.status]);
+  }, [currentDecision, decisionSourceMeta, effectiveSessionId, session?.status]);
 
   useEffect(() => {
     if (!effectiveSessionId || session?.status !== "active") return;
