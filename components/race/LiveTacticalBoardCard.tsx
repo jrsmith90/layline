@@ -549,7 +549,7 @@ export function LiveTacticalBoardCard({ raceState }: { raceState: RaceState }) {
           {liveBoard.activeLegLabel ? "Live board linked to current leg" : "Live board using saved setup"}
         </div>
         <Link
-          href="/race/tactical-board"
+          href="/race/pre-race#tactical-board"
           className="rounded-lg border border-[color:var(--divider)] bg-black/20 px-3 py-2 text-[color:var(--text)] transition active:scale-[0.98]"
         >
           Edit Board

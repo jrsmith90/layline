@@ -3,8 +3,13 @@
 import Link from "next/link";
 import { useEffect, useReducer, useState } from "react";
 import { Download, RotateCcw, Trash2 } from "lucide-react";
+import { AiCoachCard } from "@/components/ai/AiCoachCard";
+import { AppPageHeader } from "@/components/layout/AppPageHeader";
+import { WorkflowDisclosure } from "@/components/layout/WorkflowDisclosure";
+import { WorkflowQuickLinks } from "@/components/navigation/WorkflowQuickLinks";
 import CourseChart from "@/components/race/CourseChart";
 import { formatCourseLabel, getCourseData } from "@/data/race/getCourseData";
+import { buildReviewCoachBrief } from "@/lib/ai/coach";
 import {
   deleteLog as deleteStoredLog,
   rateLog as rateStoredLog,
@@ -437,6 +442,7 @@ export default function RaceReviewPage() {
       : logFilter === "all"
         ? session.trimLogs
         : session.trimLogs.filter((log) => log.status === logFilter);
+  const reviewCoachBrief = buildReviewCoachBrief(review);
 
   useEffect(() => subscribeRaceSessionStore(() => refresh()), []);
 
@@ -507,21 +513,41 @@ export default function RaceReviewPage() {
 
   return (
     <main className="mx-auto max-w-5xl space-y-5 p-4 pb-16">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <div className="layline-kicker">Post-race</div>
-          <h1 className="mt-1 text-3xl font-black tracking-tight">After Action Report</h1>
-          <p className="mt-2 max-w-2xl text-sm text-[color:var(--muted)]">
-            Quantify the day automatically, review the calls, and turn misses into the next practice plan.
-          </p>
-        </div>
-        <Link
-          href="/race/live"
-          className="rounded-xl border border-[color:var(--divider)] bg-black/20 px-4 py-3 text-sm font-black uppercase tracking-wide"
-        >
-          Race cockpit
-        </Link>
-      </div>
+      <AppPageHeader
+        eyebrow="Post-Race"
+        title="Debrief the race."
+        badges={["Debrief", "Replay", "Archive"]}
+        actions={
+          <Link
+            href="/race/live"
+            className="rounded-xl border border-[color:var(--divider)] bg-black/20 px-4 py-3 text-sm font-black uppercase tracking-wide"
+          >
+            Race Live
+          </Link>
+        }
+      />
+
+      <WorkflowQuickLinks
+        title="Review Flow"
+        items={[
+          {
+            href: "#debrief",
+            label: "Debrief",
+          },
+          {
+            href: "#replay",
+            label: "Replay",
+          },
+          {
+            href: "#archive",
+            label: "Archive",
+          },
+          {
+            href: "/race/live",
+            label: "Back to Live",
+          },
+        ]}
+      />
 
       <section className="layline-panel p-4">
         <div className="grid gap-3 md:grid-cols-[1fr_auto_auto] md:items-end">
@@ -584,13 +610,16 @@ export default function RaceReviewPage() {
       </section>
 
       {!session || !review ? (
-        <section className="layline-panel p-5">
-          <h2 className="text-xl font-black">No race session yet</h2>
-          <p className="mt-2 text-sm text-[color:var(--muted)]">
-            On the phone you used today, tap Recover Today. For future races, start the Race
-            Recorder in the live cockpit before the warning signal.
-          </p>
-        </section>
+        <>
+          <AiCoachCard brief={reviewCoachBrief} />
+          <section className="layline-panel p-5">
+            <h2 className="text-xl font-black">No race session yet</h2>
+            <p className="mt-2 text-sm text-[color:var(--muted)]">
+              On the phone you used today, tap Recover Today. For future races, start the Race
+              Recorder in the live cockpit before the warning signal.
+            </p>
+          </section>
+        </>
       ) : (
         <>
           <section className="layline-panel p-4">
@@ -625,273 +654,10 @@ export default function RaceReviewPage() {
             </div>
           </section>
 
-          <section className="layline-panel p-4">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <h2 className="text-xl font-black">Saved App State</h2>
-                <p className="mt-1 text-sm text-[color:var(--muted)]">
-                  Latest fused snapshot recorded during the race, loaded directly from the stored session.
-                </p>
-              </div>
-              <div className="text-xs font-bold uppercase tracking-wide text-[color:var(--muted)]">
-                {session.raceStateSnapshots.length} saved snapshot
-                {session.raceStateSnapshots.length === 1 ? "" : "s"}
-              </div>
-            </div>
+          <AiCoachCard brief={reviewCoachBrief} />
 
-            {!latestRaceStateSnapshot ? (
-              <div className="mt-4 rounded-xl border border-white/10 bg-white/5 p-4 text-sm text-[color:var(--muted)]">
-                No fused race-state snapshots were saved for this session.
-              </div>
-            ) : (
-              <>
-                <div className="mt-4 flex flex-wrap items-start justify-between gap-3">
-                  <div>
-                    <div className="text-xs font-black uppercase tracking-[0.16em] text-[color:var(--muted)]">
-                      Captured
-                    </div>
-                    <div className="mt-1 text-lg font-black">
-                      {formatDateTime(latestRaceStateSnapshot.capturedAtISO)}
-                    </div>
-                    <div className="mt-1 text-xs text-[color:var(--muted)]">
-                      App state generated {formatDateTime(latestRaceStateSnapshot.stateGeneratedAt)}
-                    </div>
-                  </div>
-                  <div
-                    className={[
-                      "rounded-full border px-3 py-2 text-xs font-black uppercase tracking-wide",
-                      confidenceTone(latestRaceStateSnapshot.confidence.overall),
-                    ].join(" ")}
-                  >
-                    {latestRaceStateSnapshot.confidence.overall} confidence
-                  </div>
-                </div>
-
-                <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
-                  <Metric
-                    label="Call"
-                    value={formatSnapshotCall(latestRaceStateSnapshot.primaryCall)}
-                  />
-                  <Metric
-                    label="Leg"
-                    value={formatSnapshotLeg(latestRaceStateSnapshot)}
-                  />
-                  <Metric
-                    label="Wind Source"
-                    value={latestRaceStateSnapshot.wind.sourceLabel}
-                  />
-                  <Metric
-                    label="Mode"
-                    value={
-                      latestRaceStateSnapshot.approachingMark
-                        ? "Mark approach"
-                        : "Leg tracking"
-                    }
-                  />
-                </div>
-
-                <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-4">
-                  <Metric
-                    label="GPS Freshness"
-                    value={latestRaceStateSnapshot.sources.gps.freshness}
-                  />
-                  <Metric
-                    label="Wind Freshness"
-                    value={latestRaceStateSnapshot.sources.wind.freshness}
-                  />
-                  <Metric
-                    label="Dist To Mark"
-                    value={
-                      latestRaceStateSnapshot.progress?.distanceToMarkNm == null
-                        ? "--"
-                        : `${formatNumber(
-                            latestRaceStateSnapshot.progress.distanceToMarkNm,
-                            2,
-                          )} nm`
-                    }
-                  />
-                  <Metric
-                    label="VMG"
-                    value={
-                      latestRaceStateSnapshot.progress?.vmgToMarkKt == null
-                        ? "--"
-                        : `${formatNumber(
-                            latestRaceStateSnapshot.progress.vmgToMarkKt,
-                            1,
-                          )} kt`
-                    }
-                  />
-                </div>
-
-                <div className="mt-3 rounded-xl border border-white/10 bg-black/20 p-4">
-                  <div className="text-xs font-black uppercase tracking-[0.16em] text-[color:var(--muted)]">
-                    Source detail
-                  </div>
-                  <div className="mt-2 text-sm leading-6">
-                    GPS was {latestRaceStateSnapshot.sources.gps.status} with{" "}
-                    {latestRaceStateSnapshot.sources.gps.permission} permission. Wind came from{" "}
-                    {latestRaceStateSnapshot.wind.sourceLabel} in{" "}
-                    {latestRaceStateSnapshot.wind.sourceMode} mode.
-                  </div>
-                </div>
-
-                {latestRaceStateSnapshot.confidence.signals.length > 0 && (
-                  <div className="mt-3 grid gap-2 md:grid-cols-2">
-                    {latestRaceStateSnapshot.confidence.signals
-                      .slice(0, 4)
-                      .map((signal) => (
-                        <div
-                          key={signal.key}
-                          className="rounded-xl border border-amber-300/30 bg-amber-300/10 p-3 text-sm leading-6"
-                        >
-                          {signal.message}
-                        </div>
-                      ))}
-                  </div>
-                )}
-              </>
-            )}
-          </section>
-
-          <section className="layline-panel p-4">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <h2 className="text-xl font-black">Tactical Board Replay</h2>
-                <p className="mt-1 text-sm text-[color:var(--muted)]">
-                  Replay saved board frames to see what the tactical overlay was signaling during the race.
-                </p>
-              </div>
-              <div className="text-xs font-bold uppercase tracking-wide text-[color:var(--muted)]">
-                {session.tacticalBoardSnapshots.length} saved frame
-                {session.tacticalBoardSnapshots.length === 1 ? "" : "s"}
-              </div>
-            </div>
-
-            {!selectedTacticalBoardSnapshot ? (
-              <div className="mt-4 rounded-xl border border-white/10 bg-white/5 p-4 text-sm text-[color:var(--muted)]">
-                No tactical-board snapshots were saved for this session.
-              </div>
-            ) : (
-              <>
-                <div className="mt-4 grid gap-3 md:grid-cols-[1fr_auto] md:items-end">
-                  <label className="space-y-1">
-                    <div className="text-xs font-black uppercase tracking-[0.16em] text-[color:var(--muted)]">
-                      Replay frame
-                    </div>
-                    <select
-                      className="w-full rounded-xl border border-[color:var(--divider)] bg-black/30 p-3"
-                      value={selectedTacticalBoardSnapshot.capturedAtISO}
-                      onChange={(event) => setSelectedTacticalBoardSnapshotISO(event.target.value)}
-                    >
-                      {tacticalBoardReplayFrames.map((snapshot) => (
-                        <option
-                          key={snapshot.capturedAtISO}
-                          value={snapshot.capturedAtISO}
-                          className="bg-slate-900"
-                        >
-                          {formatDateTime(snapshot.capturedAtISO)} ·{" "}
-                          {snapshot.liveContext.activeLegLabel ??
-                            formatTacticalBoardLegMode(snapshot.liveContext.legMode)}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <div
-                    className={[
-                      "rounded-full border px-3 py-2 text-xs font-black uppercase tracking-wide",
-                      confidenceTone(selectedTacticalBoardSnapshot.liveContext.overallConfidence),
-                    ].join(" ")}
-                  >
-                    {selectedTacticalBoardSnapshot.liveContext.overallConfidence} confidence
-                  </div>
-                </div>
-
-                <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
-                  <Metric
-                    label="Status"
-                    value={formatTacticalBoardStatus(selectedTacticalBoardSnapshot.board.readiness.status)}
-                  />
-                  <Metric
-                    label="Focus"
-                    value={formatTacticalBoardLegMode(selectedTacticalBoardSnapshot.liveContext.legMode)}
-                  />
-                  <Metric
-                    label="Leg"
-                    value={selectedTacticalBoardSnapshot.liveContext.activeLegLabel ?? "--"}
-                  />
-                  <Metric
-                    label="Wind Feed"
-                    value={formatTacticalBoardCurrentWindSource(
-                      selectedTacticalBoardSnapshot.liveContext.currentWindSource,
-                    )}
-                  />
-                </div>
-
-                <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-4">
-                  <Metric
-                    label="Baseline"
-                    value={formatDeg(selectedTacticalBoardSnapshot.board.shift.referenceFromDeg)}
-                  />
-                  <Metric
-                    label="Live Wind"
-                    value={formatDeg(selectedTacticalBoardSnapshot.board.shift.currentFromDeg)}
-                  />
-                  {getTacticalBoardReplayMetrics(selectedTacticalBoardSnapshot)
-                    .slice(0, 2)
-                    .map((metric) => (
-                      <Metric key={metric.label} label={metric.label} value={metric.value} />
-                    ))}
-                </div>
-
-                <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-4">
-                  {getTacticalBoardReplayMetrics(selectedTacticalBoardSnapshot)
-                    .slice(2)
-                    .map((metric) => (
-                      <Metric key={metric.label} label={metric.label} value={metric.value} />
-                    ))}
-                  <Metric
-                    label="Shift"
-                    value={formatSignedDeg(selectedTacticalBoardSnapshot.board.shift.deltaDeg)}
-                  />
-                  <Metric
-                    label="Trend"
-                    value={selectedTacticalBoardSnapshot.board.setup.windTrend}
-                  />
-                </div>
-
-                <div className="mt-3 rounded-xl border border-white/10 bg-black/20 p-4">
-                  <div className="text-xs font-black uppercase tracking-[0.16em] text-[color:var(--muted)]">
-                    Source detail
-                  </div>
-                  <div className="mt-2 text-sm leading-6">
-                    {tacticalBoardSourceDetail(selectedTacticalBoardSnapshot)}
-                  </div>
-                </div>
-
-                <div className="mt-3 grid gap-2 md:grid-cols-2">
-                  {buildTacticalBoardThoughts(selectedTacticalBoardSnapshot).map((thought) => (
-                    <div
-                      key={thought}
-                      className="rounded-xl border border-cyan-400/20 bg-cyan-400/10 p-3 text-sm leading-6"
-                    >
-                      {thought}
-                    </div>
-                  ))}
-                </div>
-              </>
-            )}
-          </section>
-
-          {reviewCourseData && (
-            <CourseChart
-              courseData={reviewCourseData}
-              track={session.gpsTrack}
-              title="Course vs sailed track"
-              subtitle="Use the GPS overlay to spot missed laylines, extra distance, and sections sailed away from the planned shape."
-            />
-          )}
-
-          <section className="layline-panel p-4">
+          <section id="debrief" className="space-y-5 scroll-mt-24">
+            <section className="layline-panel p-4">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <h2 className="text-xl font-black">Decision Score</h2>
@@ -918,53 +684,67 @@ export default function RaceReviewPage() {
               <Metric label="Bad" value={String(review.badDecisionCount)} />
               <Metric label="Unrated" value={String(review.unratedDecisionCount)} />
             </div>
-          </section>
+            </section>
 
-          <section className="layline-panel p-4">
-            <h2 className="text-xl font-black">Coaching Signals</h2>
-            <div className="mt-3 grid gap-3 md:grid-cols-2">
-              {review.coachingSignals.map((signal) => (
-                <div
-                  key={signal}
-                  className="rounded-xl border border-amber-300/30 bg-amber-300/10 p-4 text-sm leading-6"
-                >
-                  {signal}
+            <section className="grid gap-5 xl:grid-cols-[1fr_1fr]">
+              <section className="layline-panel p-4">
+                <h2 className="text-xl font-black">Coaching Signals</h2>
+                <div className="mt-3 grid gap-3">
+                  {review.coachingSignals.length === 0 ? (
+                    <div className="rounded-xl border border-white/10 bg-white/5 p-4 text-sm text-[color:var(--muted)]">
+                      No coaching signals yet. Keep rating calls so review can stay evidence-driven.
+                    </div>
+                  ) : (
+                    review.coachingSignals.map((signal) => (
+                      <div
+                        key={signal}
+                        className="rounded-xl border border-amber-300/30 bg-amber-300/10 p-4 text-sm leading-6"
+                      >
+                        {signal}
+                      </div>
+                    ))
+                  )}
                 </div>
-              ))}
-            </div>
-          </section>
+              </section>
 
-          <section className="layline-panel p-4">
-            <h2 className="text-xl font-black">Work On Next</h2>
-            <div className="mt-3 grid gap-3 md:grid-cols-2">
-              {review.workOnNext.map((item) => (
-                <div
-                  key={item}
-                  className="rounded-xl border border-[color:var(--favorable)]/30 bg-[color:var(--favorable)]/10 p-4 text-sm leading-6"
-                >
-                  {item}
+              <section className="layline-panel p-4">
+                <h2 className="text-xl font-black">Work On Next</h2>
+                <div className="mt-3 grid gap-3">
+                  {review.workOnNext.length === 0 ? (
+                    <div className="rounded-xl border border-white/10 bg-white/5 p-4 text-sm text-[color:var(--muted)]">
+                      No next-step items yet. More rated decisions will sharpen this lane.
+                    </div>
+                  ) : (
+                    review.workOnNext.map((item) => (
+                      <div
+                        key={item}
+                        className="rounded-xl border border-[color:var(--favorable)]/30 bg-[color:var(--favorable)]/10 p-4 text-sm leading-6"
+                      >
+                        {item}
+                      </div>
+                    ))
+                  )}
                 </div>
-              ))}
-            </div>
-          </section>
+              </section>
+            </section>
 
-          <section className="layline-panel p-4">
-            <h2 className="text-xl font-black">Weather and Course Split</h2>
-            <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-4">
-              <Metric
-                label="Top-bottom speed"
-                value={`${formatNumber(review.topBottomWindSpreadKt)} kt`}
-              />
-              <Metric
-                label="Top-bottom dir"
-                value={`${formatNumber(review.topBottomDirectionSpreadDeg, 0)} deg`}
-              />
-              <Metric label="Building" value={review.buildingWeather ? "Yes" : "No"} />
-              <Metric label="Trim logs" value={String(session.trimLogs.length)} />
-            </div>
-          </section>
+            <section className="layline-panel p-4">
+              <h2 className="text-xl font-black">Weather and Course Split</h2>
+              <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-4">
+                <Metric
+                  label="Top-bottom speed"
+                  value={`${formatNumber(review.topBottomWindSpreadKt)} kt`}
+                />
+                <Metric
+                  label="Top-bottom dir"
+                  value={`${formatNumber(review.topBottomDirectionSpreadDeg, 0)} deg`}
+                />
+                <Metric label="Building" value={review.buildingWeather ? "Yes" : "No"} />
+                <Metric label="Trim logs" value={String(session.trimLogs.length)} />
+              </div>
+            </section>
 
-          <section className="layline-panel p-4">
+            <section className="layline-panel p-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <h2 className="text-xl font-black">Decision Review</h2>
               <div className="text-xs text-[color:var(--muted)]">
@@ -987,212 +767,497 @@ export default function RaceReviewPage() {
                 />
               ))}
             </div>
+            </section>
           </section>
 
-          <section id="notes" className="layline-panel scroll-mt-24 p-4">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <h2 className="text-xl font-black">Notes</h2>
-                <p className="mt-1 text-sm text-[color:var(--muted)]">
-                  Cockpit notes now live inside review, so debrief stays in one place.
-                </p>
-              </div>
-              <div className="text-xs font-bold uppercase tracking-wide text-[color:var(--muted)]">
-                {manualNotes.length + (session.crewNotes ? 1 : 0)} saved note
-                {manualNotes.length + (session.crewNotes ? 1 : 0) === 1 ? "" : "s"}
-              </div>
-            </div>
-
-            <div className="mt-3 space-y-3">
-              {!session.crewNotes && manualNotes.length === 0 && (
-                <p className="rounded-xl border border-white/10 bg-white/5 p-4 text-sm text-[color:var(--muted)]">
-                  No race notes were saved for this session yet. Manual notes from the live recorder
-                  will show up here automatically.
-                </p>
-              )}
-
-              {session.crewNotes && (
-                <div className="rounded-xl border border-white/10 bg-black/20 p-4">
-                  <div className="text-xs font-black uppercase tracking-[0.16em] text-[color:var(--muted)]">
-                    Crew note
+          <WorkflowDisclosure
+            id="replay"
+            badge="Replay"
+            title="Saved state and tactical replay"
+          >
+            <div className="space-y-5">
+              <section className="rounded-2xl border border-[color:var(--divider)] bg-black/20 p-4">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <h2 className="text-xl font-black">Saved App State</h2>
+                    <p className="mt-1 text-sm text-[color:var(--muted)]">
+                      Latest fused snapshot recorded during the race, loaded directly from the stored session.
+                    </p>
                   </div>
-                  <p className="mt-2 text-sm leading-6">{session.crewNotes}</p>
-                </div>
-              )}
-
-              {manualNotes.map((note) => (
-                <div key={note.id} className="rounded-xl border border-white/10 bg-black/20 p-4">
-                  <div className="text-xs font-black uppercase tracking-[0.16em] text-[color:var(--muted)]">
-                    {formatDateTime(note.atISO)}
+                  <div className="text-xs font-bold uppercase tracking-wide text-[color:var(--muted)]">
+                    {session.raceStateSnapshots.length} saved snapshot
+                    {session.raceStateSnapshots.length === 1 ? "" : "s"}
                   </div>
-                  <h3 className="mt-1 text-sm font-black">{note.label}</h3>
-                  <p className="mt-2 text-sm leading-6">{note.recommendation}</p>
                 </div>
-              ))}
-            </div>
-          </section>
 
-          <section id="logs" className="layline-panel scroll-mt-24 p-4">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <h2 className="text-xl font-black">Trim Logs</h2>
-                <p className="mt-1 text-sm text-[color:var(--muted)]">
-                  Rate, export, and prune the trim changes attached to this race session.
-                </p>
-              </div>
-              <div className="text-xs font-bold uppercase tracking-wide text-[color:var(--muted)]">
-                {session.trimLogs.length} attached log{session.trimLogs.length === 1 ? "" : "s"}
-              </div>
-            </div>
-
-            <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
-              <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
-                {([
-                  ["all", "All"],
-                  ["unrated", "Unrated"],
-                  ["pending", "Pending"],
-                  ["rated", "Rated"],
-                ] as const).map(([value, label]) => (
-                  <button
-                    key={value}
-                    type="button"
-                    onClick={() => setLogFilter(value)}
-                    className={[
-                      "rounded-xl border px-3 py-3 text-sm font-black uppercase tracking-wide transition active:scale-[0.98]",
-                      logFilter === value
-                        ? "border-[color:var(--favorable)] bg-[color:var(--favorable)]/15 text-teal-50"
-                        : "border-[color:var(--divider)] bg-black/20 text-[color:var(--text)]",
-                    ].join(" ")}
-                  >
-                    {label} ({trimLogCounts[value]})
-                  </button>
-                ))}
-              </div>
-
-              <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-1">
-                <button
-                  type="button"
-                  onClick={() =>
-                    downloadTextFile(
-                      `layline-trim-logs-${session.startedAtISO.slice(0, 10)}.json`,
-                      exportSessionTrimLogsToJson(session.trimLogs),
-                    )
-                  }
-                  className="rounded-xl border border-[color:var(--divider)] bg-black/20 px-4 py-3 text-sm font-black uppercase tracking-wide"
-                >
-                  Export JSON
-                </button>
-                <button
-                  type="button"
-                  onClick={() =>
-                    downloadTextFile(
-                      `layline-trim-logs-${session.startedAtISO.slice(0, 10)}.csv`,
-                      exportSessionTrimLogsToCsv(session.trimLogs),
-                      "text/csv",
-                    )
-                  }
-                  className="rounded-xl border border-[color:var(--divider)] bg-black/20 px-4 py-3 text-sm font-black uppercase tracking-wide"
-                >
-                  Export CSV
-                </button>
-                <button
-                  type="button"
-                  onClick={clearLogsForSession}
-                  className="rounded-xl border border-red-400/35 bg-red-400/10 px-4 py-3 text-sm font-black uppercase tracking-wide text-red-100"
-                >
-                  Clear Session Logs
-                </button>
-              </div>
-            </div>
-
-            <div className="mt-4 space-y-3">
-              {filteredTrimLogs.length === 0 && (
-                <p className="rounded-xl border border-white/10 bg-white/5 p-4 text-sm text-[color:var(--muted)]">
-                  {session.trimLogs.length === 0
-                    ? "No trim logs are attached to this session yet. Recover Today on the race phone if you made trim calls."
-                    : "No logs match this filter right now."}
-                </p>
-              )}
-
-              {filteredTrimLogs.map((log) => (
-                <div key={log.id} className="rounded-xl border border-white/10 bg-black/20 p-4">
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div>
-                      <div className="text-sm font-black">{formatDateTime(log.createdAtISO)}</div>
-                      <div className="mt-1 text-xs leading-5 text-[color:var(--muted)]">
-                        {log.page} · {log.sailMode} · Wind {log.windSpeedKt ?? "--"} kt · Dir{" "}
-                        {log.windDirTrueFromDeg ?? "--"} deg
+                {!latestRaceStateSnapshot ? (
+                  <div className="mt-4 rounded-xl border border-white/10 bg-white/5 p-4 text-sm text-[color:var(--muted)]">
+                    No fused race-state snapshots were saved for this session.
+                  </div>
+                ) : (
+                  <>
+                    <div className="mt-4 flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <div className="text-xs font-black uppercase tracking-[0.16em] text-[color:var(--muted)]">
+                          Captured
+                        </div>
+                        <div className="mt-1 text-lg font-black">
+                          {formatDateTime(latestRaceStateSnapshot.capturedAtISO)}
+                        </div>
+                        <div className="mt-1 text-xs text-[color:var(--muted)]">
+                          App state generated {formatDateTime(latestRaceStateSnapshot.stateGeneratedAt)}
+                        </div>
                       </div>
-                      <div className="text-xs leading-5 text-[color:var(--muted)]">
-                        Symptom {log.symptom} · Telltales {log.telltales}
-                        {log.boatMode ? ` · Boat mode ${log.boatMode}` : ""}
+                      <div
+                        className={[
+                          "rounded-full border px-3 py-2 text-xs font-black uppercase tracking-wide",
+                          confidenceTone(latestRaceStateSnapshot.confidence.overall),
+                        ].join(" ")}
+                      >
+                        {latestRaceStateSnapshot.confidence.overall} confidence
                       </div>
                     </div>
 
-                    <div
-                      className={[
-                        "rounded-full border px-3 py-2 text-xs font-black uppercase tracking-wide",
-                        logStatusTone(log.status),
-                      ].join(" ")}
-                    >
-                      {log.status}
+                    <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
+                      <Metric
+                        label="Call"
+                        value={formatSnapshotCall(latestRaceStateSnapshot.primaryCall)}
+                      />
+                      <Metric
+                        label="Leg"
+                        value={formatSnapshotLeg(latestRaceStateSnapshot)}
+                      />
+                      <Metric
+                        label="Wind Source"
+                        value={latestRaceStateSnapshot.wind.sourceLabel}
+                      />
+                      <Metric
+                        label="Mode"
+                        value={
+                          latestRaceStateSnapshot.approachingMark
+                            ? "Mark approach"
+                            : "Leg tracking"
+                        }
+                      />
                     </div>
-                  </div>
 
-                  <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-4">
-                    <Metric label="Before" value={String(log.carBefore)} />
-                    <Metric label="Suggested" value={String(log.carSuggested)} />
-                    <Metric
-                      label="Delta"
-                      value={`${log.carDelta >= 0 ? "+" : ""}${log.carDelta}`}
-                    />
-                    <Metric label="Rated" value={formatLogRating(log.rating)} />
-                  </div>
-
-                  <div className="mt-3 rounded-xl border border-white/10 bg-black/30 p-4">
-                    <div className="text-xs font-black uppercase tracking-[0.16em] text-[color:var(--muted)]">
-                      Call
+                    <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-4">
+                      <Metric
+                        label="GPS Freshness"
+                        value={latestRaceStateSnapshot.sources.gps.freshness}
+                      />
+                      <Metric
+                        label="Wind Freshness"
+                        value={latestRaceStateSnapshot.sources.wind.freshness}
+                      />
+                      <Metric
+                        label="Dist To Mark"
+                        value={
+                          latestRaceStateSnapshot.progress?.distanceToMarkNm == null
+                            ? "--"
+                            : `${formatNumber(
+                                latestRaceStateSnapshot.progress.distanceToMarkNm,
+                                2,
+                              )} nm`
+                        }
+                      />
+                      <Metric
+                        label="VMG"
+                        value={
+                          latestRaceStateSnapshot.progress?.vmgToMarkKt == null
+                            ? "--"
+                            : `${formatNumber(
+                                latestRaceStateSnapshot.progress.vmgToMarkKt,
+                                1,
+                              )} kt`
+                        }
+                      />
                     </div>
-                    <div className="mt-2 text-sm leading-6 whitespace-pre-line">
-                      {log.recommendation.call}
+
+                    <div className="mt-3 rounded-xl border border-white/10 bg-black/20 p-4">
+                      <div className="text-xs font-black uppercase tracking-[0.16em] text-[color:var(--muted)]">
+                        Source detail
+                      </div>
+                      <div className="mt-2 text-sm leading-6">
+                        GPS was {latestRaceStateSnapshot.sources.gps.status} with{" "}
+                        {latestRaceStateSnapshot.sources.gps.permission} permission. Wind came from{" "}
+                        {latestRaceStateSnapshot.wind.sourceLabel} in{" "}
+                        {latestRaceStateSnapshot.wind.sourceMode} mode.
+                      </div>
                     </div>
-                  </div>
 
-                  <div className="mt-3 grid grid-cols-3 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => rateSessionLog(log.id, "better")}
-                      className="rounded-xl border border-emerald-400/30 bg-emerald-400/10 px-3 py-2 text-xs font-black uppercase tracking-wide text-emerald-50"
-                    >
-                      Better
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => rateSessionLog(log.id, "same")}
-                      className="rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-xs font-black uppercase tracking-wide"
-                    >
-                      Same
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => rateSessionLog(log.id, "worse")}
-                      className="rounded-xl border border-red-400/30 bg-red-400/10 px-3 py-2 text-xs font-black uppercase tracking-wide text-red-100"
-                    >
-                      Worse
-                    </button>
-                  </div>
+                    {latestRaceStateSnapshot.confidence.signals.length > 0 && (
+                      <div className="mt-3 grid gap-2 md:grid-cols-2">
+                        {latestRaceStateSnapshot.confidence.signals
+                          .slice(0, 4)
+                          .map((signal) => (
+                            <div
+                              key={signal.key}
+                              className="rounded-xl border border-amber-300/30 bg-amber-300/10 p-3 text-sm leading-6"
+                            >
+                              {signal.message}
+                            </div>
+                          ))}
+                      </div>
+                    )}
+                  </>
+                )}
+              </section>
 
-                  <button
-                    type="button"
-                    onClick={() => removeSessionLog(log.id)}
-                    className="mt-2 w-full rounded-xl border border-[color:var(--divider)] bg-black/20 px-3 py-2 text-xs font-black uppercase tracking-wide"
-                  >
-                    Delete Log
-                  </button>
+              <section className="rounded-2xl border border-[color:var(--divider)] bg-black/20 p-4">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <h2 className="text-xl font-black">Tactical Board Replay</h2>
+                    <p className="mt-1 text-sm text-[color:var(--muted)]">
+                      Replay saved board frames to see what the tactical overlay was signaling during the race.
+                    </p>
+                  </div>
+                  <div className="text-xs font-bold uppercase tracking-wide text-[color:var(--muted)]">
+                    {session.tacticalBoardSnapshots.length} saved frame
+                    {session.tacticalBoardSnapshots.length === 1 ? "" : "s"}
+                  </div>
                 </div>
-              ))}
+
+                {!selectedTacticalBoardSnapshot ? (
+                  <div className="mt-4 rounded-xl border border-white/10 bg-white/5 p-4 text-sm text-[color:var(--muted)]">
+                    No tactical-board snapshots were saved for this session.
+                  </div>
+                ) : (
+                  <>
+                    <div className="mt-4 grid gap-3 md:grid-cols-[1fr_auto] md:items-end">
+                      <label className="space-y-1">
+                        <div className="text-xs font-black uppercase tracking-[0.16em] text-[color:var(--muted)]">
+                          Replay frame
+                        </div>
+                        <select
+                          className="w-full rounded-xl border border-[color:var(--divider)] bg-black/30 p-3"
+                          value={selectedTacticalBoardSnapshot.capturedAtISO}
+                          onChange={(event) =>
+                            setSelectedTacticalBoardSnapshotISO(event.target.value)
+                          }
+                        >
+                          {tacticalBoardReplayFrames.map((snapshot) => (
+                            <option
+                              key={snapshot.capturedAtISO}
+                              value={snapshot.capturedAtISO}
+                              className="bg-slate-900"
+                            >
+                              {formatDateTime(snapshot.capturedAtISO)} ·{" "}
+                              {snapshot.liveContext.activeLegLabel ??
+                                formatTacticalBoardLegMode(snapshot.liveContext.legMode)}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <div
+                        className={[
+                          "rounded-full border px-3 py-2 text-xs font-black uppercase tracking-wide",
+                          confidenceTone(selectedTacticalBoardSnapshot.liveContext.overallConfidence),
+                        ].join(" ")}
+                      >
+                        {selectedTacticalBoardSnapshot.liveContext.overallConfidence} confidence
+                      </div>
+                    </div>
+
+                    <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
+                      <Metric
+                        label="Status"
+                        value={formatTacticalBoardStatus(selectedTacticalBoardSnapshot.board.readiness.status)}
+                      />
+                      <Metric
+                        label="Focus"
+                        value={formatTacticalBoardLegMode(selectedTacticalBoardSnapshot.liveContext.legMode)}
+                      />
+                      <Metric
+                        label="Leg"
+                        value={selectedTacticalBoardSnapshot.liveContext.activeLegLabel ?? "--"}
+                      />
+                      <Metric
+                        label="Wind Feed"
+                        value={formatTacticalBoardCurrentWindSource(
+                          selectedTacticalBoardSnapshot.liveContext.currentWindSource,
+                        )}
+                      />
+                    </div>
+
+                    <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-4">
+                      <Metric
+                        label="Baseline"
+                        value={formatDeg(selectedTacticalBoardSnapshot.board.shift.referenceFromDeg)}
+                      />
+                      <Metric
+                        label="Live Wind"
+                        value={formatDeg(selectedTacticalBoardSnapshot.board.shift.currentFromDeg)}
+                      />
+                      {getTacticalBoardReplayMetrics(selectedTacticalBoardSnapshot)
+                        .slice(0, 2)
+                        .map((metric) => (
+                          <Metric key={metric.label} label={metric.label} value={metric.value} />
+                        ))}
+                    </div>
+
+                    <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-4">
+                      {getTacticalBoardReplayMetrics(selectedTacticalBoardSnapshot)
+                        .slice(2)
+                        .map((metric) => (
+                          <Metric key={metric.label} label={metric.label} value={metric.value} />
+                        ))}
+                      <Metric
+                        label="Shift"
+                        value={formatSignedDeg(selectedTacticalBoardSnapshot.board.shift.deltaDeg)}
+                      />
+                      <Metric
+                        label="Trend"
+                        value={selectedTacticalBoardSnapshot.board.setup.windTrend}
+                      />
+                    </div>
+
+                    <div className="mt-3 rounded-xl border border-white/10 bg-black/20 p-4">
+                      <div className="text-xs font-black uppercase tracking-[0.16em] text-[color:var(--muted)]">
+                        Source detail
+                      </div>
+                      <div className="mt-2 text-sm leading-6">
+                        {tacticalBoardSourceDetail(selectedTacticalBoardSnapshot)}
+                      </div>
+                    </div>
+
+                    <div className="mt-3 grid gap-2 md:grid-cols-2">
+                      {buildTacticalBoardThoughts(selectedTacticalBoardSnapshot).map((thought) => (
+                        <div
+                          key={thought}
+                          className="rounded-xl border border-cyan-400/20 bg-cyan-400/10 p-3 text-sm leading-6"
+                        >
+                          {thought}
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </section>
+
+              {reviewCourseData && (
+                <CourseChart
+                  courseData={reviewCourseData}
+                  track={session.gpsTrack}
+                  title="Course vs sailed track"
+                  subtitle="Use the GPS overlay to spot missed laylines, extra distance, and sections sailed away from the planned shape."
+                />
+              )}
             </div>
-          </section>
+          </WorkflowDisclosure>
+
+          <WorkflowDisclosure
+            id="archive"
+            badge="Archive"
+            title="Notes and trim logs"
+          >
+            <div className="space-y-5">
+              <section id="notes" className="rounded-2xl border border-[color:var(--divider)] bg-black/20 p-4 scroll-mt-24">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <h2 className="text-xl font-black">Notes</h2>
+                    <p className="mt-1 text-sm text-[color:var(--muted)]">
+                      Cockpit notes now live inside review, so debrief stays in one place.
+                    </p>
+                  </div>
+                  <div className="text-xs font-bold uppercase tracking-wide text-[color:var(--muted)]">
+                    {manualNotes.length + (session.crewNotes ? 1 : 0)} saved note
+                    {manualNotes.length + (session.crewNotes ? 1 : 0) === 1 ? "" : "s"}
+                  </div>
+                </div>
+
+                <div className="mt-3 space-y-3">
+                  {!session.crewNotes && manualNotes.length === 0 && (
+                    <p className="rounded-xl border border-white/10 bg-white/5 p-4 text-sm text-[color:var(--muted)]">
+                      No race notes were saved for this session yet. Manual notes from the live recorder
+                      will show up here automatically.
+                    </p>
+                  )}
+
+                  {session.crewNotes && (
+                    <div className="rounded-xl border border-white/10 bg-black/20 p-4">
+                      <div className="text-xs font-black uppercase tracking-[0.16em] text-[color:var(--muted)]">
+                        Crew note
+                      </div>
+                      <p className="mt-2 text-sm leading-6">{session.crewNotes}</p>
+                    </div>
+                  )}
+
+                  {manualNotes.map((note) => (
+                    <div key={note.id} className="rounded-xl border border-white/10 bg-black/20 p-4">
+                      <div className="text-xs font-black uppercase tracking-[0.16em] text-[color:var(--muted)]">
+                        {formatDateTime(note.atISO)}
+                      </div>
+                      <h3 className="mt-1 text-sm font-black">{note.label}</h3>
+                      <p className="mt-2 text-sm leading-6">{note.recommendation}</p>
+                    </div>
+                  ))}
+                </div>
+              </section>
+
+              <section id="logs" className="rounded-2xl border border-[color:var(--divider)] bg-black/20 p-4 scroll-mt-24">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <h2 className="text-xl font-black">Trim Logs</h2>
+                    <p className="mt-1 text-sm text-[color:var(--muted)]">
+                      Rate, export, and prune the trim changes attached to this race session.
+                    </p>
+                  </div>
+                  <div className="text-xs font-bold uppercase tracking-wide text-[color:var(--muted)]">
+                    {session.trimLogs.length} attached log{session.trimLogs.length === 1 ? "" : "s"}
+                  </div>
+                </div>
+
+                <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
+                  <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+                    {([
+                      ["all", "All"],
+                      ["unrated", "Unrated"],
+                      ["pending", "Pending"],
+                      ["rated", "Rated"],
+                    ] as const).map(([value, label]) => (
+                      <button
+                        key={value}
+                        type="button"
+                        onClick={() => setLogFilter(value)}
+                        className={[
+                          "rounded-xl border px-3 py-3 text-sm font-black uppercase tracking-wide transition active:scale-[0.98]",
+                          logFilter === value
+                            ? "border-[color:var(--favorable)] bg-[color:var(--favorable)]/15 text-teal-50"
+                            : "border-[color:var(--divider)] bg-black/20 text-[color:var(--text)]",
+                        ].join(" ")}
+                      >
+                        {label} ({trimLogCounts[value]})
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-1">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        downloadTextFile(
+                          `layline-trim-logs-${session.startedAtISO.slice(0, 10)}.json`,
+                          exportSessionTrimLogsToJson(session.trimLogs),
+                        )
+                      }
+                      className="rounded-xl border border-[color:var(--divider)] bg-black/20 px-4 py-3 text-sm font-black uppercase tracking-wide"
+                    >
+                      Export JSON
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        downloadTextFile(
+                          `layline-trim-logs-${session.startedAtISO.slice(0, 10)}.csv`,
+                          exportSessionTrimLogsToCsv(session.trimLogs),
+                          "text/csv",
+                        )
+                      }
+                      className="rounded-xl border border-[color:var(--divider)] bg-black/20 px-4 py-3 text-sm font-black uppercase tracking-wide"
+                    >
+                      Export CSV
+                    </button>
+                    <button
+                      type="button"
+                      onClick={clearLogsForSession}
+                      className="rounded-xl border border-red-400/35 bg-red-400/10 px-4 py-3 text-sm font-black uppercase tracking-wide text-red-100"
+                    >
+                      Clear Session Logs
+                    </button>
+                  </div>
+                </div>
+
+                <div className="mt-4 space-y-3">
+                  {filteredTrimLogs.length === 0 && (
+                    <p className="rounded-xl border border-white/10 bg-white/5 p-4 text-sm text-[color:var(--muted)]">
+                      {session.trimLogs.length === 0
+                        ? "No trim logs are attached to this session yet. Recover Today on the race phone if you made trim calls."
+                        : "No logs match this filter right now."}
+                    </p>
+                  )}
+
+                  {filteredTrimLogs.map((log) => (
+                    <div key={log.id} className="rounded-xl border border-white/10 bg-black/20 p-4">
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                          <div className="text-sm font-black">{formatDateTime(log.createdAtISO)}</div>
+                          <div className="mt-1 text-xs leading-5 text-[color:var(--muted)]">
+                            {log.page} · {log.sailMode} · Wind {log.windSpeedKt ?? "--"} kt · Dir{" "}
+                            {log.windDirTrueFromDeg ?? "--"} deg
+                          </div>
+                          <div className="text-xs leading-5 text-[color:var(--muted)]">
+                            Symptom {log.symptom} · Telltales {log.telltales}
+                            {log.boatMode ? ` · Boat mode ${log.boatMode}` : ""}
+                          </div>
+                        </div>
+
+                        <div
+                          className={[
+                            "rounded-full border px-3 py-2 text-xs font-black uppercase tracking-wide",
+                            logStatusTone(log.status),
+                          ].join(" ")}
+                        >
+                          {log.status}
+                        </div>
+                      </div>
+
+                      <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-4">
+                        <Metric label="Before" value={String(log.carBefore)} />
+                        <Metric label="Suggested" value={String(log.carSuggested)} />
+                        <Metric
+                          label="Delta"
+                          value={`${log.carDelta >= 0 ? "+" : ""}${log.carDelta}`}
+                        />
+                        <Metric label="Rated" value={formatLogRating(log.rating)} />
+                      </div>
+
+                      <div className="mt-3 rounded-xl border border-white/10 bg-black/30 p-4">
+                        <div className="text-xs font-black uppercase tracking-[0.16em] text-[color:var(--muted)]">
+                          Call
+                        </div>
+                        <div className="mt-2 text-sm leading-6 whitespace-pre-line">
+                          {log.recommendation.call}
+                        </div>
+                      </div>
+
+                      <div className="mt-3 grid grid-cols-3 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => rateSessionLog(log.id, "better")}
+                          className="rounded-xl border border-emerald-400/30 bg-emerald-400/10 px-3 py-2 text-xs font-black uppercase tracking-wide text-emerald-50"
+                        >
+                          Better
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => rateSessionLog(log.id, "same")}
+                          className="rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-xs font-black uppercase tracking-wide"
+                        >
+                          Same
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => rateSessionLog(log.id, "worse")}
+                          className="rounded-xl border border-red-400/30 bg-red-400/10 px-3 py-2 text-xs font-black uppercase tracking-wide text-red-100"
+                        >
+                          Worse
+                        </button>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => removeSessionLog(log.id)}
+                        className="mt-2 w-full rounded-xl border border-[color:var(--divider)] bg-black/20 px-3 py-2 text-xs font-black uppercase tracking-wide"
+                      >
+                        Delete Log
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            </div>
+          </WorkflowDisclosure>
         </>
       )}
     </main>

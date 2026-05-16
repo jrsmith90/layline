@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { AiCoachCard } from "@/components/ai/AiCoachCard";
 import { useAppMode } from "@/components/display/AppModeProvider";
+import { WorkflowDisclosure } from "@/components/layout/WorkflowDisclosure";
 import { Flag, LocateFixed, TimerReset, Wind } from "lucide-react";
 import {
   formatCourseLabel,
@@ -64,6 +66,7 @@ import {
   saveTackCalibrations,
   type TackCalibrationResult,
 } from "@/lib/race/tackCalibration";
+import { buildLiveCoachBrief } from "@/lib/ai/coach";
 
 const courseIds = getAllCourseIds();
 const CALIBRATION_DURATION_MS = 35_000;
@@ -402,7 +405,6 @@ export default function RaceLiveCockpit() {
   );
   const [windError, setWindError] = useState<string | null>(null);
   const [showWeather, setShowWeather] = useState(false);
-  const [showSetup, setShowSetup] = useState(false);
   const calibrations = calibrationOverride ?? storedCalibrations;
   const calibrationsRef = useRef(calibrations);
   const fallbackTackAngle = useMemo(
@@ -729,6 +731,25 @@ export default function RaceLiveCockpit() {
     }),
     [raceState, tacticalBoardDraft],
   );
+  const liveCoachBrief = useMemo(
+    () =>
+      buildLiveCoachBrief({
+        raceState,
+        liveBoard: tacticalBoardCapture.liveBoard,
+        action: cockpitAnswer.action,
+        line: cockpitAnswer.line,
+        why: cockpitAnswer.why,
+        fix: cockpitAnswer.fix,
+      }),
+    [
+      cockpitAnswer.action,
+      cockpitAnswer.fix,
+      cockpitAnswer.line,
+      cockpitAnswer.why,
+      raceState,
+      tacticalBoardCapture.liveBoard,
+    ],
+  );
   const recentTransition =
     trackerState.lastTransition?.courseId === courseId &&
     trackerState.lastTransition.toLegIndex === safeLegIndex &&
@@ -867,6 +888,8 @@ export default function RaceLiveCockpit() {
 
       <LiveTacticalBoardCard raceState={raceState} />
 
+      <AiCoachCard brief={liveCoachBrief} compact />
+
       <section className="layline-panel p-4">
         <div className="flex items-center justify-between gap-3">
           <div>
@@ -906,178 +929,192 @@ export default function RaceLiveCockpit() {
         )}
       </section>
 
-      <section className="layline-panel p-4">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <div className="layline-kicker">Wind Source</div>
-            <div className="mt-1 text-lg font-black">{windRead.label}</div>
-            <div className="mt-1 text-xs text-[color:var(--muted)]">
-              {windRead.sourceDetail}
-            </div>
-          </div>
-          <Wind className="mt-1 text-[color:var(--muted)]" size={20} />
-        </div>
-
-        <div className="mt-3 grid grid-cols-3 gap-2">
-          <BigMetric label="Wind" value={formatKt(windRead.windAvgKt)} />
-          <BigMetric label="Gust" value={formatKt(windRead.windGustKt)} />
-          <BigMetric label="From" value={formatDeg(effectiveWindFrom)} />
-        </div>
-
-        <button
-          type="button"
-          onClick={() => setShowWeather((value) => !value)}
-          className="mt-3 w-full rounded-xl border border-[color:var(--divider)] bg-black/20 px-3 py-3 text-sm font-black uppercase tracking-wide"
-        >
-          {showWeather ? "Hide Weather Source" : "Show Weather Source"}
-        </button>
-
-        {showWeather && (
-          <>
-
-        <label className="mt-3 block space-y-1">
-          <div className="text-xs font-bold uppercase tracking-[0.16em] text-[color:var(--muted)]">
-            Change source
-          </div>
-          <select
-            className="w-full rounded-xl border border-[color:var(--divider)] bg-black/30 p-3"
-            value={windSource}
-            onChange={(event) => setTrackerWindSource(event.target.value as WindSourceMode)}
-          >
-            <option value="nearest" className="bg-slate-900">
-              Nearest wind marker
-            </option>
-            <option value="top" className="bg-slate-900">
-              Annapolis buoy - top
-            </option>
-            <option value="bottom" className="bg-slate-900">
-              Thomas Point - bottom
-            </option>
-            <option value="river" className="bg-slate-900">
-              KNAK - river
-            </option>
-            <option value="manual" className="bg-slate-900">
-              Manual wind
-            </option>
-          </select>
-        </label>
-
-        {windSource === "manual" && (
-          <label className="mt-3 block space-y-1">
-            <div className="text-xs font-bold uppercase tracking-[0.16em] text-[color:var(--muted)]">
-              Manual Wind From
-            </div>
-            <input
-              inputMode="numeric"
-              className="w-full rounded-xl border border-[color:var(--divider)] bg-black/30 p-3"
-              placeholder="225"
-              value={windFrom}
-              onChange={(event) => {
-                const value = event.target.value.trim();
-                if (value === "") return setTrackerWindFrom("");
-                const parsed = Number(value);
-                if (!Number.isNaN(parsed)) setTrackerWindFrom(wrap360(parsed));
-              }}
-            />
-          </label>
-        )}
-
-        {windError && (
-          <div className="mt-3 rounded-xl border border-[color:var(--warning)] bg-[color:var(--warning)]/15 p-3 text-xs text-amber-50">
-            {windError}
-          </div>
-        )}
-          </>
-        )}
-      </section>
-
-      <section className="layline-panel p-4">
-        <div className="grid grid-cols-3 gap-2">
-          <BigMetric label="COG" value={formatDeg(gps.cogDeg)} />
-          <BigMetric label="SOG" value={formatSpeedKt(gps.sogMps)} />
-          <BigMetric label="Tack" value={`${Math.round(tackAngle)} deg`} />
-        </div>
-
-        <div className="mt-3 grid grid-cols-2 gap-2">
-          <button
-            type="button"
-            onClick={gps.toggle}
-            className={[
-              "flex items-center justify-center gap-2 rounded-xl border px-3 py-4 text-sm font-black uppercase tracking-wide",
-              gps.enabled
-                ? "border-[color:var(--favorable)] bg-[color:var(--favorable)]/15 text-teal-50"
-                : "border-[color:var(--divider)] bg-black/20",
-            ].join(" ")}
-          >
-            <LocateFixed size={16} />
-            GPS {gps.enabled ? "On" : "Off"}
-          </button>
-          <button
-            type="button"
-            onClick={startCapture}
-            disabled={isCapturing}
-            className="flex items-center justify-center gap-2 rounded-xl border border-[color:var(--warning)] bg-[color:var(--warning)]/15 px-3 py-4 text-sm font-black uppercase tracking-wide text-amber-50 disabled:opacity-70"
-          >
-            <TimerReset size={16} />
-            {isCapturing ? `${secondsLeft}s` : "Capture Tack"}
-          </button>
-        </div>
-
-        {calibrationError && (
-          <div className="mt-3 rounded-xl border border-[color:var(--unfavorable)] bg-[color:var(--unfavorable)]/15 p-3 text-sm text-red-100">
-            {calibrationError}
-          </div>
-        )}
-      </section>
-
-      <TackHistoryPanel
-        records={activeSession?.tackRecords ?? []}
-        standardAngleDeg={standardTackAngle}
-        currentTackAngleDeg={tackAngle}
-        isRecording={activeSession?.status === "active"}
-      />
-
-      <button
-        type="button"
-        onClick={() => setShowSetup((value) => !value)}
-        className="w-full rounded-xl border border-[color:var(--divider)] bg-black/20 px-3 py-3 text-sm font-black uppercase tracking-wide"
+      <WorkflowDisclosure
+        title="Conditions and source"
+        badge="Secondary"
       >
-        {showSetup ? "Hide Course Setup" : "Show Course Setup"}
-      </button>
-
-      {showSetup && (
-      <section className="layline-panel p-4">
-        <div className="grid gap-2">
-          <label className="space-y-1">
-            <div className="text-xs font-bold uppercase tracking-[0.16em] text-[color:var(--muted)]">
-              Course
+        <section className="space-y-4">
+          <div className="layline-panel p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <div className="layline-kicker">Wind Source</div>
+                <div className="mt-1 text-lg font-black">{windRead.label}</div>
+                <div className="mt-1 text-xs text-[color:var(--muted)]">
+                  {windRead.sourceDetail}
+                </div>
+              </div>
+              <Wind className="mt-1 text-[color:var(--muted)]" size={20} />
             </div>
-            <select
-              className="w-full rounded-xl border border-[color:var(--divider)] bg-black/30 p-3"
-              value={courseId}
-              onChange={(event) => setTrackerCourseId(event.target.value)}
+
+            <div className="mt-3 grid grid-cols-3 gap-2">
+              <BigMetric label="Wind" value={formatKt(windRead.windAvgKt)} />
+              <BigMetric label="Gust" value={formatKt(windRead.windGustKt)} />
+              <BigMetric label="From" value={formatDeg(effectiveWindFrom)} />
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setShowWeather((value) => !value)}
+              className="mt-3 w-full rounded-xl border border-[color:var(--divider)] bg-black/20 px-3 py-3 text-sm font-black uppercase tracking-wide"
             >
-              {courseIds.map((id) => (
-                <option key={id} value={id} className="bg-slate-900">
-                  {formatCourseLabel(id)}
-                </option>
-              ))}
-            </select>
-          </label>
+              {showWeather ? "Hide Weather Source" : "Show Weather Source"}
+            </button>
 
-          <BigMetric label="X-track" value={`${formatNumber(result?.crossTrackErrorNm ?? null, 2)} nm`} />
+            {showWeather && (
+              <>
+                <label className="mt-3 block space-y-1">
+                  <div className="text-xs font-bold uppercase tracking-[0.16em] text-[color:var(--muted)]">
+                    Change source
+                  </div>
+                  <select
+                    className="w-full rounded-xl border border-[color:var(--divider)] bg-black/30 p-3"
+                    value={windSource}
+                    onChange={(event) => setTrackerWindSource(event.target.value as WindSourceMode)}
+                  >
+                    <option value="nearest" className="bg-slate-900">
+                      Nearest wind marker
+                    </option>
+                    <option value="top" className="bg-slate-900">
+                      Annapolis buoy - top
+                    </option>
+                    <option value="bottom" className="bg-slate-900">
+                      Thomas Point - bottom
+                    </option>
+                    <option value="river" className="bg-slate-900">
+                      KNAK - river
+                    </option>
+                    <option value="manual" className="bg-slate-900">
+                      Manual wind
+                    </option>
+                  </select>
+                </label>
+
+                {windSource === "manual" && (
+                  <label className="mt-3 block space-y-1">
+                    <div className="text-xs font-bold uppercase tracking-[0.16em] text-[color:var(--muted)]">
+                      Manual Wind From
+                    </div>
+                    <input
+                      inputMode="numeric"
+                      className="w-full rounded-xl border border-[color:var(--divider)] bg-black/30 p-3"
+                      placeholder="225"
+                      value={windFrom}
+                      onChange={(event) => {
+                        const value = event.target.value.trim();
+                        if (value === "") return setTrackerWindFrom("");
+                        const parsed = Number(value);
+                        if (!Number.isNaN(parsed)) setTrackerWindFrom(wrap360(parsed));
+                      }}
+                    />
+                  </label>
+                )}
+
+                {windError && (
+                  <div className="mt-3 rounded-xl border border-[color:var(--warning)] bg-[color:var(--warning)]/15 p-3 text-xs text-amber-50">
+                    {windError}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </section>
+      </WorkflowDisclosure>
+
+      <WorkflowDisclosure
+        title="Boat tools"
+        badge="Support"
+      >
+        <div className="space-y-4">
+          <section className="layline-panel p-4">
+            <div className="grid grid-cols-3 gap-2">
+              <BigMetric label="COG" value={formatDeg(gps.cogDeg)} />
+              <BigMetric label="SOG" value={formatSpeedKt(gps.sogMps)} />
+              <BigMetric label="Tack" value={`${Math.round(tackAngle)} deg`} />
+            </div>
+
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={gps.toggle}
+                className={[
+                  "flex items-center justify-center gap-2 rounded-xl border px-3 py-4 text-sm font-black uppercase tracking-wide",
+                  gps.enabled
+                    ? "border-[color:var(--favorable)] bg-[color:var(--favorable)]/15 text-teal-50"
+                    : "border-[color:var(--divider)] bg-black/20",
+                ].join(" ")}
+              >
+                <LocateFixed size={16} />
+                GPS {gps.enabled ? "On" : "Off"}
+              </button>
+              <button
+                type="button"
+                onClick={startCapture}
+                disabled={isCapturing}
+                className="flex items-center justify-center gap-2 rounded-xl border border-[color:var(--warning)] bg-[color:var(--warning)]/15 px-3 py-4 text-sm font-black uppercase tracking-wide text-amber-50 disabled:opacity-70"
+              >
+                <TimerReset size={16} />
+                {isCapturing ? `${secondsLeft}s` : "Capture Tack"}
+              </button>
+            </div>
+
+            {calibrationError && (
+              <div className="mt-3 rounded-xl border border-[color:var(--unfavorable)] bg-[color:var(--unfavorable)]/15 p-3 text-sm text-red-100">
+                {calibrationError}
+              </div>
+            )}
+          </section>
+
+          <TackHistoryPanel
+            records={activeSession?.tackRecords ?? []}
+            standardAngleDeg={standardTackAngle}
+            currentTackAngleDeg={tackAngle}
+            isRecording={activeSession?.status === "active"}
+          />
         </div>
-      </section>
-      )}
+      </WorkflowDisclosure>
 
-      <RaceRecorderPanel
-        courseId={courseId}
-        gpsTrack={gps.track}
-        currentDecision={recorderDecision}
-        raceStateCapture={raceStateCapture}
-        tacticalBoardCapture={tacticalBoardCapture}
-        tackContext={tackContext}
-      />
+      <WorkflowDisclosure
+        title="Setup and recording"
+        badge="Session"
+        defaultOpen={activeSession?.status === "active"}
+      >
+        <div className="space-y-4">
+          <section className="layline-panel p-4">
+            <div className="grid gap-2">
+              <label className="space-y-1">
+                <div className="text-xs font-bold uppercase tracking-[0.16em] text-[color:var(--muted)]">
+                  Course
+                </div>
+                <select
+                  className="w-full rounded-xl border border-[color:var(--divider)] bg-black/30 p-3"
+                  value={courseId}
+                  onChange={(event) => setTrackerCourseId(event.target.value)}
+                >
+                  {courseIds.map((id) => (
+                    <option key={id} value={id} className="bg-slate-900">
+                      {formatCourseLabel(id)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <BigMetric
+                label="X-track"
+                value={`${formatNumber(result?.crossTrackErrorNm ?? null, 2)} nm`}
+              />
+            </div>
+          </section>
+
+          <RaceRecorderPanel
+            courseId={courseId}
+            gpsTrack={gps.track}
+            currentDecision={recorderDecision}
+            raceStateCapture={raceStateCapture}
+            tacticalBoardCapture={tacticalBoardCapture}
+            tackContext={tackContext}
+          />
+        </div>
+      </WorkflowDisclosure>
 
       <div className="flex items-center justify-between px-1 text-xs text-[color:var(--muted)]">
         <Link href="/race/pre-race#tactical-board" className="font-bold uppercase tracking-wide">

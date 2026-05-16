@@ -5,7 +5,7 @@ import Link from "next/link";
 type WorkflowQuickLink = {
   href: string;
   label: string;
-  detail: string;
+  detail?: string;
 };
 
 export function WorkflowQuickLinks(props: {
@@ -28,9 +28,11 @@ export function WorkflowQuickLinks(props: {
           >
             <div className="min-w-0">
               <div className="text-sm font-black text-[color:var(--text)]">{item.label}</div>
-              <div className="mt-1 text-xs leading-5 text-[color:var(--muted)]">
-                {item.detail}
-              </div>
+              {item.detail ? (
+                <div className="mt-1 text-xs leading-5 text-[color:var(--muted)]">
+                  {item.detail}
+                </div>
+              ) : null}
             </div>
             <span className="mt-0.5 text-sm font-black text-[color:var(--muted)] transition group-hover:text-[color:var(--text)]">
               →

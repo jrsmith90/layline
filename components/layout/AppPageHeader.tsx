@@ -5,7 +5,7 @@ import type { ReactNode } from "react";
 type AppPageHeaderProps = {
   eyebrow: string;
   title: string;
-  description: string;
+  description?: string;
   badges?: string[];
   actions?: ReactNode;
 };
@@ -19,9 +19,11 @@ export function AppPageHeader(props: AppPageHeaderProps) {
           <h1 className="mt-2 text-3xl font-black tracking-tight text-[color:var(--text)] sm:text-[2.15rem]">
             {props.title}
           </h1>
-          <p className="mt-3 max-w-2xl text-sm leading-6 text-[color:var(--text-soft)] sm:text-[0.95rem]">
-            {props.description}
-          </p>
+          {props.description ? (
+            <p className="mt-3 max-w-2xl text-sm leading-6 text-[color:var(--text-soft)] sm:text-[0.95rem]">
+              {props.description}
+            </p>
+          ) : null}
         </div>
 
         {props.actions ? <div className="shrink-0">{props.actions}</div> : null}
