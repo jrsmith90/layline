@@ -143,15 +143,15 @@ export const ANNAPOLIS_STANDARD_GOVERNMENT_MARKS: Record<string, RaceCourseMarkR
   },
 };
 
-// Event-specific plotting helpers that are not CBYRA standard government marks.
+// Event-specific additions that are outside the CBYRA standard mark sheet.
 export const ANNAPOLIS_LOCAL_EVENT_MARKS: Record<string, RaceCourseMarkRecord> = {
   C: {
     id: 'GC "7"',
-    name: 'Annapolis Harbor Channel Green Can "7"',
-    lat: 38.9374,
-    lon: -76.466,
+    name: 'Annapolis Harbor Channel Buoy 7',
+    lat: 38.976775555555554,
+    lon: -76.46520444444445,
     characteristics:
-      'Approximate offshore plotting proxy for Annapolis Harbor Channel Green Can "7", shifted slightly east so the EWE pursuit overlay stays off the shoreline.',
+      'Green can. Position from U.S. Coast Guard Light List for Annapolis Harbor Channel Buoy 7.',
   },
 };
 
