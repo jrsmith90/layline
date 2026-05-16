@@ -175,11 +175,7 @@ export default function PreRaceRouteBiasForm({
   return (
     <div className="rounded-xl border border-white/10 bg-black/20 p-5">
       <div className="mb-5">
-        <h2 className="text-xl font-semibold">Pre-Race Route Bias</h2>
-        <p className="mt-1 text-sm text-white/70">
-          Select the announced course, enter the expected weather and current read, and get an
-          opening route bias.
-        </p>
+        <h2 className="text-xl font-semibold">Opening Bias</h2>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-5">
@@ -312,24 +308,32 @@ export default function PreRaceRouteBiasForm({
         </div>
 
         <div className="rounded-lg border border-white/10 bg-white/5 p-4 text-sm">
-          <div className="font-medium">Course context</div>
-          <div className="mt-2 space-y-1 text-white/75">
-            <div>Course type: {config.courseType}</div>
-            <div>First mark: {config.firstMark ?? "Unknown"}</div>
-            <div>
-              First-leg bearing: {config.firstLegBearingDeg != null ? `${config.firstLegBearingDeg}°` : "Unknown"}
-            </div>
-            <div>
-              Total distance: {config.totalDistanceNm != null ? `${config.totalDistanceNm} nm` : "Unknown"}
-            </div>
+          <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+            <ContextMetric label="Type" value={config.courseType} />
+            <ContextMetric label="First mark" value={config.firstMark ?? "Unknown"} />
+            <ContextMetric
+              label="Bearing"
+              value={
+                config.firstLegBearingDeg != null ? `${config.firstLegBearingDeg}°` : "Unknown"
+              }
+            />
+            <ContextMetric
+              label="Distance"
+              value={config.totalDistanceNm != null ? `${config.totalDistanceNm} nm` : "Unknown"}
+            />
           </div>
 
           {config.notes.length > 0 && (
-            <ul className="mt-3 list-disc space-y-1 pl-5 text-white/65">
+            <div className="mt-3 flex flex-wrap gap-2">
               {config.notes.map((note) => (
-                <li key={note}>{note}</li>
+                <span
+                  key={note}
+                  className="rounded-full border border-white/10 bg-black/20 px-3 py-1 text-xs font-medium text-white/70"
+                >
+                  {note}
+                </span>
               ))}
-            </ul>
+            </div>
           )}
 
           {config.routingConstraints.length > 0 && (
@@ -349,7 +353,7 @@ export default function PreRaceRouteBiasForm({
           disabled={isSubmitting}
           className="rounded-md bg-white px-4 py-2 text-sm font-medium text-slate-900 disabled:opacity-60"
         >
-          {isSubmitting ? "Scoring..." : "Score route bias"}
+          {isSubmitting ? "Scoring..." : "Score Opening Plan"}
         </button>
       </form>
 
@@ -407,6 +411,17 @@ export default function PreRaceRouteBiasForm({
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+function ContextMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-md border border-white/10 bg-black/20 px-3 py-2">
+      <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/45">
+        {label}
+      </div>
+      <div className="mt-1 text-sm font-medium text-white/85">{value}</div>
     </div>
   );
 }
