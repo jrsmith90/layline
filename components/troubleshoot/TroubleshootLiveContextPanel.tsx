@@ -272,9 +272,11 @@ export function TroubleshootLiveContextPanel() {
 
   useEffect(() => {
     if (gps.lat == null || gps.lon == null) {
-      setShipReports(null);
-      setShipReportsError(null);
-      setShipReportsLoading(false);
+      queueMicrotask(() => {
+        setShipReports(null);
+        setShipReportsError(null);
+        setShipReportsLoading(false);
+      });
       return;
     }
 

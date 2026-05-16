@@ -229,9 +229,11 @@ export default function WindSourcePanel() {
 
   useEffect(() => {
     if (sourceId !== "nearby_radial_wind" || gps.lat == null || gps.lon == null) {
-      setNearby(null)
-      setNearbyError(null)
-      setNearbyLoading(false)
+      queueMicrotask(() => {
+        setNearby(null)
+        setNearbyError(null)
+        setNearbyLoading(false)
+      })
       return
     }
 

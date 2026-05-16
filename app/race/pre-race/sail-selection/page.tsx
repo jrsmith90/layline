@@ -503,16 +503,18 @@ export default function SailSelectionPage() {
   useEffect(() => {
     if (!courseConditionsAuto || typeof planningWind !== "number") return;
 
-    setForecastWind(planningWind);
-    if (seaStateAuto) {
-      setSeaState(getSeaStateFromWind(planningWind));
-    }
-    setLegType(
-      getLegTypeFromCourseWind(
-        courseConfig.firstLegBearingDeg,
-        courseWindRead.windDirectionDeg
-      )
-    );
+    queueMicrotask(() => {
+      setForecastWind(planningWind);
+      if (seaStateAuto) {
+        setSeaState(getSeaStateFromWind(planningWind));
+      }
+      setLegType(
+        getLegTypeFromCourseWind(
+          courseConfig.firstLegBearingDeg,
+          courseWindRead.windDirectionDeg
+        )
+      );
+    });
   }, [
     courseConditionsAuto,
     courseConfig.firstLegBearingDeg,

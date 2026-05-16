@@ -46,10 +46,9 @@ export function AppModeProvider({ children }: { children: ReactNode }) {
     // Only run initialization once after hydration
     if (!initializedRef.current) {
       initializedRef.current = true;
-      const saved = localStorage.getItem(APP_MODE_KEY);
-      const savedMode = isAppMode(saved) ? saved : "learning";
+      const savedMode = readSavedMode();
       if (savedMode !== "learning") {
-        setModeState(savedMode);
+        queueMicrotask(() => setModeState(savedMode));
       }
     }
   }, []);

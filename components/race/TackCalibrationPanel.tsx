@@ -33,7 +33,7 @@ export function TackCalibrationPanel({
 }) {
   const gps = usePhoneGps();
   const [startedAtMs, setStartedAtMs] = useState<number | null>(null);
-  const [nowMs, setNowMs] = useState(Date.now());
+  const [nowMs, setNowMs] = useState(() => Date.now());
   const [results, setResults] = useState<TackCalibrationResult[]>(readTackCalibrations);
   const [error, setError] = useState<string | null>(null);
   const raceDayHalfAngle = useMemo(() => getRaceDayHalfAngle(results), [results]);
@@ -58,15 +58,14 @@ export function TackCalibrationPanel({
     const detected = detectAutomaticTackCalibrations(gps.track);
     if (detected.length === 0) return;
 
-    setResults((current) => {
-      const nextResults = mergeTackCalibrations(current, detected);
-      if (JSON.stringify(nextResults) === JSON.stringify(current)) return current;
-      saveTackCalibrations(nextResults);
-      const raceDayHalfAngle = getRaceDayHalfAngle(nextResults);
-      if (raceDayHalfAngle != null) onUseHalfAngle(raceDayHalfAngle);
-      return nextResults;
-    });
-  }, [gps.track, onUseHalfAngle]);
+    const nextResults = mergeTackCalibrations(results, detected);
+    if (JSON.stringify(nextResults) === JSON.stringify(results)) return;
+
+    saveTackCalibrations(nextResults);
+    const nextHalfAngle = getRaceDayHalfAngle(nextResults);
+    if (nextHalfAngle != null) onUseHalfAngle(nextHalfAngle);
+    queueMicrotask(() => setResults(nextResults));
+  }, [gps.track, onUseHalfAngle, results]);
 
   useEffect(() => {
     if (startedAtMs == null) return;
@@ -75,12 +74,14 @@ export function TackCalibrationPanel({
     try {
       const result = calculateTackCalibration(gps.track, startedAtMs);
       const nextResults = mergeTackCalibrations(results, [result]);
-      setResults(nextResults);
       saveTackCalibrations(nextResults);
       onUseHalfAngle(result.halfAngleDeg);
-      setError(null);
+      queueMicrotask(() => setResults(nextResults));
+      queueMicrotask(() => setError(null));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not calculate tack angle.");
+      queueMicrotask(() =>
+        setError(err instanceof Error ? err.message : "Could not calculate tack angle.")
+      );
     } finally {
       setStartedAtMs(null);
     }

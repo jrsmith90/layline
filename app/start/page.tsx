@@ -699,9 +699,11 @@ export default function StartPage() {
 
   useEffect(() => {
     if (windSourceId !== "nearby_gps" || gps.lat == null || gps.lon == null) {
-      setNearbyWind(null);
-      setNearbyWindError(null);
-      setNearbyWindLoading(false);
+      queueMicrotask(() => {
+        setNearbyWind(null);
+        setNearbyWindError(null);
+        setNearbyWindLoading(false);
+      });
       return;
     }
 

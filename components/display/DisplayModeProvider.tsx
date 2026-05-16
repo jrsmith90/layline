@@ -149,16 +149,9 @@ export function DisplayModeProvider({ children }: { children: ReactNode }) {
     // Initialize display mode from localStorage after hydration
     if (!initializedRef.current) {
       initializedRef.current = true;
-      const saved = localStorage.getItem(DISPLAY_MODE_KEY);
-      const savedMode: DisplayMode =
-        saved === "phone" ||
-        saved === "ipad" ||
-        saved === "desktop" ||
-        saved === "auto"
-          ? saved
-          : "auto";
+      const savedMode = readSavedMode();
       if (savedMode !== "auto") {
-        setModeState(savedMode);
+        queueMicrotask(() => setModeState(savedMode));
       }
     }
 
