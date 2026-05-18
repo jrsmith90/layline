@@ -15,13 +15,13 @@ export default function CoursePreviewCard() {
     <div className="space-y-3">
       <section className="layline-panel p-4">
         <div className="grid gap-3 md:grid-cols-[1fr_14rem] md:items-end">
-          <div>
-            <div className="layline-kicker">Pre-race course</div>
-            <h2 className="mt-1 text-xl font-black">Course preview</h2>
-            <p className="mt-1 text-sm text-[color:var(--muted)]">
-              Pick the announced course and check the mark order before leaving the dock.
-            </p>
-          </div>
+            <div>
+              <div className="layline-kicker">Pre-race course</div>
+              <h2 className="mt-1 text-xl font-black">Course preview</h2>
+              <p className="layline-learn-only mt-1 text-sm text-[color:var(--muted)]">
+                Pick the announced course and check the mark order before leaving the dock.
+              </p>
+            </div>
           <label className="space-y-1">
             <div className="text-xs font-black uppercase tracking-[0.16em] text-[color:var(--muted)]">
               Course
@@ -55,7 +55,7 @@ export default function CoursePreviewCard() {
         <section className="layline-panel p-4">
           <div className="layline-kicker">Routing</div>
           <h2 className="mt-1 text-xl font-black">Hard course constraints</h2>
-          <p className="mt-1 text-sm text-[color:var(--muted)]">
+          <p className="layline-learn-only mt-1 text-sm text-[color:var(--muted)]">
             Keep these reference marks on the channel side regardless of which way the
             triangle is sailed.
           </p>

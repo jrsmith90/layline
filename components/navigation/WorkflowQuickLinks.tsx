@@ -24,12 +24,12 @@ export function WorkflowQuickLinks(props: {
           <Link
             key={item.href}
             href={item.href}
-            className="layline-panel group flex min-h-20 items-start justify-between gap-3 p-3 transition active:scale-[0.99]"
+            className="layline-action group transition active:scale-[0.99]"
           >
             <div className="min-w-0">
               <div className="text-sm font-black text-[color:var(--text)]">{item.label}</div>
               {item.detail ? (
-                <div className="mt-1 text-xs leading-5 text-[color:var(--muted)]">
+                <div className="layline-learn-only mt-1 text-xs leading-5 text-[color:var(--muted)]">
                   {item.detail}
                 </div>
               ) : null}

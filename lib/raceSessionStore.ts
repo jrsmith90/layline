@@ -14,6 +14,7 @@ import type { TacticalBoardSnapshot } from "@/lib/race/tacticalBoard/types";
 import type { GpsTrackPoint } from "@/lib/useGpsCourse";
 import type { LaylineLog } from "@/lib/logStore";
 import { getLogs } from "@/lib/logStore";
+import type { OpeningBiasRecord } from "@/lib/race/openingBias";
 import {
   detectAutomaticTackRecords,
   detectAutomaticTackCalibrations,
@@ -97,6 +98,7 @@ export type RaceSession = {
   name: string;
   eventId?: string;
   courseId?: string;
+  openingBias?: OpeningBiasRecord | null;
   startedAtISO: string;
   endedAtISO?: string;
   status: RaceSessionStatus;
@@ -213,6 +215,10 @@ function timeValue(value?: string) {
 function normalizeRaceSession(session: RaceSession): RaceSession {
   return {
     ...session,
+    openingBias:
+      session.openingBias && typeof session.openingBias === "object"
+        ? session.openingBias
+        : null,
     gpsTrack: Array.isArray(session.gpsTrack) ? session.gpsTrack : [],
     weatherSamples: Array.isArray(session.weatherSamples) ? session.weatherSamples : [],
     decisions: Array.isArray(session.decisions) ? session.decisions : [],
@@ -856,12 +862,14 @@ export function startRaceSession(input: {
   name?: string;
   courseId?: string;
   eventId?: string;
+  openingBias?: OpeningBiasRecord | null;
 }) {
   const session: RaceSession = {
     id: safeUUID(),
     name: input.name ?? `Race ${new Date().toLocaleDateString()}`,
     eventId: input.eventId,
     courseId: input.courseId,
+    openingBias: input.openingBias ?? null,
     startedAtISO: nowISO(),
     status: "active",
     createdFrom: "live",
@@ -884,6 +892,19 @@ export function startRaceSession(input: {
     updatedAtISO: session.updatedAtISO ?? nowISO(),
   });
   return session;
+}
+
+export function updateRaceSessionOpeningBias(
+  id: string,
+  openingBias: OpeningBiasRecord | null,
+) {
+  const session = getRaceSession(id);
+  if (!session) return null;
+
+  return updateSessionInStore({
+    ...session,
+    openingBias,
+  });
 }
 
 export function endRaceSession(id: string) {

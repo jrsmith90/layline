@@ -71,17 +71,17 @@ function formatDelta(value: number): string {
 
 export default function LiveRouteUpdateCard({
   update,
-  title = "Live route update"
+  title = "Latest opening-bias check"
 }: LiveRouteUpdateCardProps) {
   if (!update) {
-    return (
-      <div className="rounded-xl border border-white/10 bg-black/20 p-5">
-        <div className="text-lg font-semibold">{title}</div>
-        <p className="mt-2 text-sm text-white/70">
-          No live update yet. Compare the latest conditions against the original plan to see whether the route bias still holds.
+      return (
+        <div className="rounded-xl border border-white/10 bg-black/20 p-5">
+          <div className="text-lg font-semibold">{title}</div>
+        <p className="layline-learn-only mt-2 text-sm text-white/70">
+          No re-check yet. Update the latest conditions if you want to confirm the saved opening bias before the start.
         </p>
-      </div>
-    );
+        </div>
+      );
   }
 
   return (
@@ -101,7 +101,7 @@ export default function LiveRouteUpdateCard({
       </div>
 
       <div className="mt-4 rounded-lg border border-white/10 bg-white/5 p-4">
-        <div className="text-sm text-white/60">Recommended action</div>
+        <div className="text-sm text-white/60">What changed</div>
         <div className="mt-1 text-lg font-semibold">{formatAction(update.action)}</div>
       </div>
 
@@ -118,7 +118,7 @@ export default function LiveRouteUpdateCard({
 
       {update.reasons.length > 0 && (
         <div className="mt-4">
-          <div className="text-sm font-medium">Reasons</div>
+          <div className="text-sm font-medium">Why</div>
           <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-white/75">
             {update.reasons.map((reason) => (
               <li key={reason}>{reason}</li>

@@ -10,6 +10,10 @@ import {
   type WindTrend
 } from "@/data/race/getRouteBiasInputs";
 import { getDefaultCourseId } from "@/data/race/getCourseData";
+import {
+  formatOpeningBiasConfidence,
+  formatOpeningBiasLabel,
+} from "@/lib/race/openingBias";
 import { RoutingConstraintsList } from "@/components/race/RoutingConstraintsList";
 import { readJsonResponse } from "@/lib/readJsonResponse";
 import type { RouteBiasAnswers, RouteBiasResult } from "@/lib/race/scoreRouteBias";
@@ -58,25 +62,6 @@ function toFormValues(initialAnswers?: RouteBiasAnswers | null): FormValues {
     currentSide: initialAnswers.currentSide,
     edgeStrength: initialAnswers.edgeStrength,
   };
-}
-
-function formatDecision(decision: RouteBiasResult["decision"]): string {
-  switch (decision) {
-    case "shore_first":
-      return "Favor shore early";
-    case "bay_first":
-      return "Favor bay early";
-    case "neutral":
-      return "Stay central and flexible";
-    case "mixed_signal":
-      return "Mixed signal";
-    default:
-      return decision;
-  }
-}
-
-function formatConfidence(confidence: RouteBiasResult["confidence"]): string {
-  return confidence.charAt(0).toUpperCase() + confidence.slice(1);
 }
 
 export default function PreRaceRouteBiasForm({
@@ -351,9 +336,9 @@ export default function PreRaceRouteBiasForm({
         <button
           type="submit"
           disabled={isSubmitting}
-          className="rounded-md bg-white px-4 py-2 text-sm font-medium text-slate-900 disabled:opacity-60"
+          className="layline-pill px-4 py-2 text-sm font-bold text-[color:var(--text)] disabled:opacity-60"
         >
-          {isSubmitting ? "Scoring..." : "Score Opening Plan"}
+          {isSubmitting ? "Scoring..." : "Save Opening Bias"}
         </button>
       </form>
 
@@ -367,13 +352,17 @@ export default function PreRaceRouteBiasForm({
         <div className="mt-5 rounded-lg border border-white/10 bg-white/5 p-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <div className="text-sm text-white/60">Decision</div>
-              <div className="text-lg font-semibold">{formatDecision(result.decision)}</div>
+              <div className="text-sm text-white/60">Saved opening pick</div>
+              <div className="text-lg font-semibold">
+                {formatOpeningBiasLabel(result.decision)}
+              </div>
             </div>
 
             <div className="text-right">
               <div className="text-sm text-white/60">Confidence</div>
-              <div className="font-medium">{formatConfidence(result.confidence)}</div>
+              <div className="font-medium">
+                {formatOpeningBiasConfidence(result.confidence)}
+              </div>
             </div>
           </div>
 
@@ -390,7 +379,7 @@ export default function PreRaceRouteBiasForm({
 
           {result.reasons.length > 0 && (
             <div className="mt-4">
-              <div className="text-sm font-medium">Reasons</div>
+              <div className="text-sm font-medium">Why this side</div>
               <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-white/75">
                 {result.reasons.map((reason) => (
                   <li key={reason}>{reason}</li>

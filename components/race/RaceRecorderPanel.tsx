@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useReducer, useRef, useState, useSyncExternalStore } from "react";
 import { Circle, Download, Flag, NotebookPen, Square } from "lucide-react";
 import type { GpsTrackPoint } from "@/lib/useGpsCourse";
+import { getDefaultCourseId } from "@/data/race/getCourseData";
 import {
   addManualRaceNote,
   appendRaceDecision,
@@ -23,15 +24,22 @@ import {
   recoverTodayRaceSession,
   startRaceSession,
   subscribeRaceSessionStore,
+  updateRaceSessionOpeningBias,
   type RaceSessionRepositoryRecoveryResult,
   type RaceDecisionSourceMeta,
   type RaceStateSnapshotCaptureInput,
   type TacticalBoardSnapshotCaptureInput,
   type RaceWeatherSample,
 } from "@/lib/raceSessionStore";
+import { buildOpeningBiasRecord } from "@/lib/race/openingBias";
 import { getLogs } from "@/lib/logStore";
 import { readTackCalibrations } from "@/lib/race/tackCalibration";
 import { readJsonResponse } from "@/lib/readJsonResponse";
+import {
+  buildTacticalBoardDraftDefaults,
+  getStoredTacticalBoardDraft,
+  subscribeTacticalBoardStore,
+} from "@/lib/race/tacticalBoard/store";
 
 type WeatherPayload = {
   windAvgKt?: number;
@@ -78,6 +86,7 @@ type RaceRecorderPanelProps = {
 };
 
 const RACE_STATE_SNAPSHOT_INTERVAL_MS = 15_000;
+const DEFAULT_TACTICAL_BOARD_DRAFT = buildTacticalBoardDraftDefaults(getDefaultCourseId());
 
 function formatTime(iso?: string) {
   if (!iso) return "--";
@@ -176,6 +185,11 @@ export function RaceRecorderPanel({
     getActiveRaceSession,
     () => null,
   );
+  const tacticalBoardDraft = useSyncExternalStore(
+    subscribeTacticalBoardStore,
+    getStoredTacticalBoardDraft,
+    () => DEFAULT_TACTICAL_BOARD_DRAFT,
+  );
   const effectiveSessionId = activeSession?.id ?? sessionId;
   const session = useSyncExternalStore(
     subscribeRaceSessionStore,
@@ -222,6 +236,21 @@ export function RaceRecorderPanel({
     attachTrimLogsToSession(effectiveSessionId, getLogs());
     attachTackCalibrationsToSession(effectiveSessionId, readTackCalibrations());
   }, [effectiveSessionId, gpsTrack, session?.status, tackContext]);
+
+  useEffect(() => {
+    if (!effectiveSessionId || session?.status !== "active") return;
+
+    const openingBias =
+      tacticalBoardDraft.routeBias.originalAnswers && tacticalBoardDraft.routeBias.originalPlan
+        ? buildOpeningBiasRecord({
+            answers: tacticalBoardDraft.routeBias.originalAnswers,
+            plan: tacticalBoardDraft.routeBias.originalPlan,
+            latestUpdate: tacticalBoardDraft.routeBias.latestUpdate,
+          })
+        : null;
+
+    updateRaceSessionOpeningBias(effectiveSessionId, openingBias);
+  }, [effectiveSessionId, session?.status, tacticalBoardDraft]);
 
   useEffect(() => {
     if (!effectiveSessionId || session?.status !== "active" || !currentDecision) return;
@@ -333,7 +362,16 @@ export function RaceRecorderPanel({
   );
 
   function beginRecording() {
-    const next = startRaceSession({ courseId });
+    const openingBias =
+      tacticalBoardDraft.routeBias.originalAnswers && tacticalBoardDraft.routeBias.originalPlan
+        ? buildOpeningBiasRecord({
+            answers: tacticalBoardDraft.routeBias.originalAnswers,
+            plan: tacticalBoardDraft.routeBias.originalPlan,
+            latestUpdate: tacticalBoardDraft.routeBias.latestUpdate,
+          })
+        : null;
+
+    const next = startRaceSession({ courseId, openingBias });
     appendRaceGpsSamples(next.id, gpsTrack, tackContext);
     setSessionId(next.id);
     setStatus("Race recording started.");

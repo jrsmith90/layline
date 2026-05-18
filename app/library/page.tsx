@@ -49,7 +49,7 @@ export default function LibraryPage() {
                 <Link
                   key={item.href}
                   href={item.href}
-                  className="flex items-center justify-between gap-3 rounded-xl border border-[color:var(--divider)] bg-black/20 px-3 py-3 transition active:scale-[0.99]"
+                  className="layline-action transition active:scale-[0.99]"
                 >
                   <div className="min-w-0 text-sm font-black text-[color:var(--text)]">
                     {item.label}

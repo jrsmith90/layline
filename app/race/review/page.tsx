@@ -11,6 +11,11 @@ import CourseChart from "@/components/race/CourseChart";
 import { formatCourseLabel, getCourseData } from "@/data/race/getCourseData";
 import { buildReviewCoachBrief } from "@/lib/ai/coach";
 import {
+  formatOpeningLegTypeShort,
+  formatOpeningBiasAction,
+  formatOpeningBiasConfidence,
+} from "@/lib/race/openingBias";
+import {
   deleteLog as deleteStoredLog,
   rateLog as rateStoredLog,
   type LaylineLog,
@@ -655,6 +660,65 @@ export default function RaceReviewPage() {
           </section>
 
           <AiCoachCard brief={reviewCoachBrief} />
+
+          {session.openingBias && (
+            <section className="layline-panel p-4">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <h2 className="text-xl font-black">Opening Bias Pick</h2>
+                  <p className="mt-1 text-sm text-[color:var(--muted)]">
+                    The saved first-leg bias from pre-race.
+                  </p>
+                </div>
+                <div className="rounded-full border border-white/10 bg-black/20 px-3 py-2 text-xs font-black uppercase tracking-wide">
+                  {formatOpeningBiasConfidence(session.openingBias.confidence)}
+                </div>
+              </div>
+
+              <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
+                <Metric label="Pick" value={session.openingBias.label} />
+                <Metric
+                  label="Leg"
+                  value={formatOpeningLegTypeShort(session.openingBias.openingLegType)}
+                />
+                <Metric
+                  label="Wind"
+                  value={
+                    session.openingBias.windDirectionDeg == null
+                      ? "--"
+                      : `${Math.round(session.openingBias.windDirectionDeg)} deg`
+                  }
+                />
+                <Metric
+                  label="Speed"
+                  value={
+                    session.openingBias.windSpeedKt == null
+                      ? "--"
+                      : `${session.openingBias.windSpeedKt.toFixed(1)} kt`
+                  }
+                />
+              </div>
+
+              {(session.openingBias.reason || session.openingBias.latestActionLabel) && (
+                <div className="mt-3 grid gap-3 md:grid-cols-2">
+                  {session.openingBias.reason ? (
+                    <div className="rounded-xl border border-white/10 bg-black/20 p-3 text-sm leading-6">
+                      {session.openingBias.reason}
+                    </div>
+                  ) : null}
+                  {session.openingBias.latestActionLabel ? (
+                    <div className="rounded-xl border border-cyan-400/20 bg-cyan-400/10 p-3 text-sm leading-6">
+                      {formatOpeningBiasAction(session.openingBias.latestAction) ??
+                        session.openingBias.latestActionLabel}
+                      {session.openingBias.latestReason
+                        ? ` · ${session.openingBias.latestReason}`
+                        : ""}
+                    </div>
+                  ) : null}
+                </div>
+              )}
+            </section>
+          )}
 
           <section id="debrief" className="space-y-5 scroll-mt-24">
             <section className="layline-panel p-4">

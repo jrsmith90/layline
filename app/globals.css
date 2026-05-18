@@ -1,37 +1,37 @@
 @import "tailwindcss";
 
-/* Layline Tactical Instrument Palette */
+/* Layline Coastal Instrument Palette */
 :root {
   /* Core surfaces */
-  --bg: #0b1f33;
-  --bg-deep: #071625;
-  --panel: #12283f;
-  --panel-soft: #17334f;
-  --panel-muted: #0f2438;
-  --divider: #24435f;
+  --bg: #08202d;
+  --bg-deep: #06161f;
+  --panel: #10313d;
+  --panel-soft: #174150;
+  --panel-muted: #0c2731;
+  --divider: #3c6870;
 
   /* Text */
-  --text: #f4f6f8;
-  --text-soft: #d8e0e8;
-  --muted: #8fa1b3;
+  --text: #f3f7f3;
+  --text-soft: #d9e7e1;
+  --muted: #8da8a5;
 
   /* Tactical state colors */
-  --favorable: #00a8a8;
-  --warning: #e0b04b;
-  --unfavorable: #c44536;
+  --favorable: #65c4b8;
+  --warning: #d9b26b;
+  --unfavorable: #d2725c;
 
   /* Legacy / utility accents */
-  --blue: #4c8fd9;
-  --amber: #e0b04b;
-  --red: #c44536;
-  --green: #00a8a8;
-  --advisory: #7fb7ff;
-  --teal: #00a8a8;
+  --blue: #78b8c9;
+  --amber: #d9b26b;
+  --red: #d2725c;
+  --green: #65c4b8;
+  --advisory: #8cc8d6;
+  --teal: #65c4b8;
 
   /* Shape + depth */
   --radius-card: 16px;
   --radius-pill: 999px;
-  --shadow-panel: 0 18px 40px rgba(0, 0, 0, 0.28);
+  --shadow-panel: 0 18px 40px rgba(1, 13, 19, 0.34);
   --shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
@@ -43,7 +43,8 @@ body {
 body {
   min-height: 100%;
   background:
-    radial-gradient(circle at top left, rgba(0, 168, 168, 0.12), transparent 32rem),
+    radial-gradient(circle at top left, rgba(101, 196, 184, 0.14), transparent 32rem),
+    radial-gradient(circle at bottom right, rgba(217, 178, 107, 0.08), transparent 24rem),
     linear-gradient(180deg, var(--bg) 0%, var(--bg-deep) 100%);
   color: var(--text);
   font-feature-settings: "tnum";
@@ -65,7 +66,9 @@ button {
 
 /* Shared Layline UI helpers */
 .layline-panel {
-  background: linear-gradient(180deg, var(--panel) 0%, var(--panel-muted) 100%);
+  background:
+    radial-gradient(circle at top, rgba(140, 200, 214, 0.08), transparent 55%),
+    linear-gradient(180deg, var(--panel) 0%, var(--panel-muted) 100%);
   border: 1px solid color-mix(in srgb, var(--divider) 78%, transparent);
   border-radius: var(--radius-card);
   box-shadow: var(--shadow-panel), var(--shadow-inset);
@@ -74,7 +77,9 @@ button {
 .layline-pill {
   border-radius: var(--radius-pill);
   border: 1px solid color-mix(in srgb, var(--divider) 80%, transparent);
-  background: color-mix(in srgb, var(--panel-soft) 72%, transparent);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--panel-soft) 88%, transparent), color-mix(in srgb, var(--panel-muted) 92%, transparent));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 
 .layline-chip {
@@ -103,4 +108,26 @@ button {
 .layline-rule {
   height: 1px;
   background: linear-gradient(90deg, transparent, var(--divider), transparent);
+}
+
+.layline-action {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.9rem;
+  min-height: 3.35rem;
+  border-radius: var(--radius-pill);
+  border: 1px solid color-mix(in srgb, var(--divider) 82%, transparent);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--panel-soft) 90%, transparent), color-mix(in srgb, var(--panel-muted) 94%, transparent));
+  padding: 0.95rem 1.1rem;
+  box-shadow: var(--shadow-inset);
+}
+
+.layline-learn-only {
+  display: block;
+}
+
+html[data-layline-app-mode="race"] .layline-learn-only {
+  display: none !important;
 }

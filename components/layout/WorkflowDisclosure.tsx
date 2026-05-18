@@ -21,12 +21,12 @@ export function WorkflowDisclosure(props: {
           <div className="layline-kicker">{props.badge ?? "Section"}</div>
           <div className="mt-1 text-xl font-black text-[color:var(--text)]">{props.title}</div>
           {props.detail ? (
-            <div className="mt-1 text-sm leading-6 text-[color:var(--text-soft)]">
+            <div className="layline-learn-only mt-1 text-sm leading-6 text-[color:var(--text-soft)]">
               {props.detail}
             </div>
           ) : null}
         </div>
-        <div className="rounded-full border border-[color:var(--divider)] bg-black/20 px-3 py-1 text-[11px] font-black uppercase tracking-[0.16em] text-[color:var(--muted)]">
+        <div className="layline-pill px-3 py-1 text-[11px] font-black uppercase tracking-[0.16em] text-[color:var(--muted)]">
           Toggle
         </div>
       </summary>

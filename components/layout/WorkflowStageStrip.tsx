@@ -52,7 +52,7 @@ export function WorkflowStageStrip(props: {
                 {item.label}
               </div>
               {item.detail ? (
-                <div className="mt-1 text-sm leading-6 text-[color:var(--text-soft)]">
+                <div className="layline-learn-only mt-1 text-sm leading-6 text-[color:var(--text-soft)]">
                   {item.detail}
                 </div>
               ) : null}
@@ -60,7 +60,7 @@ export function WorkflowStageStrip(props: {
           );
 
           const className = [
-            "rounded-2xl border p-4 transition active:scale-[0.99]",
+            "layline-action transition active:scale-[0.99]",
             toneClasses(item.tone ?? "neutral"),
           ].join(" ");
 

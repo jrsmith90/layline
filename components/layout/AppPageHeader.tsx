@@ -20,7 +20,7 @@ export function AppPageHeader(props: AppPageHeaderProps) {
             {props.title}
           </h1>
           {props.description ? (
-            <p className="mt-3 max-w-2xl text-sm leading-6 text-[color:var(--text-soft)] sm:text-[0.95rem]">
+            <p className="layline-learn-only mt-3 max-w-2xl text-sm leading-6 text-[color:var(--text-soft)] sm:text-[0.95rem]">
               {props.description}
             </p>
           ) : null}

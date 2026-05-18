@@ -8,6 +8,11 @@ import LiveRouteUpdateCard from "@/components/race/LiveRouteUpdateCard";
 import { LiveInstrumentsPanel } from "@/components/gps/LiveInstrumentsPanel";
 import { TroubleshootLiveContextPanel } from "@/components/troubleshoot/TroubleshootLiveContextPanel";
 import { getLiveRouteUpdate } from "@/lib/race/getLiveRouteUpdate";
+import {
+  formatOpeningBiasAction,
+  formatOpeningBiasConfidence,
+  formatOpeningBiasLabel,
+} from "@/lib/race/openingBias";
 import { readJsonResponse } from "@/lib/readJsonResponse";
 import { scoreRouteBias, type RouteBiasAnswers, type RouteBiasResult } from "@/lib/race/scoreRouteBias";
 import type { OpeningLegType, WindTrend, PressureSide, CurrentSide, EdgeStrength } from "@/data/race/getRouteBiasInputs";
@@ -82,25 +87,6 @@ function toLatestValues(initialAnswers?: RouteBiasAnswers | null): LatestConditi
     currentSide: initialAnswers.currentSide,
     edgeStrength: initialAnswers.edgeStrength,
   };
-}
-
-function formatDecision(decision: string): string {
-  switch (decision) {
-    case "shore_first":
-      return "Favor shore early";
-    case "bay_first":
-      return "Favor bay early";
-    case "neutral":
-      return "Stay central and flexible";
-    case "mixed_signal":
-      return "Mixed signal";
-    default:
-      return decision;
-  }
-}
-
-function formatConfidence(confidence: string): string {
-  return confidence.charAt(0).toUpperCase() + confidence.slice(1);
 }
 
 function mapLiveTrendToRouteTrend(
@@ -330,23 +316,29 @@ export default function PreRaceRouteBiasWorkflow() {
       {originalPlan && (
         <div className="rounded-xl border border-white/10 bg-black/20 p-5">
           <div className="mb-4">
-            <h2 className="text-xl font-semibold">Original plan locked</h2>
-            <p className="mt-1 text-sm text-white/70">
-              Use the latest conditions below to check whether the original route bias still holds.
-            </p>
+            <h2 className="text-xl font-semibold">Saved opening bias</h2>
           </div>
 
           <div className="rounded-lg border border-white/10 bg-white/5 p-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <div className="text-sm text-white/60">Original decision</div>
-                <div className="text-lg font-semibold">{formatDecision(originalPlan.decision)}</div>
+                <div className="text-sm text-white/60">Pick</div>
+                <div className="text-lg font-semibold">
+                  {formatOpeningBiasLabel(originalPlan.decision)}
+                </div>
               </div>
               <div className="text-right">
                 <div className="text-sm text-white/60">Confidence</div>
-                <div className="font-medium">{formatConfidence(originalPlan.confidence)}</div>
+                <div className="font-medium">
+                  {formatOpeningBiasConfidence(originalPlan.confidence)}
+                </div>
               </div>
             </div>
+            {originalPlan.reasons[0] && (
+              <div className="mt-3 rounded-md border border-white/10 bg-black/20 px-3 py-2 text-sm text-white/75">
+                {originalPlan.reasons[0]}
+              </div>
+            )}
           </div>
 
           <form onSubmit={handleLatestSubmit} className="mt-5 space-y-5">
@@ -354,7 +346,7 @@ export default function PreRaceRouteBiasWorkflow() {
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
                   <div className="text-xs uppercase tracking-wide text-white/50">
-                    Live route seed
+                    Re-check seed
                   </div>
                   <p className="mt-1 text-sm text-white/75">
                     {primaryLiveWind
@@ -366,9 +358,9 @@ export default function PreRaceRouteBiasWorkflow() {
                   type="button"
                   onClick={applyLiveWindToLatest}
                   disabled={!primaryLiveWind}
-                  className="rounded-md bg-white px-4 py-2 text-sm font-medium text-slate-900 disabled:opacity-40"
+                  className="layline-pill px-4 py-2 text-sm font-bold text-[color:var(--text)] disabled:opacity-40"
                 >
-                  Use live wind
+                  Fill From Live Wind
                 </button>
               </div>
             </div>
@@ -517,9 +509,9 @@ export default function PreRaceRouteBiasWorkflow() {
 
             <button
               type="submit"
-              className="rounded-md bg-white px-4 py-2 text-sm font-medium text-slate-900"
+              className="layline-pill px-4 py-2 text-sm font-bold text-[color:var(--text)]"
             >
-              Check live update
+              Re-Check Opening Bias
             </button>
           </form>
 
@@ -531,7 +523,14 @@ export default function PreRaceRouteBiasWorkflow() {
         </div>
       )}
 
-      <LiveRouteUpdateCard update={liveUpdate} />
+      <LiveRouteUpdateCard
+        update={liveUpdate}
+        title={
+          liveUpdate?.action
+            ? `Latest check · ${formatOpeningBiasAction(liveUpdate.action)}`
+            : "Latest opening-bias check"
+        }
+      />
     </div>
   );
 }

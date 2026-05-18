@@ -265,16 +265,6 @@ function buildWindIcon(windDirectionDeg?: number | null) {
   });
 }
 
-function tideIcon() {
-  return L.divIcon({
-    html: `<div style="width:20px;height:20px;background:#f7fbff;border:3px solid #047857;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:9px;color:#064e3b;box-shadow:0 1px 4px rgba(0,0,0,.35);">T</div>`,
-    className: "layline-tide-marker",
-    iconSize: [20, 20],
-    iconAnchor: [10, 10],
-    popupAnchor: [0, -10],
-  });
-}
-
 function getSnapshot(payload: TideCurrentPayload | null, index: number) {
   return payload?.snapshots[index] ?? null;
 }
@@ -446,11 +436,7 @@ export default function RaceConditionsMap() {
     const windPositions = windStations.map(
       (station) => [station.lat, station.lon] as [number, number],
     );
-    const tidePosition =
-      payload?.tide.lat != null && payload.tide.lon != null
-        ? ([[payload.tide.lat, payload.tide.lon] as [number, number]])
-        : [];
-    const positions = [...coursePositions, ...stationPositions, ...windPositions, ...tidePosition];
+    const positions = [...coursePositions, ...stationPositions, ...windPositions];
 
     if (positions.length === 0) {
       return {
@@ -480,7 +466,7 @@ export default function RaceConditionsMap() {
       ],
       zoom: 12,
     };
-  }, [coursePositions, currentStations, payload, windStations]);
+  }, [coursePositions, currentStations, windStations]);
 
   return (
     <section className="layline-panel overflow-hidden">
@@ -490,7 +476,7 @@ export default function RaceConditionsMap() {
             <div>
               <div className="layline-kicker">Race map</div>
               <h2 className="mt-1 text-xl font-black">NOAA-style planning chart</h2>
-              <p className="mt-1 text-sm text-[color:var(--muted)]">
+              <p className="layline-learn-only mt-1 text-sm text-[color:var(--muted)]">
                 Official NOAA nautical charts with tide and current predictions layered for pre-race planning.
               </p>
             </div>
@@ -657,30 +643,6 @@ export default function RaceConditionsMap() {
                   </Marker>
                 ))}
 
-                {payload?.tide && (
-                  <Marker
-                    position={[payload.tide.lat, payload.tide.lon]}
-                    icon={tideIcon()}
-                  >
-                    <Popup>
-                      <div className="space-y-1 text-sm">
-                        <div className="font-bold">Tide {payload.tide.label}</div>
-                        <div>{formatHeight(selectedTideHeight)}</div>
-                        <div className="text-xs">{selectedTideStage}</div>
-                        {payload.tide.nextHighTime ? (
-                          <div className="text-xs">
-                            Next high {payload.tide.nextHighTime.displayTime} · {formatHeight(payload.tide.nextHighTime.heightFt)}
-                          </div>
-                        ) : null}
-                        {payload.tide.nextLowTime ? (
-                          <div className="text-xs">
-                            Next low {payload.tide.nextLowTime.displayTime} · {formatHeight(payload.tide.nextLowTime.heightFt)}
-                          </div>
-                        ) : null}
-                      </div>
-                    </Popup>
-                  </Marker>
-                )}
               </MapContainer>
             )}
           </div>
@@ -722,7 +684,44 @@ export default function RaceConditionsMap() {
             </div>
           </div>
 
-          <div className="rounded-lg border border-[color:var(--divider)] bg-black/20 p-3 text-xs text-[color:var(--muted)]">
+          {payload?.tide && (
+            <div className="rounded-lg border border-[color:var(--divider)] bg-black/20 p-3">
+              <div className="text-xs font-black uppercase tracking-[0.16em] text-[color:var(--muted)]">
+                Tide
+              </div>
+              <div className="mt-2 space-y-2 text-sm">
+                <div>
+                  <span className="text-[color:var(--text-soft)]">Height:</span>{" "}
+                  <span className="font-semibold">{formatHeight(selectedTideHeight)}</span>
+                </div>
+                <div>
+                  <span className="text-[color:var(--text-soft)]">Stage:</span>{" "}
+                  <span className="font-semibold">{selectedTideStage}</span>
+                </div>
+                {payload.tide.nextHighTime ? (
+                  <div>
+                    <span className="text-[color:var(--text-soft)]">Next high:</span>{" "}
+                    <span className="font-semibold">
+                      {payload.tide.nextHighTime.displayTime} ·{" "}
+                      {formatHeight(payload.tide.nextHighTime.heightFt)}
+                    </span>
+                  </div>
+                ) : null}
+                {payload.tide.nextLowTime ? (
+                  <div>
+                    <span className="text-[color:var(--text-soft)]">Next low:</span>{" "}
+                    <span className="font-semibold">
+                      {payload.tide.nextLowTime.displayTime} ·{" "}
+                      {formatHeight(payload.tide.nextLowTime.heightFt)}
+                    </span>
+                  </div>
+                ) : null}
+                <div className="text-xs text-[color:var(--muted)]">{payload.tide.label}</div>
+              </div>
+            </div>
+          )}
+
+          <div className="layline-learn-only rounded-lg border border-[color:var(--divider)] bg-black/20 p-3 text-xs text-[color:var(--muted)]">
             <div className="font-bold">About this map</div>
             <p className="mt-2">
               Uses NOAA&apos;s official ENC Chart Display Service with traditional paper chart symbology. Tide and current predictions are layered from NOAA CO-OPS for planning only.
