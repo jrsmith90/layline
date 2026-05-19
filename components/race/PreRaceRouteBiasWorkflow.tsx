@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { getRouteBiasInputs } from "@/data/race/getRouteBiasInputs";
 import { getDefaultCourseId } from "@/data/race/getCourseData";
+import { WorkflowDisclosure } from "@/components/layout/WorkflowDisclosure";
 import PreRaceRouteBiasForm from "@/components/race/PreRaceRouteBiasForm";
 import LiveRouteUpdateCard from "@/components/race/LiveRouteUpdateCard";
 import { LiveInstrumentsPanel } from "@/components/gps/LiveInstrumentsPanel";
@@ -62,20 +63,26 @@ type LatestConditionsValues = {
   edgeStrength: EdgeStrength;
 };
 
-const initialLatestValues: LatestConditionsValues = {
-  courseId: getDefaultCourseId(),
-  openingLegType: "unknown",
-  windDirectionDeg: "",
-  windSpeedKt: "",
-  windTrend: "unknown",
-  pressureSide: "unclear",
-  currentSide: "unclear",
-  edgeStrength: "unclear"
-};
+function createInitialLatestValues(courseId: string): LatestConditionsValues {
+  return {
+    courseId,
+    openingLegType: "unknown",
+    windDirectionDeg: "",
+    windSpeedKt: "",
+    windTrend: "unknown",
+    pressureSide: "unclear",
+    currentSide: "unclear",
+    edgeStrength: "unclear",
+  };
+}
+
 const DEFAULT_TACTICAL_BOARD_DRAFT = buildTacticalBoardDraftDefaults(getDefaultCourseId());
 
-function toLatestValues(initialAnswers?: RouteBiasAnswers | null): LatestConditionsValues {
-  if (!initialAnswers) return initialLatestValues;
+function toLatestValues(
+  initialAnswers?: RouteBiasAnswers | null,
+  defaultCourseId = getDefaultCourseId(),
+): LatestConditionsValues {
+  if (!initialAnswers) return createInitialLatestValues(defaultCourseId);
 
   return {
     courseId: initialAnswers.courseId,
@@ -148,8 +155,11 @@ export default function PreRaceRouteBiasWorkflow() {
   const originalPlan = draft.routeBias.originalPlan;
   const liveUpdate = draft.routeBias.latestUpdate;
   const storedOriginalAnswers = draft.routeBias.originalAnswers;
-  const latestValues = latestValuesOverride ??
-    toLatestValues(draft.routeBias.latestAnswers ?? draft.routeBias.originalAnswers);
+  const storedLatestAnswers = draft.routeBias.latestAnswers;
+  const latestValuesSeed = storedLatestAnswers ?? storedOriginalAnswers;
+  const latestValues = latestValuesSeed
+    ? latestValuesOverride ?? toLatestValues(latestValuesSeed, draft.courseId)
+    : toLatestValues(null, draft.courseId);
 
   const latestConfig = useMemo(
     () => getRouteBiasInputs(latestValues.courseId),
@@ -303,11 +313,20 @@ export default function PreRaceRouteBiasWorkflow() {
 
   return (
     <div className="space-y-6">
-      <LiveInstrumentsPanel context="route" />
-      <TroubleshootLiveContextPanel />
+      <WorkflowDisclosure
+        title="Live references for the re-check"
+        detail="Open this only when you want a final live sanity check before the start."
+        badge="Optional live context"
+      >
+        <div className="space-y-6">
+          <LiveInstrumentsPanel context="route" />
+          <TroubleshootLiveContextPanel />
+        </div>
+      </WorkflowDisclosure>
 
       <PreRaceRouteBiasForm
-        key={JSON.stringify({ answers: storedOriginalAnswers, plan: originalPlan })}
+        key={JSON.stringify({ courseId: draft.courseId, answers: storedOriginalAnswers, plan: originalPlan })}
+        defaultCourseId={draft.courseId}
         initialAnswers={storedOriginalAnswers}
         initialResult={originalPlan}
         onPlanReady={handleOriginalPlanReady}

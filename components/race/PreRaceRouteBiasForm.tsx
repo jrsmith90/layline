@@ -19,6 +19,7 @@ import { readJsonResponse } from "@/lib/readJsonResponse";
 import type { RouteBiasAnswers, RouteBiasResult } from "@/lib/race/scoreRouteBias";
 
 type PreRaceRouteBiasFormProps = {
+  defaultCourseId?: string;
   initialAnswers?: RouteBiasAnswers | null;
   initialResult?: RouteBiasResult | null;
   onPlanReady?: (payload: {
@@ -38,19 +39,24 @@ type FormValues = {
   edgeStrength: EdgeStrength;
 };
 
-const initialValues: FormValues = {
-  courseId: getDefaultCourseId(),
-  openingLegType: "unknown",
-  windDirectionDeg: "",
-  windSpeedKt: "",
-  windTrend: "unknown",
-  pressureSide: "unclear",
-  currentSide: "unclear",
-  edgeStrength: "unclear"
-};
+function createInitialValues(courseId: string): FormValues {
+  return {
+    courseId,
+    openingLegType: "unknown",
+    windDirectionDeg: "",
+    windSpeedKt: "",
+    windTrend: "unknown",
+    pressureSide: "unclear",
+    currentSide: "unclear",
+    edgeStrength: "unclear",
+  };
+}
 
-function toFormValues(initialAnswers?: RouteBiasAnswers | null): FormValues {
-  if (!initialAnswers) return initialValues;
+function toFormValues(
+  initialAnswers?: RouteBiasAnswers | null,
+  defaultCourseId = getDefaultCourseId(),
+): FormValues {
+  if (!initialAnswers) return createInitialValues(defaultCourseId);
 
   return {
     courseId: initialAnswers.courseId,
@@ -65,11 +71,14 @@ function toFormValues(initialAnswers?: RouteBiasAnswers | null): FormValues {
 }
 
 export default function PreRaceRouteBiasForm({
+  defaultCourseId = getDefaultCourseId(),
   initialAnswers,
   initialResult,
   onPlanReady,
 }: PreRaceRouteBiasFormProps) {
-  const [values, setValues] = useState<FormValues>(() => toFormValues(initialAnswers));
+  const [values, setValues] = useState<FormValues>(() =>
+    toFormValues(initialAnswers, defaultCourseId),
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [result, setResult] = useState<RouteBiasResult | null>(() => initialResult ?? null);
   const [error, setError] = useState<string | null>(null);

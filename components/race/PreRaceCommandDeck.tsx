@@ -93,7 +93,7 @@ export function PreRaceCommandDeck() {
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
           <DeckMetric label="Course" value={formatCourseLabel(draft.courseId)} />
           <DeckMetric
-            label="Opening plan"
+            label="Opening bias"
             value={planStatus(draft.routeBias.latestUpdate?.action, draft.routeBias.originalPlan != null)}
           />
           <DeckMetric label="Board" value={statusLabel(boardStatus)} />
@@ -112,19 +112,32 @@ export function PreRaceCommandDeck() {
         title="Pre-Race Flow"
         items={[
           {
-            label: "Course read",
+            label: "Course and chart",
+            detail:
+              course.specialRoutingConstraints.length > 0
+                ? "Preview the course sequence and routing constraints."
+                : "Confirm the announced course and mark order.",
             status: course.specialRoutingConstraints.length > 0 ? "Context loaded" : "Standard course",
             href: "#course-read",
             tone: "focus",
           },
           {
-            label: "Opening plan",
+            label: "Sail choice",
+            detail: "Use the same course context for the inventory call.",
+            status: "Open tool",
+            href: "/race/pre-race/sail-selection",
+            tone: "focus",
+          },
+          {
+            label: "Opening bias",
+            detail: "Save the first-leg side, then re-check if needed.",
             status: draft.routeBias.originalPlan ? "Plan saved" : "Waiting",
             href: "#route-plan",
             tone: draft.routeBias.originalPlan ? "positive" : "warning",
           },
           {
-            label: "Live board",
+            label: "Tactical board",
+            detail: "Carry the saved course and bias into launch mode.",
             status: statusLabel(boardStatus),
             href: "#tactical-board",
             tone: boardStatus === "ready" ? "positive" : "focus",

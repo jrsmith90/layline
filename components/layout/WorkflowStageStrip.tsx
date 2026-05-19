@@ -29,6 +29,9 @@ export function WorkflowStageStrip(props: {
   title: string;
   items: WorkflowStage[];
 }) {
+  const gridClass =
+    props.items.length >= 4 ? "md:grid-cols-2 xl:grid-cols-4" : "md:grid-cols-3";
+
   return (
     <section className="space-y-3">
       <div className="flex items-center justify-between px-1">
@@ -36,7 +39,7 @@ export function WorkflowStageStrip(props: {
         <div className="text-xs text-[color:var(--muted)]">Primary flow</div>
       </div>
 
-      <div className="grid gap-2 md:grid-cols-3">
+      <div className={["grid gap-2", gridClass].join(" ")}>
         {props.items.map((item, index) => {
           const content = (
             <>
