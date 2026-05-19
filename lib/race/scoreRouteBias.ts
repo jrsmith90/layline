@@ -5,6 +5,8 @@ import type {
   PressureSide,
   WindTrend
 } from "@/data/race/getRouteBiasInputs";
+import { getCourseData } from "@/data/race/getCourseData";
+import { summarizeConstraintImpact } from "@/lib/race/instructionConstraints";
 
 export type RouteBiasDecision =
   | "shore_first"
@@ -54,11 +56,22 @@ function confidenceFromDelta(delta: number, edgeStrength: EdgeStrength): RouteBi
   return "low";
 }
 
+function applyConfidencePenalty(
+  confidence: RouteBiasConfidence,
+  penalty: number,
+): RouteBiasConfidence {
+  if (penalty <= 0) return confidence;
+  if (confidence === "high") return "medium";
+  return "low";
+}
+
 export function scoreRouteBias(input: RouteBiasAnswers): RouteBiasResult {
   let shoreScore = 0;
   let bayScore = 0;
   const reasons: string[] = [];
   const warnings: string[] = [];
+  const course = getCourseData(input.courseId);
+  const constraintImpact = summarizeConstraintImpact(course, input.openingLegType);
 
   const ew = edgeWeight(input.edgeStrength);
 
@@ -127,12 +140,19 @@ export function scoreRouteBias(input: RouteBiasAnswers): RouteBiasResult {
     warnings.push("Wind and current are pointing to different sides.");
   }
 
+  reasons.push(...constraintImpact.reasons);
+  warnings.push(...constraintImpact.warnings);
+
   const delta = Math.abs(shoreScore - bayScore);
+  const confidence = applyConfidencePenalty(
+    confidenceFromDelta(delta, input.edgeStrength),
+    constraintImpact.confidencePenalty,
+  );
 
   if ((windFavorsShore && currentFavorsBay) || (windFavorsBay && currentFavorsShore)) {
     return {
       decision: "mixed_signal",
-      confidence: confidenceFromDelta(delta, input.edgeStrength),
+      confidence,
       shoreScore,
       bayScore,
       reasons,
@@ -143,7 +163,7 @@ export function scoreRouteBias(input: RouteBiasAnswers): RouteBiasResult {
   if (shoreScore >= bayScore + 2) {
     return {
       decision: "shore_first",
-      confidence: confidenceFromDelta(delta, input.edgeStrength),
+      confidence,
       shoreScore,
       bayScore,
       reasons,
@@ -154,7 +174,7 @@ export function scoreRouteBias(input: RouteBiasAnswers): RouteBiasResult {
   if (bayScore >= shoreScore + 2) {
     return {
       decision: "bay_first",
-      confidence: confidenceFromDelta(delta, input.edgeStrength),
+      confidence,
       shoreScore,
       bayScore,
       reasons,
@@ -164,7 +184,7 @@ export function scoreRouteBias(input: RouteBiasAnswers): RouteBiasResult {
 
   return {
     decision: "neutral",
-    confidence: confidenceFromDelta(delta, input.edgeStrength),
+    confidence,
     shoreScore,
     bayScore,
     reasons,

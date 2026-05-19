@@ -509,7 +509,7 @@ export function TacticalBoardContent({ embedded = false }: { embedded?: boolean 
             {board.course.summary.specialRoutingConstraints.length > 0 && (
               <div className="mt-4">
                 <div className="text-xs font-black uppercase tracking-[0.18em] text-[color:var(--muted)]">
-                  Routing Constraints
+                  Instruction Limits
                 </div>
                 <div className="mt-3">
                   <RoutingConstraintsList
@@ -519,6 +519,9 @@ export function TacticalBoardContent({ embedded = false }: { embedded?: boolean 
               </div>
             )}
             <div className="mt-4 space-y-2 text-sm leading-6 text-[color:var(--text-soft)]">
+              {board.course.summary.course.notes ? (
+                <div>{board.course.summary.course.notes}</div>
+              ) : null}
               {routeBiasInputModel.notes.map((note) => (
                 <div key={note}>{note}</div>
               ))}

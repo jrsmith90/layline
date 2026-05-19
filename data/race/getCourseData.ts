@@ -1,6 +1,7 @@
 import {
   getActiveRaceEvent,
   raceEvents,
+  type RaceCourseConstraintRecord,
   type RaceCourseGeometry,
 } from "./eventDatabase";
 
@@ -120,6 +121,55 @@ function assertCourseExists(courseId: string): asserts courseId is CourseId {
   }
 }
 
+function detectCourseRoundingType(notes: string[]) {
+  if (notes.some((note) => /rounded to port/i.test(note))) {
+    return "leave_to_port" as const;
+  }
+
+  if (notes.some((note) => /rounded to starboard/i.test(note))) {
+    return "leave_to_starboard" as const;
+  }
+
+  return null;
+}
+
+function deriveCourseConstraints(params: {
+  courseId: string;
+  course: RaceCourse;
+  marks: Partial<Record<MarkId, RaceMark>>;
+  courseGeometry: RaceCourseGeometry;
+}) {
+  const notes = [
+    params.course.notes,
+    ...params.courseGeometry.specialRoutingNotes,
+  ].filter((note): note is string => typeof note === "string" && note.length > 0);
+  const roundingType = detectCourseRoundingType(notes);
+  const turnMarkIds = (params.course.sequence ?? []).slice(1, -1);
+
+  if (!roundingType || turnMarkIds.length === 0) {
+    return [] as RaceCourseConstraintRecord[];
+  }
+
+  return turnMarkIds.flatMap((markId, index) => {
+    const mark = params.marks[markId];
+    if (!mark) return [];
+
+    const incomingLeg = params.course.legs[index];
+
+    return [
+      {
+        id: `${params.courseId}-${markId}-${roundingType}-${incomingLeg?.legNumber ?? index + 1}`,
+        type: roundingType,
+        appliesTo: "selected_course",
+        markLabel: mark.id,
+        markName: mark.name,
+        markKey: markId,
+        legNumbers: incomingLeg ? [incomingLeg.legNumber] : undefined,
+      } satisfies RaceCourseConstraintRecord,
+    ];
+  });
+}
+
 export function getCourseData(courseId: string): CourseSummary {
   assertCourseExists(courseId);
 
@@ -137,6 +187,12 @@ export function getCourseData(courseId: string): CourseSummary {
       resolved.courseGeometry.marks[markId as MarkId],
     ])
   ) as Partial<Record<MarkId, RaceMark>>;
+  const derivedCourseConstraints = deriveCourseConstraints({
+    courseId: resolved.displayCourseId,
+    course,
+    marks,
+    courseGeometry: resolved.courseGeometry,
+  });
 
   return {
     courseId: resolved.displayCourseId,
@@ -167,7 +223,10 @@ export function getCourseData(courseId: string): CourseSummary {
     totalDistanceNmCalculated: course.distanceNmCalculated,
     startFinishMark: resolved.courseGeometry.startFinishMark as MarkId,
     specialRoutingNotes: resolved.courseGeometry.specialRoutingNotes,
-    specialRoutingConstraints: resolved.courseGeometry.specialRoutingConstraints,
+    specialRoutingConstraints: [
+      ...resolved.courseGeometry.specialRoutingConstraints,
+      ...derivedCourseConstraints,
+    ],
   };
 }
 

@@ -60,8 +60,8 @@ export function buildPreRaceCoachBrief(params: {
       bullets: [
         boardStatusCopy(params.boardStatus),
         constraintCount > 0
-          ? `${constraintCount} routing constraint${constraintCount === 1 ? "" : "s"} still need to stay visible in the plan.`
-          : "No special routing constraints are attached to this course.",
+          ? `${constraintCount} instruction constraint${constraintCount === 1 ? "" : "s"} still need to stay visible in the plan.`
+          : "No extra instruction constraints are attached to this course.",
       ],
       footer:
         "This advisory lane is structured now so a real model can take the same inputs later without changing the UI again.",
@@ -96,7 +96,7 @@ export function buildPreRaceCoachBrief(params: {
         `Baseline call: ${formatDecision(params.openingPlan.decision)}.`,
         boardStatusCopy(params.boardStatus),
         constraintCount > 0
-          ? `Keep ${constraintCount} channel-side reference mark${constraintCount === 1 ? "" : "s"} in the opening mental picture.`
+          ? `Keep ${constraintCount} instruction constraint${constraintCount === 1 ? "" : "s"} in the opening mental picture.`
           : "No extra routing restrictions are changing the opening picture.",
       ],
       footer:
@@ -115,7 +115,7 @@ export function buildPreRaceCoachBrief(params: {
       `Baseline call: ${formatDecision(params.openingPlan.decision)}.`,
       boardStatusCopy(params.boardStatus),
       constraintCount > 0
-        ? `${constraintCount} routing constraint${constraintCount === 1 ? "" : "s"} are already attached to the course context.`
+        ? `${constraintCount} instruction constraint${constraintCount === 1 ? "" : "s"} are already attached to the course context.`
         : "No extra routing restrictions are attached to this course.",
     ],
     footer:

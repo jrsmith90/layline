@@ -25,13 +25,23 @@ export type RaceCourseLegRecord = {
 
 export type RaceCourseConstraintRecord = {
   id: string;
-  type: "pass_on_channel_side";
-  appliesTo: "all_keelboat_classes";
-  markLabel: string;
-  markName: string;
-  markKey?: string;
+  appliesTo: "all_keelboat_classes" | "selected_course";
   detail?: string;
-};
+  legNumbers?: number[];
+} & (
+  | {
+      type: "pass_on_channel_side" | "leave_to_port" | "leave_to_starboard";
+      markLabel: string;
+      markName: string;
+      markKey?: string;
+    }
+  | {
+      type: "stay_inside_marks" | "stay_outside_marks";
+      boundaryLabel: string;
+      boundaryMarks: string[];
+      boundaryMarkKeys?: string[];
+    }
+);
 
 export type RaceCourseRecord = {
   sequence: string[] | null;
@@ -70,6 +80,42 @@ export type RaceEventRecord = {
 const EWE_CHANNEL_SIDE_NOTE =
   'The following marks shall always be passed on the channel side for keelboat classes: "1AH" at Tolly Point, FL R 6s 15ft 4M "4" off Greenbury Point, and FL 6s 15ft 4M "HP" shoal pole.';
 
+const HHSW_CHANNEL_SIDE_NOTE =
+  'Government marks "1AH" (M), R "4" (N), Thomas Point Light, and the Bloody Point Bar Warning Light shall be passed on the channel side at all times.';
+
+const HHSW_CHANNEL_SIDE_CONSTRAINTS: RaceCourseConstraintRecord[] = [
+  {
+    id: "hhsw-1ah-channel-side",
+    type: "pass_on_channel_side",
+    appliesTo: "all_keelboat_classes",
+    markLabel: 'SG "1AH"',
+    markName: "Severn River - Light 1AH",
+    markKey: "M",
+  },
+  {
+    id: "hhsw-r4-channel-side",
+    type: "pass_on_channel_side",
+    appliesTo: "all_keelboat_classes",
+    markLabel: 'R "4"',
+    markName: "Eastern Bay - Entrance Lighted Buoy 4",
+    markKey: "N",
+  },
+  {
+    id: "hhsw-thomas-point-channel-side",
+    type: "pass_on_channel_side",
+    appliesTo: "all_keelboat_classes",
+    markLabel: "Thomas Point Light",
+    markName: "Thomas Point Shoal Lighthouse",
+  },
+  {
+    id: "hhsw-bloody-point-channel-side",
+    type: "pass_on_channel_side",
+    appliesTo: "all_keelboat_classes",
+    markLabel: "Bloody Point Bar Warning Light",
+    markName: "Bloody Point Bar Warning Light",
+  },
+];
+
 const EWE_CHANNEL_SIDE_CONSTRAINTS: RaceCourseConstraintRecord[] = [
   {
     id: "ewe-tolly-point-1ah-channel-side",
@@ -99,7 +145,10 @@ const EWE_CHANNEL_SIDE_CONSTRAINTS: RaceCourseConstraintRecord[] = [
 const hellyHansen2026CourseGeometry: RaceCourseGeometry = {
   ...hellyHansen2026CourseGeometryRaw,
   marks: pickAnnapolisMarks(["A", "D", "E", "G", "H", "X", "Z", "M", "N"]),
-  specialRoutingConstraints: [],
+  specialRoutingNotes: hellyHansen2026CourseGeometryRaw.specialRoutingNotes.filter(
+    (note) => note !== HHSW_CHANNEL_SIDE_NOTE,
+  ),
+  specialRoutingConstraints: HHSW_CHANNEL_SIDE_CONSTRAINTS,
 };
 
 const ewePursuitTriangleCourse: RaceCourseRecord = {

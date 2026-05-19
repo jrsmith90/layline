@@ -63,13 +63,22 @@ export default function CoursePreviewCard() {
         }
       />
 
+      {courseData.course.notes ? (
+        <section className="layline-panel p-4">
+          <div className="layline-kicker">Course Definition</div>
+          <p className="mt-2 text-sm leading-6 text-[color:var(--text-soft)]">
+            {courseData.course.notes}
+          </p>
+        </section>
+      ) : null}
+
       {courseData.specialRoutingConstraints.length > 0 && (
         <section className="layline-panel p-4">
-          <div className="layline-kicker">Routing</div>
+          <div className="layline-kicker">Instructions</div>
           <h2 className="mt-1 text-xl font-black">Hard course constraints</h2>
           <p className="layline-learn-only mt-1 text-sm text-[color:var(--muted)]">
-            Keep these reference marks on the channel side regardless of which way the
-            triangle is sailed.
+            These instruction limits come from the course definition and race instructions,
+            including rounding side and protected routing references.
           </p>
           <div className="mt-4">
             <RoutingConstraintsList constraints={courseData.specialRoutingConstraints} />

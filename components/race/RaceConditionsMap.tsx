@@ -14,7 +14,15 @@ import {
 import { Navigation } from "lucide-react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import { RoutingConstraintsList } from "@/components/race/RoutingConstraintsList";
 import { formatCourseLabel, getAllCourseIds, getCourseData, getDefaultCourseId } from "@/data/race/getCourseData";
+import { getConstraintActionCopy, getConstraintsForMark } from "@/lib/race/instructionConstraints";
+import {
+  buildTacticalBoardDraftDefaults,
+  getStoredTacticalBoardDraft,
+  setTacticalBoardCourseId,
+  subscribeTacticalBoardStore,
+} from "@/lib/race/tacticalBoard/store";
 
 type CurrentDirection = "flood" | "ebb" | "slack" | "unknown";
 
@@ -114,6 +122,7 @@ type WindMarker = {
 };
 
 const courseIds = getAllCourseIds();
+const DEFAULT_TACTICAL_BOARD_DRAFT = buildTacticalBoardDraftDefaults(getDefaultCourseId());
 const NOAA_CHART_WMS_URL =
   "https://gis.charttools.noaa.gov/arcgis/rest/services/MCS/NOAAChartDisplay/MapServer/exts/MaritimeChartService/WMSServer";
 const NOAA_CHART_LAYERS = "1,2,3,4,5,6,7,8,9,10,11,12";
@@ -299,7 +308,11 @@ function FitMapToBounds({ bounds }: { bounds: MapBounds["bounds"] }) {
 }
 
 export default function RaceConditionsMap() {
-  const [courseId, setCourseId] = useState<string>(getDefaultCourseId);
+  const draft = useSyncExternalStore(
+    subscribeTacticalBoardStore,
+    getStoredTacticalBoardDraft,
+    () => DEFAULT_TACTICAL_BOARD_DRAFT,
+  );
   const [payload, setPayload] = useState<TideCurrentPayload | null>(null);
   const [windPayload, setWindPayload] = useState<LiveWeatherPayload | null>(null);
   const [snapshotIndex, setSnapshotIndex] = useState(4);
@@ -310,6 +323,7 @@ export default function RaceConditionsMap() {
   );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const courseId = draft.courseId;
   const courseData = useMemo(() => getCourseData(courseId), [courseId]);
   const courseSequence = useMemo(
     () => courseData.course.sequence ?? [],
@@ -318,6 +332,43 @@ export default function RaceConditionsMap() {
   const courseMarkerIds = useMemo(
     () => [...new Set(courseSequence)],
     [courseSequence],
+  );
+  const boundaryConstraintLines = useMemo(
+    () =>
+      courseData.specialRoutingConstraints
+        .filter((constraint) => {
+          if (
+            constraint.type !== "stay_inside_marks" &&
+            constraint.type !== "stay_outside_marks"
+          ) {
+            return false;
+          }
+
+          return Boolean(
+            constraint.boundaryMarkKeys &&
+              constraint.boundaryMarkKeys.length > 1,
+          );
+        })
+        .map((constraint) => {
+          if (
+            constraint.type !== "stay_inside_marks" &&
+            constraint.type !== "stay_outside_marks"
+          ) {
+            return null;
+          }
+
+          return {
+            id: constraint.id,
+            type: constraint.type,
+            positions: (constraint.boundaryMarkKeys ?? [])
+              .map((markId) => courseData.marks[markId])
+              .filter((mark) => mark != null)
+              .map((mark) => [mark.lat, mark.lon] as [number, number]),
+          };
+        })
+        .filter((constraint) => constraint != null)
+        .filter((constraint) => constraint.positions.length > 1),
+    [courseData.marks, courseData.specialRoutingConstraints],
   );
 
   useEffect(() => {
@@ -487,7 +538,7 @@ export default function RaceConditionsMap() {
               <select
                 className="w-full rounded-lg border border-[color:var(--divider)] bg-black/30 p-2 text-sm"
                 value={courseId}
-                onChange={(event) => setCourseId(event.target.value)}
+                onChange={(event) => setTacticalBoardCourseId(event.target.value)}
               >
                 {courseIds.map((id) => (
                   <option key={id} value={id} className="bg-slate-900">
@@ -557,9 +608,24 @@ export default function RaceConditionsMap() {
                   />
                 ) : null}
 
+                {boundaryConstraintLines.map((constraint) => (
+                  <Polyline
+                    key={constraint.id}
+                    positions={constraint.positions}
+                    pathOptions={{
+                      color:
+                        constraint.type === "stay_inside_marks" ? "#22c55e" : "#f59e0b",
+                      weight: 3,
+                      opacity: 0.85,
+                      dashArray: "4 6",
+                    }}
+                  />
+                ))}
+
                 {courseMarkerIds.map((markId) => {
                   const mark = courseData.marks[markId];
                   if (!mark) return null;
+                  const markConstraints = getConstraintsForMark(courseData, markId);
 
                   return (
                     <CircleMarker
@@ -580,6 +646,13 @@ export default function RaceConditionsMap() {
                         <div className="space-y-1 text-sm">
                           <div className="font-bold">{markId}: {mark.name}</div>
                           <div>{mark.characteristics}</div>
+                          {markConstraints.length > 0 ? (
+                            <div className="rounded-md border border-amber-300/30 bg-amber-300/10 px-2 py-1 text-xs text-amber-50">
+                              {markConstraints
+                                .map((constraint) => getConstraintActionCopy(constraint))
+                                .join(" · ")}
+                            </div>
+                          ) : null}
                           <div className="text-xs">
                             {mark.lat.toFixed(5)}, {mark.lon.toFixed(5)}
                           </div>
@@ -681,8 +754,27 @@ export default function RaceConditionsMap() {
               <div>
                 <span className="text-[color:var(--text-soft)]">Location:</span> <span className="font-semibold">{courseData.eventLocation}</span>
               </div>
+              {courseData.course.notes ? (
+                <div className="text-xs leading-5 text-[color:var(--text-soft)]">
+                  {courseData.course.notes}
+                </div>
+              ) : null}
             </div>
           </div>
+
+          {courseData.specialRoutingConstraints.length > 0 && (
+            <div className="rounded-lg border border-[color:var(--divider)] bg-black/20 p-3">
+              <div className="text-xs font-black uppercase tracking-[0.16em] text-[color:var(--muted)]">
+                Instruction Limits
+              </div>
+              <div className="mt-3">
+                <RoutingConstraintsList
+                  constraints={courseData.specialRoutingConstraints}
+                  compact
+                />
+              </div>
+            </div>
+          )}
 
           {payload?.tide && (
             <div className="rounded-lg border border-[color:var(--divider)] bg-black/20 p-3">

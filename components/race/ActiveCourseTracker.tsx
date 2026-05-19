@@ -5,6 +5,7 @@ import { useAppMode } from "@/components/display/AppModeProvider";
 import { formatCourseLabel, getAllCourseIds, getCourseData } from "@/data/race/getCourseData";
 import { LiveInstrumentsPanel } from "@/components/gps/LiveInstrumentsPanel";
 import { LiveTacticalBoardCard } from "@/components/race/LiveTacticalBoardCard";
+import { RoutingConstraintsList } from "@/components/race/RoutingConstraintsList";
 import { usePhoneGps } from "@/components/gps/PhoneGpsProvider";
 import { TackCalibrationPanel } from "@/components/race/TackCalibrationPanel";
 import {
@@ -23,6 +24,7 @@ import {
   getMarkApproachCopy,
   getTrackerRecommendationCopy,
 } from "@/lib/race/liveViewMode";
+import { getConstraintsForLeg } from "@/lib/race/instructionConstraints";
 import { deriveRaceState } from "@/lib/race/state/deriveRaceState";
 import {
   selectActiveLeg,
@@ -209,6 +211,10 @@ export default function ActiveCourseTracker() {
     canGoNext &&
     trackerState.legDetection.armedLegIndex === safeLegIndex &&
     trackerState.legDetection.armedMarkId === leg?.toMark;
+  const activeLegConstraints = useMemo(
+    () => getConstraintsForLeg(courseData, safeLegIndex),
+    [courseData, safeLegIndex],
+  );
 
   useEffect(() => {
     if (!canGoNext) return;
@@ -377,6 +383,21 @@ export default function ActiveCourseTracker() {
       </section>
 
       <LiveTacticalBoardCard raceState={raceState} />
+
+      {leg && activeLegConstraints.length > 0 && (
+        <section className="layline-panel p-4">
+          <div className="layline-kicker">Race Instructions</div>
+          <div className="mt-2 text-lg font-bold">
+            Leg {safeLegIndex + 1} legal approach
+          </div>
+          <div className="mt-3">
+            <RoutingConstraintsList
+              constraints={activeLegConstraints}
+              compact
+            />
+          </div>
+        </section>
+      )}
 
       {leg && fromMark && toMark && result && (
         <>

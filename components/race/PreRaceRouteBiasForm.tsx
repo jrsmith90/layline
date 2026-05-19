@@ -333,7 +333,7 @@ export default function PreRaceRouteBiasForm({
           {config.routingConstraints.length > 0 && (
             <div className="mt-3 border-t border-white/10 pt-3">
               <div className="text-xs font-semibold uppercase tracking-[0.16em] text-white/50">
-                Routing constraints
+                Instruction limits
               </div>
               <div className="mt-2">
                 <RoutingConstraintsList constraints={config.routingConstraints} compact />

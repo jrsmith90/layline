@@ -98,7 +98,7 @@ export function PreRaceCommandDeck() {
           />
           <DeckMetric label="Board" value={statusLabel(boardStatus)} />
           <DeckMetric
-            label="Routing"
+            label="Instructions"
             value={
               course.specialRoutingConstraints.length > 0
                 ? `${course.specialRoutingConstraints.length} constraints`
@@ -115,7 +115,7 @@ export function PreRaceCommandDeck() {
             label: "Course and chart",
             detail:
               course.specialRoutingConstraints.length > 0
-                ? "Preview the course sequence and routing constraints."
+                ? "Preview the course sequence and instruction limits."
                 : "Confirm the announced course and mark order.",
             status: course.specialRoutingConstraints.length > 0 ? "Context loaded" : "Standard course",
             href: "#course-read",

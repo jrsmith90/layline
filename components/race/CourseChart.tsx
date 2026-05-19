@@ -1,5 +1,6 @@
 import type { GpsTrackPoint } from "@/lib/useGpsCourse";
 import type { CourseSummary } from "@/data/race/getCourseData";
+import { getConstraintBadge, getConstraintsForMark } from "@/lib/race/instructionConstraints";
 
 type ChartPoint = {
   id?: string;
@@ -226,6 +227,10 @@ export default function CourseChart({
 
           {courseMarkPoints.map((point, index) => {
             const plotted = project(point, bounds);
+            const markConstraints =
+              point.id != null ? getConstraintsForMark(courseData, point.id) : [];
+            const primaryConstraint = markConstraints[0] ?? null;
+
             return (
               <g key={`${point.id ?? point.label ?? "mark"}-${index}`}>
                 <circle
@@ -255,6 +260,29 @@ export default function CourseChart({
                 >
                   {point.name}
                 </text>
+                {primaryConstraint ? (
+                  <>
+                    <rect
+                      x={Math.min(WIDTH - 24, plotted.x + 12)}
+                      y={plotted.y + 4}
+                      width="20"
+                      height="14"
+                      rx="7"
+                      fill="#7c2d12"
+                      stroke="#fdba74"
+                    />
+                    <text
+                      x={Math.min(WIDTH - 14, plotted.x + 22)}
+                      y={plotted.y + 14}
+                      textAnchor="middle"
+                      fontSize="9"
+                      fontWeight="900"
+                      fill="#fff7ed"
+                    >
+                      {getConstraintBadge(primaryConstraint)}
+                    </text>
+                  </>
+                ) : null}
               </g>
             );
           })}
