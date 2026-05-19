@@ -10,6 +10,7 @@ import {
   crossTrackErrorNm,
   type MarkProgressResult,
 } from "@/lib/race/courseTracker";
+import { isMarkConstraint } from "@/lib/race/instructionConstraints";
 import type { RaceState } from "@/lib/race/state/types";
 
 export type WindSourceMode = "nearest" | "top" | "bottom" | "river" | "manual";
@@ -588,6 +589,30 @@ export function syncAutomaticLegTransition(params: {
       }
 
       status = "armed";
+      return {
+        ...current,
+        legDetection: nextDetection,
+      };
+    }
+
+    const blockedByLegality = params.raceState.legality.activeConstraints.some(
+      (assessment) =>
+        assessment.status === "violated" &&
+        isMarkConstraint(assessment.constraint) &&
+        assessment.constraint.type !== "pass_on_channel_side" &&
+        assessment.constraint.markKey === currentLeg.toMark,
+    );
+
+    if (blockedByLegality) {
+      if (distanceToMarkNm >= disarmDistanceNm) {
+        status = "disarmed";
+        return {
+          ...current,
+          legDetection: createEmptyLegDetectionState(),
+        };
+      }
+
+      status = "waiting";
       return {
         ...current,
         legDetection: nextDetection,

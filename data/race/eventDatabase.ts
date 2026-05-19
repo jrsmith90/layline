@@ -40,6 +40,7 @@ export type RaceCourseConstraintRecord = {
       boundaryLabel: string;
       boundaryMarks: string[];
       boundaryMarkKeys?: string[];
+      referenceMarkKey?: string;
     }
 );
 

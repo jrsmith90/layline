@@ -1,3 +1,4 @@
+import { deriveRaceLegality } from "@/lib/race/legality";
 import type {
   DeriveRaceStateInput,
   RaceState,
@@ -307,17 +308,25 @@ export function deriveRaceState(input: DeriveRaceStateInput): RaceState {
       status: windStatus,
       freshness: windFreshness,
     });
+  const boatPosition =
+    input.gps.lat == null || input.gps.lon == null
+      ? null
+      : {
+          lat: input.gps.lat,
+          lon: input.gps.lon,
+        };
+  const markApproachDistanceNm = input.markApproachDistanceNm ?? 0.08;
+  const legality = deriveRaceLegality({
+    course: input.courseData,
+    safeLegIndex,
+    boatPosition,
+    markApproachDistanceNm,
+  });
 
   return {
     generatedAt: now.toISOString(),
     boat: {
-      position:
-        input.gps.lat == null || input.gps.lon == null
-          ? null
-          : {
-              lat: input.gps.lat,
-              lon: input.gps.lon,
-            },
+      position: boatPosition,
       cogDeg: input.gps.cogDeg,
       sogMps: input.gps.sogMps,
       accuracyM: input.gps.accuracyM,
@@ -348,8 +357,9 @@ export function deriveRaceState(input: DeriveRaceStateInput): RaceState {
       totalLegs,
       canGoPrev: safeLegIndex > 0,
       canGoNext: safeLegIndex < totalLegs - 1,
-      markApproachDistanceNm: input.markApproachDistanceNm ?? 0.08,
+      markApproachDistanceNm,
     },
+    legality,
     sources: {
       gps: {
         kind: "phone_gps",

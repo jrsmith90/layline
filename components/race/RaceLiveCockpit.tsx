@@ -15,6 +15,7 @@ import {
 import { usePhoneGps } from "@/components/gps/PhoneGpsProvider";
 import { LiveTacticalBoardCard } from "@/components/race/LiveTacticalBoardCard";
 import { RaceRecorderPanel } from "@/components/race/RaceRecorderPanel";
+import { RoutingConstraintsList } from "@/components/race/RoutingConstraintsList";
 import { TackHistoryPanel } from "@/components/race/TackHistoryPanel";
 import { readJsonResponse } from "@/lib/readJsonResponse";
 import {
@@ -35,6 +36,11 @@ import {
   getCockpitModeCopy,
   getConfidencePanelCopy,
 } from "@/lib/race/liveViewMode";
+import {
+  getLegalityOverallLabel,
+  type RaceLegalityOverall,
+  type RaceLegalityState,
+} from "@/lib/race/legality";
 import { deriveRaceState } from "@/lib/race/state/deriveRaceState";
 import {
   selectActiveLeg,
@@ -180,6 +186,19 @@ function callClass(call: MarkProgressResult["call"] | "approach") {
   }
 
   return "border-[color:var(--divider)] bg-black/20 text-[color:var(--text-soft)]";
+}
+
+function legalityTone(overall: RaceLegalityOverall) {
+  switch (overall) {
+    case "clear":
+      return "border-emerald-400/35 bg-emerald-400/10 text-emerald-50";
+    case "warning":
+      return "border-amber-300/35 bg-amber-300/10 text-amber-50";
+    case "violated":
+      return "border-red-400/35 bg-red-400/10 text-red-100";
+    default:
+      return "border-white/15 bg-white/5 text-white/80";
+  }
 }
 
 function getWindRead(params: {
@@ -364,6 +383,19 @@ function getCockpitAnswer(params: {
     line: result.currentTackFetches ? "On layline" : "Good enough",
     why: `${formatShortNumber(result.degreesOffLaylineDeg)} deg off layline. This tack is making useful progress toward the mark.`,
     fix: "Keep speed on. Re-check when bearing or pressure changes.",
+  };
+}
+
+function getLegalityCockpitOverride(legality: RaceLegalityState) {
+  if (legality.overall !== "violated") {
+    return null;
+  }
+
+  return {
+    action: "GET LEGAL",
+    line: "Rule breach",
+    why: legality.summary,
+    fix: legality.detail,
   };
 }
 
@@ -668,11 +700,12 @@ export default function RaceLiveCockpit() {
 
   const approachingMark = selectIsApproachingMark(raceState, result);
   const primaryCall = selectPrimaryMarkCall(raceState, result);
-  const cockpitAnswer = getCockpitAnswer({
+  const baseCockpitAnswer = getCockpitAnswer({
     result,
     approachingMark,
     markId: leg?.toMark,
   });
+  const cockpitAnswer = getLegalityCockpitOverride(raceState.legality) ?? baseCockpitAnswer;
   const cockpitModeCopy = useMemo(
     () =>
       getCockpitModeCopy({
@@ -709,6 +742,8 @@ export default function RaceLiveCockpit() {
           raceStateConfidence: raceState.confidence.overall,
           gpsFreshness: raceState.sources.gps.freshness,
           windFreshness: raceState.sources.wind.freshness,
+          legalityOverall: raceState.legality.overall,
+          legalitySummary: raceState.legality.summary,
         },
       }
     : null;
@@ -760,6 +795,11 @@ export default function RaceLiveCockpit() {
     canGoNext &&
     trackerState.legDetection.armedLegIndex === safeLegIndex &&
     trackerState.legDetection.armedMarkId === leg?.toMark;
+  const activeConstraintAssessments = raceState.legality.activeConstraints;
+  const activeConstraints = useMemo(
+    () => activeConstraintAssessments.map((assessment) => assessment.constraint),
+    [activeConstraintAssessments],
+  );
 
   useEffect(() => {
     if (!canGoNext) return;
@@ -885,6 +925,38 @@ export default function RaceLiveCockpit() {
           />
         </div>
       </section>
+
+      {activeConstraints.length > 0 && (
+        <section className="layline-panel p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <div className="layline-kicker">Live Legality</div>
+              <div className="mt-1 text-xl font-black">Race instructions in play</div>
+            </div>
+            <div
+              className={[
+                "rounded-full border px-3 py-2 text-xs font-black uppercase tracking-wide",
+                legalityTone(raceState.legality.overall),
+              ].join(" ")}
+            >
+              {getLegalityOverallLabel(raceState.legality.overall)}
+            </div>
+          </div>
+          <p className="mt-3 text-sm font-semibold leading-6 text-[color:var(--text)]">
+            {raceState.legality.summary}
+          </p>
+          <p className="mt-2 text-xs leading-5 text-[color:var(--muted)]">
+            {raceState.legality.detail}
+          </p>
+          <div className="mt-3">
+            <RoutingConstraintsList
+              constraints={activeConstraints}
+              assessments={activeConstraintAssessments}
+              compact
+            />
+          </div>
+        </section>
+      )}
 
       <LiveTacticalBoardCard raceState={raceState} />
 

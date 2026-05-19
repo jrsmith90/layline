@@ -24,7 +24,10 @@ import {
   getMarkApproachCopy,
   getTrackerRecommendationCopy,
 } from "@/lib/race/liveViewMode";
-import { getConstraintsForLeg } from "@/lib/race/instructionConstraints";
+import {
+  getLegalityOverallLabel,
+  type RaceLegalityOverall,
+} from "@/lib/race/legality";
 import { deriveRaceState } from "@/lib/race/state/deriveRaceState";
 import {
   selectActiveLeg,
@@ -69,6 +72,19 @@ function callClass(call: MarkProgressResult["call"]) {
   }
 
   return "border-[color:var(--divider)] bg-black/20 text-[color:var(--text-soft)]";
+}
+
+function legalityTone(overall: RaceLegalityOverall) {
+  switch (overall) {
+    case "clear":
+      return "border-emerald-400/35 bg-emerald-400/10 text-emerald-50";
+    case "warning":
+      return "border-amber-300/35 bg-amber-300/10 text-amber-50";
+    case "violated":
+      return "border-red-400/35 bg-red-400/10 text-red-100";
+    default:
+      return "border-white/15 bg-white/5 text-white/80";
+  }
 }
 
 export default function ActiveCourseTracker() {
@@ -211,9 +227,10 @@ export default function ActiveCourseTracker() {
     canGoNext &&
     trackerState.legDetection.armedLegIndex === safeLegIndex &&
     trackerState.legDetection.armedMarkId === leg?.toMark;
-  const activeLegConstraints = useMemo(
-    () => getConstraintsForLeg(courseData, safeLegIndex),
-    [courseData, safeLegIndex],
+  const activeConstraintAssessments = raceState.legality.activeConstraints;
+  const activeConstraints = useMemo(
+    () => activeConstraintAssessments.map((assessment) => assessment.constraint),
+    [activeConstraintAssessments],
   );
 
   useEffect(() => {
@@ -384,15 +401,34 @@ export default function ActiveCourseTracker() {
 
       <LiveTacticalBoardCard raceState={raceState} />
 
-      {leg && activeLegConstraints.length > 0 && (
+      {leg && activeConstraints.length > 0 && (
         <section className="layline-panel p-4">
-          <div className="layline-kicker">Race Instructions</div>
-          <div className="mt-2 text-lg font-bold">
-            Leg {safeLegIndex + 1} legal approach
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <div className="layline-kicker">Live Legality</div>
+              <div className="mt-2 text-lg font-bold">
+                Leg {safeLegIndex + 1} legal approach
+              </div>
+            </div>
+            <div
+              className={[
+                "rounded-full border px-3 py-2 text-xs font-black uppercase tracking-wide",
+                legalityTone(raceState.legality.overall),
+              ].join(" ")}
+            >
+              {getLegalityOverallLabel(raceState.legality.overall)}
+            </div>
           </div>
+          <p className="mt-3 text-sm leading-6 text-[color:var(--text-soft)]">
+            {raceState.legality.summary}
+          </p>
+          <p className="mt-2 text-xs leading-5 text-[color:var(--muted)]">
+            {raceState.legality.detail}
+          </p>
           <div className="mt-3">
             <RoutingConstraintsList
-              constraints={activeLegConstraints}
+              constraints={activeConstraints}
+              assessments={activeConstraintAssessments}
               compact
             />
           </div>

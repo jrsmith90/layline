@@ -16,6 +16,10 @@ import {
   formatOpeningBiasConfidence,
 } from "@/lib/race/openingBias";
 import {
+  getLegalityOverallLabel,
+  type RaceLegalityOverall,
+} from "@/lib/race/legality";
+import {
   deleteLog as deleteStoredLog,
   rateLog as rateStoredLog,
   type LaylineLog,
@@ -103,6 +107,22 @@ function confidenceTone(level: RaceStateSnapshot["confidence"]["overall"]) {
   }
 
   return "border-red-400/35 bg-red-400/10 text-red-100";
+}
+
+function legalityTone(level: RaceLegalityOverall | undefined) {
+  if (level === "clear") {
+    return "border-emerald-400/35 bg-emerald-400/10 text-emerald-50";
+  }
+
+  if (level === "warning") {
+    return "border-amber-300/35 bg-amber-300/10 text-amber-50";
+  }
+
+  if (level === "violated") {
+    return "border-red-400/35 bg-red-400/10 text-red-100";
+  }
+
+  return "border-white/15 bg-white/5 text-white/80";
 }
 
 function formatDeg(value: number | null) {
@@ -882,7 +902,7 @@ export default function RaceReviewPage() {
                       </div>
                     </div>
 
-                    <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
+                    <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-5">
                       <Metric
                         label="Call"
                         value={formatSnapshotCall(latestRaceStateSnapshot.primaryCall)}
@@ -901,6 +921,14 @@ export default function RaceReviewPage() {
                           latestRaceStateSnapshot.approachingMark
                             ? "Mark approach"
                             : "Leg tracking"
+                        }
+                      />
+                      <Metric
+                        label="Legality"
+                        value={
+                          latestRaceStateSnapshot.legality
+                            ? getLegalityOverallLabel(latestRaceStateSnapshot.legality.overall)
+                            : "--"
                         }
                       />
                     </div>
@@ -949,6 +977,52 @@ export default function RaceReviewPage() {
                         {latestRaceStateSnapshot.wind.sourceMode} mode.
                       </div>
                     </div>
+
+                    {latestRaceStateSnapshot.legality && (
+                      <div className="mt-3 rounded-xl border border-white/10 bg-black/20 p-4">
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                          <div>
+                            <div className="text-xs font-black uppercase tracking-[0.16em] text-[color:var(--muted)]">
+                              Legality
+                            </div>
+                            <div className="mt-2 text-sm leading-6">
+                              {latestRaceStateSnapshot.legality.summary}
+                            </div>
+                            <div className="mt-1 text-xs leading-5 text-[color:var(--muted)]">
+                              {latestRaceStateSnapshot.legality.detail}
+                            </div>
+                          </div>
+                          <div
+                            className={[
+                              "rounded-full border px-3 py-2 text-xs font-black uppercase tracking-wide",
+                              legalityTone(latestRaceStateSnapshot.legality.overall),
+                            ].join(" ")}
+                          >
+                            {getLegalityOverallLabel(latestRaceStateSnapshot.legality.overall)}
+                          </div>
+                        </div>
+
+                        {latestRaceStateSnapshot.legality.activeConstraints.length > 0 && (
+                          <div className="mt-3 grid gap-2 md:grid-cols-2">
+                            {latestRaceStateSnapshot.legality.activeConstraints
+                              .slice(0, 4)
+                              .map((assessment) => (
+                                <div
+                                  key={assessment.constraintId}
+                                  className="rounded-xl border border-white/10 bg-white/5 p-3"
+                                >
+                                  <div className="text-xs font-black uppercase tracking-[0.14em] text-[color:var(--muted)]">
+                                    {assessment.headline}
+                                  </div>
+                                  <div className="mt-2 text-sm leading-6">
+                                    {assessment.detail}
+                                  </div>
+                                </div>
+                              ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
 
                     {latestRaceStateSnapshot.confidence.signals.length > 0 && (
                       <div className="mt-3 grid gap-2 md:grid-cols-2">

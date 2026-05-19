@@ -641,6 +641,23 @@ function toRaceStateSnapshotProgress(
   };
 }
 
+function toRaceStateSnapshotLegality(
+  state: RaceState,
+): RaceStateSnapshot["legality"] {
+  return {
+    overall: state.legality.overall,
+    summary: state.legality.summary,
+    detail: state.legality.detail,
+    activeConstraints: state.legality.activeConstraints.map((assessment) => ({
+      constraintId: assessment.constraintId,
+      status: assessment.status,
+      headline: assessment.headline,
+      detail: assessment.detail,
+      metricNm: assessment.metricNm,
+    })),
+  };
+}
+
 function buildRaceStateSnapshot(input: RaceStateSnapshotCaptureInput): RaceStateSnapshot {
   return {
     capturedAtISO: input.capturedAtISO ?? nowISO(),
@@ -662,6 +679,7 @@ function buildRaceStateSnapshot(input: RaceStateSnapshotCaptureInput): RaceState
     },
     sources: input.state.sources,
     confidence: input.state.confidence,
+    legality: toRaceStateSnapshotLegality(input.state),
     progress: toRaceStateSnapshotProgress(input.progress),
   };
 }
@@ -701,6 +719,7 @@ function shouldSkipRaceStateSnapshot(
     previous.approachingMark === next.approachingMark &&
     previous.course.safeLegIndex === next.course.safeLegIndex &&
     previous.confidence.overall === next.confidence.overall &&
+    previous.legality?.overall === next.legality?.overall &&
     previous.progress?.call === next.progress?.call
   );
 }

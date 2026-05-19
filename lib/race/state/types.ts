@@ -1,6 +1,10 @@
 import type { CourseSummary, RaceLeg, RaceMark } from "@/data/race/getCourseData";
 import type { MarkProgressCall, MarkProgressResult } from "@/lib/race/courseTracker";
 import type {
+  RaceConstraintAssessment,
+  RaceLegalityState,
+} from "@/lib/race/legality";
+import type {
   RaceSourceConfidenceHint,
   RaceSourceFreshness,
   RaceSourcePermission,
@@ -120,6 +124,7 @@ export type RaceState = {
   wind: RaceStateWindState;
   performance: RaceStatePerformanceState;
   course: RaceStateCourseState;
+  legality: RaceLegalityState;
   sources: RaceStateSourceMeta;
   confidence: RaceStateConfidence;
 };
@@ -158,6 +163,18 @@ export type RaceStateSnapshotCourseState = Pick<
   toMark: RaceMark | null;
 };
 
+export type RaceStateSnapshotLegalityAssessment = Pick<
+  RaceConstraintAssessment,
+  "constraintId" | "status" | "headline" | "detail" | "metricNm"
+>;
+
+export type RaceStateSnapshotLegality = Pick<
+  RaceLegalityState,
+  "overall" | "summary" | "detail"
+> & {
+  activeConstraints: RaceStateSnapshotLegalityAssessment[];
+};
+
 export type RaceStateSnapshot = {
   capturedAtISO: string;
   stateGeneratedAt: string;
@@ -169,6 +186,7 @@ export type RaceStateSnapshot = {
   course: RaceStateSnapshotCourseState;
   sources: RaceStateSourceMeta;
   confidence: RaceStateConfidence;
+  legality?: RaceStateSnapshotLegality;
   progress: RaceStateSnapshotProgress | null;
 };
 
