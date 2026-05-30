@@ -23,6 +23,7 @@ export type RaceLeg = {
 export type RaceCourse = {
   sequence: MarkId[] | null;
   previewSequence?: MarkId[];
+  textSummary?: string[];
   distanceNmSI: number | null;
   distanceNmCalculated: number | null;
   legs: RaceLeg[];

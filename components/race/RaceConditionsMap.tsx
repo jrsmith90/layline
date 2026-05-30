@@ -494,6 +494,7 @@ export default function RaceConditionsMap() {
     }).filter((marker) => marker.windDirectionDeg != null || marker.windAvgKt != null);
   }, [windPayload]);
   const courseDisplayCode = getCourseDisplayCode(courseData.courseId);
+  const courseTextSummary = courseData.course.textSummary ?? [];
 
   const mapBounds = useMemo<MapBounds>(() => {
     const stationPositions = currentStations.map(
@@ -774,6 +775,13 @@ export default function RaceConditionsMap() {
                 <div className="text-xs leading-5 text-[color:var(--text-soft)]">
                   {courseData.course.notes}
                 </div>
+              ) : null}
+              {courseTextSummary.length > 0 ? (
+                <ol className="list-decimal space-y-2 pl-5 text-xs leading-5 text-[color:var(--text-soft)]">
+                  {courseTextSummary.map((step) => (
+                    <li key={step}>{step}</li>
+                  ))}
+                </ol>
               ) : null}
             </div>
           </div>

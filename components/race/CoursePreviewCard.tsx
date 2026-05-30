@@ -26,6 +26,7 @@ export default function CoursePreviewCard() {
     courseData.course.sequence ??
     courseData.course.previewSequence ??
     [];
+  const courseTextSummary = courseData.course.textSummary ?? [];
 
   return (
     <div className="space-y-3">
@@ -66,6 +67,17 @@ export default function CoursePreviewCard() {
             : "Course sequence announced on VHF 73"
         }
       />
+
+      {courseTextSummary.length > 0 ? (
+        <section className="layline-panel p-4">
+          <div className="layline-kicker">Course In Text</div>
+          <ol className="mt-3 list-decimal space-y-2 pl-5 text-sm leading-6 text-[color:var(--text-soft)]">
+            {courseTextSummary.map((step) => (
+              <li key={step}>{step}</li>
+            ))}
+          </ol>
+        </section>
+      ) : null}
 
       {courseData.course.notes ? (
         <section className="layline-panel p-4">

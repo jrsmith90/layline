@@ -47,6 +47,7 @@ export type RaceCourseConstraintRecord = {
 export type RaceCourseRecord = {
   sequence: string[] | null;
   previewSequence?: string[];
+  textSummary?: string[];
   distanceNmSI: number | null;
   distanceNmCalculated: number | null;
   legs: RaceCourseLegRecord[];
@@ -183,6 +184,109 @@ const eweSpiritCup2026CourseGeometry: RaceCourseGeometry = {
   },
 };
 
+const tedSouthRiverTriangleCourse: RaceCourseRecord = {
+  label: "South River Triangle",
+  sequence: ["X", "H", "G", "B"],
+  textSummary: [
+    "Start at Severn River Entrance (X).",
+    "Round South River Junction Buoy (H).",
+    'Round Chesapeake Channel Buoy G "87" (G).',
+    'Finish at Horn Point Buoy G "9" (B).',
+  ],
+  distanceNmSI: null,
+  distanceNmCalculated: 10.21,
+  legs: [
+    {
+      legNumber: 1,
+      fromMark: "X",
+      toMark: "H",
+      bearingDeg: 186.1,
+      distanceNmCalculated: 2.86,
+    },
+    {
+      legNumber: 2,
+      fromMark: "H",
+      toMark: "G",
+      bearingDeg: 38.0,
+      distanceNmCalculated: 2.93,
+    },
+    {
+      legNumber: 3,
+      fromMark: "G",
+      toMark: "B",
+      bearingDeg: 308.2,
+      distanceNmCalculated: 4.42,
+    },
+  ],
+  notes: 'Route: X -> H -> G -> B.',
+};
+
+const tedSouthRiverChannelTourCourse: RaceCourseRecord = {
+  label: "South River Channel Tour",
+  sequence: ["X", "H", "E", "B"],
+  textSummary: [
+    "Start at Severn River Entrance (X).",
+    "Round South River Junction Buoy (H).",
+    'Round Chesapeake Channel Buoy R "86" (E).',
+    'Finish at Horn Point Buoy G "9" (B).',
+  ],
+  distanceNmSI: null,
+  distanceNmCalculated: 12.91,
+  legs: [
+    {
+      legNumber: 1,
+      fromMark: "X",
+      toMark: "H",
+      bearingDeg: 186.1,
+      distanceNmCalculated: 2.86,
+    },
+    {
+      legNumber: 2,
+      fromMark: "H",
+      toMark: "E",
+      bearingDeg: 133.1,
+      distanceNmCalculated: 2.48,
+    },
+    {
+      legNumber: 3,
+      fromMark: "E",
+      toMark: "B",
+      bearingDeg: 332.7,
+      distanceNmCalculated: 7.58,
+    },
+  ],
+  notes: 'Route: X -> H -> E -> B.',
+};
+
+const tedSouthRiverSprintCourse: RaceCourseRecord = {
+  label: "South River Sprint",
+  sequence: ["X", "H", "B"],
+  textSummary: [
+    "Start at Severn River Entrance (X).",
+    "Round South River Junction Buoy (H).",
+    'Finish at Horn Point Buoy G "9" (B).',
+  ],
+  distanceNmSI: null,
+  distanceNmCalculated: 8.17,
+  legs: [
+    {
+      legNumber: 1,
+      fromMark: "X",
+      toMark: "H",
+      bearingDeg: 186.1,
+      distanceNmCalculated: 2.86,
+    },
+    {
+      legNumber: 2,
+      fromMark: "H",
+      toMark: "B",
+      bearingDeg: 341.7,
+      distanceNmCalculated: 5.32,
+    },
+  ],
+  notes: 'Route: X -> H -> B.',
+};
+
 const tedOsiusTwilight2026CourseGeometry: RaceCourseGeometry = {
   event: {
     name: "Ted Osius Memorial Twilight Regatta",
@@ -194,32 +298,53 @@ const tedOsiusTwilight2026CourseGeometry: RaceCourseGeometry = {
   marks: pickAnnapolisMarks(
     ["D", "E", "G", "H", "M", "T", "W", "X", "Z", "B"],
     {
+      E: {
+        id: 'R "86"',
+        name: 'Chesapeake Channel Buoy R "86"',
+        lat: 38.866166666666665,
+        lon: -76.3925,
+        characteristics: "Fl R 4s",
+      },
+      G: {
+        id: 'G "87"',
+        name: 'Chesapeake Channel Buoy G "87"',
+        lat: 38.932833333333335,
+        lon: -76.3925,
+        characteristics: "Q G",
+      },
+      H: {
+        id: 'GR C "SR"',
+        name: "South River Junction Buoy",
+        lat: 38.894333333333336,
+        lon: -76.43116666666667,
+        characteristics: "",
+      },
+      X: {
+        id: 'R "2"',
+        name: "Severn River Entrance",
+        lat: 38.94166666666667,
+        lon: -76.42466666666667,
+        characteristics: "Fl R 2.5s",
+      },
       B: {
         id: 'G "9"',
-        name: 'Annapolis Harbor Buoy G "9" off Horn Point',
+        name: "Horn Point Finish",
         lat: 38.97838333333333,
         lon: -76.4669,
         characteristics:
-          'Q G. Position from an Annapolis Harbor government-mark course reference using G "9" at N38 58.703 W076 28.014.',
+          'Q G. Official Ted Osius finish mark at Horn Point, using the event G "9" finish designation.',
       },
     },
   ),
   courses: {
-    "99": {
-      label: "Ted Osius Memorial Twilight Regatta",
-      sequence: null,
-      previewSequence: ["X", "B"],
-      distanceNmSI: null,
-      distanceNmCalculated: null,
-      legs: [],
-      custom: true,
-      notes:
-        'Dynamic 10-20 NM Region 3 distance race. The intermediate placard marks are announced on VHF 73 at the start. This preview highlights the usual start area near X and the intended B finish at G "9" off Horn Point.',
-    },
+    "1": tedSouthRiverTriangleCourse,
+    "2": tedSouthRiverChannelTourCourse,
+    "3": tedSouthRiverSprintCourse,
   },
   specialRoutingNotes: [
-    "The race committee announces the intermediate Region 3 marks at the starting line using CBYRA letter placards and VHF 73.",
-    'The intended finish is mark B, defined for this event as Annapolis Harbor buoy G "9" off Horn Point.',
+    "These named South River options are the Ted Osius course set currently configured in the app.",
+    'The finish mark for all three options is mark B, defined for this event as Horn Point Buoy G "9".',
+    "Letters shown in red are left to port. Letters shown in green are left to starboard.",
   ],
   specialRoutingConstraints: [
     {
