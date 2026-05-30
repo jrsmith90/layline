@@ -80,7 +80,10 @@ export default function CourseChart({
   title = "Course chart",
   subtitle,
 }: CourseChartProps) {
-  const courseSequence = courseData.course.sequence ?? [];
+  const courseSequence =
+    courseData.course.sequence ??
+    courseData.course.previewSequence ??
+    [];
   const coursePoints =
     courseSequence
       ?.map<ChartPoint | null>((markId) => {

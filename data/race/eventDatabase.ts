@@ -46,6 +46,7 @@ export type RaceCourseConstraintRecord = {
 
 export type RaceCourseRecord = {
   sequence: string[] | null;
+  previewSequence?: string[];
   distanceNmSI: number | null;
   distanceNmCalculated: number | null;
   legs: RaceCourseLegRecord[];
@@ -187,24 +188,72 @@ const tedOsiusTwilight2026CourseGeometry: RaceCourseGeometry = {
     name: "Ted Osius Memorial Twilight Regatta",
     location: "Annapolis, MD",
     dates: "2026-06-06",
-    source: "SCC 2026 racing calendar / YachtScoring event page 50643",
+    source: "2026 Ted Osius Memorial Twilight Regatta Sailing Instructions with Amendment #1",
   },
   startFinishMark: "X",
-  marks: pickAnnapolisMarks(["X"]),
+  marks: pickAnnapolisMarks(
+    ["D", "E", "G", "H", "M", "T", "W", "X", "Z", "B"],
+    {
+      B: {
+        id: 'G "9"',
+        name: 'Annapolis Harbor Buoy G "9" off Horn Point',
+        lat: 38.97838333333333,
+        lon: -76.4669,
+        characteristics:
+          'Q G. Position from an Annapolis Harbor government-mark course reference using G "9" at N38 58.703 W076 28.014.',
+      },
+    },
+  ),
   courses: {
     "99": {
       label: "Ted Osius Memorial Twilight Regatta",
       sequence: null,
+      previewSequence: ["X", "B"],
       distanceNmSI: null,
       distanceNmCalculated: null,
       legs: [],
       custom: true,
       notes:
-        "Custom race placeholder for the June 6 twilight event. Keep this selected for race-day weather and current context, then replace it with the announced sequence once the 2026 course sheet or SIs are in hand.",
+        'Dynamic 10-20 NM Region 3 distance race. The intermediate placard marks are announced on VHF 73 at the start. This preview highlights the usual start area near X and the intended B finish at G "9" off Horn Point.',
     },
   },
-  specialRoutingNotes: [],
-  specialRoutingConstraints: [],
+  specialRoutingNotes: [
+    "The race committee announces the intermediate Region 3 marks at the starting line using CBYRA letter placards and VHF 73.",
+    'The intended finish is mark B, defined for this event as Annapolis Harbor buoy G "9" off Horn Point.',
+  ],
+  specialRoutingConstraints: [
+    {
+      id: "ted-thomas-point-channel-side",
+      type: "pass_on_channel_side",
+      appliesTo: "all_keelboat_classes",
+      markLabel: "Thomas Point Shoal Light",
+      markName: "Thomas Point Shoal Lighthouse",
+    },
+    {
+      id: "ted-bloody-point-channel-side",
+      type: "pass_on_channel_side",
+      appliesTo: "all_keelboat_classes",
+      markLabel: "Bloody Point Bar Warning Light",
+      markName: "Bloody Point Bar Warning Light",
+    },
+    {
+      id: "ted-greenbury-spider-channel-side",
+      type: "pass_on_channel_side",
+      appliesTo: "all_keelboat_classes",
+      markLabel: '"A"',
+      markName: 'Greenbury Point "Spider" light',
+      detail:
+        'The SI designates Greenbury Point "Spider" Fl Y 2.5s 15 ft as mark A for this event.',
+    },
+    {
+      id: "ted-tolly-point-1ah-channel-side",
+      type: "pass_on_channel_side",
+      appliesTo: "all_keelboat_classes",
+      markLabel: '"1AH"',
+      markName: "Tolly Point light",
+      markKey: "M",
+    },
+  ],
 };
 
 export const raceEvents: RaceEventRecord[] = [

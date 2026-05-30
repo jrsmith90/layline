@@ -22,6 +22,10 @@ export default function CoursePreviewCard() {
   );
   const courseId = draft.courseId;
   const courseData = useMemo(() => getCourseData(courseId), [courseId]);
+  const displaySequence =
+    courseData.course.sequence ??
+    courseData.course.previewSequence ??
+    [];
 
   return (
     <div className="space-y-3">
@@ -57,9 +61,9 @@ export default function CoursePreviewCard() {
         courseData={courseData}
         title={formatCourseLabel(courseId)}
         subtitle={
-          courseData.course.sequence
-            ? courseData.course.sequence.join(" -> ")
-            : "Course sequence unavailable"
+          displaySequence.length > 0
+            ? displaySequence.join(" -> ")
+            : "Course sequence announced on VHF 73"
         }
       />
 

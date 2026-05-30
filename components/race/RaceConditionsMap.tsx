@@ -332,12 +332,20 @@ export default function RaceConditionsMap() {
   const courseId = draft.courseId;
   const courseData = useMemo(() => getCourseData(courseId), [courseId]);
   const courseSequence = useMemo(
-    () => courseData.course.sequence ?? [],
-    [courseData.course.sequence],
+    () => courseData.course.sequence ?? courseData.course.previewSequence ?? [],
+    [courseData.course.previewSequence, courseData.course.sequence],
   );
   const courseMarkerIds = useMemo(
-    () => [...new Set(courseSequence)],
-    [courseSequence],
+    () => {
+      if (courseData.course.custom) {
+        return Object.keys(courseData.marks);
+      }
+
+      return courseSequence.length > 0
+        ? [...new Set(courseSequence)]
+        : Object.keys(courseData.marks);
+    },
+    [courseData.course.custom, courseData.marks, courseSequence],
   );
   const boundaryConstraintLines = useMemo(
     () =>

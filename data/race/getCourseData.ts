@@ -22,6 +22,7 @@ export type RaceLeg = {
 
 export type RaceCourse = {
   sequence: MarkId[] | null;
+  previewSequence?: MarkId[];
   distanceNmSI: number | null;
   distanceNmCalculated: number | null;
   legs: RaceLeg[];
@@ -195,9 +196,14 @@ export function getCourseData(courseId: string): CourseSummary {
 
   const course = resolved.course as RaceCourse;
   const sequence = (course.sequence ?? []) as MarkId[];
-  const uniqueMarks = [...new Set(sequence)];
+  const previewSequence = (course.previewSequence ?? []) as MarkId[];
+  const markIdsForContext =
+    course.custom && sequence.length === 0
+      ? Object.keys(resolved.courseGeometry.marks)
+      : [...sequence, ...previewSequence];
+  const contextMarks = [...new Set(markIdsForContext)];
   const marks = Object.fromEntries(
-    uniqueMarks.map((markId) => [
+    contextMarks.map((markId) => [
       markId,
       resolved.courseGeometry.marks[markId as MarkId],
     ])
