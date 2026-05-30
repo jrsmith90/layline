@@ -1,5 +1,5 @@
 import type { GpsTrackPoint } from "@/lib/useGpsCourse";
-import type { CourseSummary } from "@/data/race/getCourseData";
+import { getCourseDisplayCode, type CourseSummary } from "@/data/race/getCourseData";
 import { getConstraintBadge, getConstraintsForMark } from "@/lib/race/instructionConstraints";
 
 type ChartPoint = {
@@ -118,6 +118,7 @@ export default function CourseChart({
   const trackPath = trackPoints.length >= 2 ? linePath(trackPoints, bounds) : "";
   const totalDistance =
     courseData.totalDistanceNmSI ?? courseData.totalDistanceNmCalculated;
+  const courseDisplayCode = getCourseDisplayCode(courseData.courseId);
 
   return (
     <section className="layline-panel overflow-hidden p-4">
@@ -130,7 +131,7 @@ export default function CourseChart({
           )}
         </div>
         <div className="text-right text-xs text-[color:var(--muted)]">
-          <div>Course {courseData.courseId}</div>
+          <div>Course {courseDisplayCode}</div>
           <div>{formatNumber(totalDistance, 1)} nm</div>
         </div>
       </div>
@@ -140,7 +141,7 @@ export default function CourseChart({
           viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
           preserveAspectRatio="xMidYMid meet"
           role="img"
-          aria-label={`${title} for course ${courseData.courseId}`}
+          aria-label={`${title} for course ${courseDisplayCode}`}
           className="aspect-[1.565] w-full"
         >
           <rect width={WIDTH} height={HEIGHT} fill="#08233a" />

@@ -181,6 +181,30 @@ const eweSpiritCup2026CourseGeometry: RaceCourseGeometry = {
   },
 };
 
+const tedOsiusTwilight2026CourseGeometry: RaceCourseGeometry = {
+  event: {
+    name: "Ted Osius Memorial Twilight Regatta",
+    location: "Annapolis, MD",
+    dates: "2026-06-06",
+    source: "SCC 2026 racing calendar / YachtScoring event page 50643",
+  },
+  startFinishMark: "X",
+  marks: pickAnnapolisMarks(["X"]),
+  courses: {
+    "99": {
+      sequence: null,
+      distanceNmSI: null,
+      distanceNmCalculated: null,
+      legs: [],
+      custom: true,
+      notes:
+        "Custom race placeholder for the June 6 twilight event. Keep this selected for race-day weather and current context, then replace it with the announced sequence once the 2026 course sheet or SIs are in hand.",
+    },
+  },
+  specialRoutingNotes: [],
+  specialRoutingConstraints: [],
+};
+
 export const raceEvents: RaceEventRecord[] = [
   {
     id: "2026-helly-hansen-sailing-world-regatta-series-annapolis-md",
@@ -188,7 +212,7 @@ export const raceEvents: RaceEventRecord[] = [
     name: "Helly Hansen Sailing World Regatta Series",
     location: "Annapolis, MD",
     dates: "2026-05-02 to 2026-05-03",
-    status: "active",
+    status: "archived",
     sourceDocuments: [
       "Distance Race Sailing Instructions",
       "Attachment 1 - Race Courses",
@@ -202,17 +226,30 @@ export const raceEvents: RaceEventRecord[] = [
     name: "EWE Cup",
     location: "Annapolis, MD",
     dates: "2026-05-16",
-    status: "active",
+    status: "archived",
     sourceDocuments: [
       "2026 SCC EWE Spirit Cup Sailing Instructions",
       "Appendix A - Course Diagram",
       "YachtScoring event page 50644"
     ],
     courseGeometry: eweSpiritCup2026CourseGeometry
+  },
+  {
+    id: "2026-ted-osius-memorial-twilight-regatta-annapolis-md",
+    year: 2026,
+    name: "Ted Osius Memorial Twilight Regatta",
+    location: "Annapolis, MD",
+    dates: "2026-06-06",
+    status: "active",
+    sourceDocuments: [
+      "SCC 2026 racing calendar",
+      "YachtScoring event page 50643"
+    ],
+    courseGeometry: tedOsiusTwilight2026CourseGeometry
   }
 ];
 
-export const activeRaceEventId = "2026-scc-ewe-spirit-cup-annapolis-md";
+export const activeRaceEventId = "2026-ted-osius-memorial-twilight-regatta-annapolis-md";
 
 export function getRaceEvent(eventId: string): RaceEventRecord {
   const event = raceEvents.find((candidate) => candidate.id === eventId);

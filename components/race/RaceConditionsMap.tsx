@@ -15,7 +15,13 @@ import { Navigation } from "lucide-react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { RoutingConstraintsList } from "@/components/race/RoutingConstraintsList";
-import { formatCourseLabel, getAllCourseIds, getCourseData, getDefaultCourseId } from "@/data/race/getCourseData";
+import {
+  formatCourseLabel,
+  getAllCourseIds,
+  getCourseData,
+  getCourseDisplayCode,
+  getDefaultCourseId,
+} from "@/data/race/getCourseData";
 import { getConstraintActionCopy, getConstraintsForMark } from "@/lib/race/instructionConstraints";
 import {
   buildTacticalBoardDraftDefaults,
@@ -479,6 +485,7 @@ export default function RaceConditionsMap() {
       };
     }).filter((marker) => marker.windDirectionDeg != null || marker.windAvgKt != null);
   }, [windPayload]);
+  const courseDisplayCode = getCourseDisplayCode(courseData.courseId);
 
   const mapBounds = useMemo<MapBounds>(() => {
     const stationPositions = currentStations.map(
@@ -749,7 +756,8 @@ export default function RaceConditionsMap() {
             </div>
             <div className="mt-2 space-y-2 text-sm">
               <div>
-                <span className="text-[color:var(--text-soft)]">Course:</span> <span className="font-semibold">{courseData.courseId}</span>
+                <span className="text-[color:var(--text-soft)]">Course:</span>{" "}
+                <span className="font-semibold">{courseDisplayCode}</span>
               </div>
               <div>
                 <span className="text-[color:var(--text-soft)]">Location:</span> <span className="font-semibold">{courseData.eventLocation}</span>

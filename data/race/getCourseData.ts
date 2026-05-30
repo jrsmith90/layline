@@ -53,6 +53,10 @@ function getFirstRaceDate(dates: string) {
   return dates.split(" to ")[0] ?? dates;
 }
 
+function formatCourseCodeLabel(courseCode: string) {
+  return courseCode === "99" ? "RC / Custom" : courseCode;
+}
+
 function buildQualifiedCourseId(eventId: string, courseId: string) {
   return `${eventId}:${courseId}`;
 }
@@ -249,9 +253,15 @@ export function getCourseCode(courseId: string): string {
   return splitQualifiedCourseId(courseId)?.courseId ?? courseId;
 }
 
+export function getCourseDisplayCode(courseId: string): string {
+  return formatCourseCodeLabel(getCourseCode(courseId));
+}
+
 export function formatCourseLabel(courseId: string): string {
   const resolved = resolveCourse(courseId);
-  const courseCode = resolved?.courseId ?? getCourseCode(courseId);
+  const courseCode = formatCourseCodeLabel(
+    resolved?.courseId ?? getCourseCode(courseId),
+  );
   const eventName = resolved?.event.name ?? activeEvent.name;
 
   return `${eventName}: ${courseCode}`;
