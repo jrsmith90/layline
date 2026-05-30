@@ -3,6 +3,7 @@
 import { useMemo, useSyncExternalStore } from "react";
 import { AiCoachCard } from "@/components/ai/AiCoachCard";
 import { WorkflowStageStrip } from "@/components/layout/WorkflowStageStrip";
+import { InlineExplain } from "@/components/ui/InlineExplain";
 import { formatCourseLabel, getCourseData, getDefaultCourseId } from "@/data/race/getCourseData";
 import { buildPreRaceCoachBrief } from "@/lib/ai/coach";
 import { deriveTacticalBoard } from "@/lib/race/tacticalBoard/deriveTacticalBoard";
@@ -87,16 +88,36 @@ export function PreRaceCommandDeck() {
     <div className="space-y-5">
       <section className="layline-panel p-4">
         <div className="layline-kicker">Command Deck</div>
-        <h2 className="mt-1 text-2xl font-black tracking-tight">
-          Leave the dock with one clear story
-        </h2>
+        <div className="mt-1 flex items-center gap-2">
+          <h2 className="text-2xl font-black tracking-tight">
+            Leave the dock with one clear story
+          </h2>
+          <InlineExplain
+            label="Explain the command deck"
+            title="How to use this"
+          >
+            Start here before you dive into the detailed tools. The goal is to leave the dock
+            knowing four things: which course you are sailing, what the first-leg side plan is,
+            whether the tactical board is ready, and whether any instruction limits need extra
+            attention.
+          </InlineExplain>
+        </div>
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
-          <DeckMetric label="Course" value={formatCourseLabel(draft.courseId)} />
+          <DeckMetric
+            label="Course"
+            value={formatCourseLabel(draft.courseId)}
+            help="This confirms which route all of the pre-race tools are using. If this is wrong, your map, tactical board, and opening plan will all point at the wrong first mark."
+          />
           <DeckMetric
             label="Opening bias"
             value={planStatus(draft.routeBias.latestUpdate?.action, draft.routeBias.originalPlan != null)}
+            help="This tells you whether you already have a first-leg side plan. Use it as the answer to: where do we want to start our race picture, and do we still trust that plan?"
           />
-          <DeckMetric label="Board" value={statusLabel(boardStatus)} />
+          <DeckMetric
+            label="Board"
+            value={statusLabel(boardStatus)}
+            help="This is a readiness check for the tactical board. If it says partial or needs setup, you still need to finish key inputs like wind direction, tack angle, or mark bearing before the heading numbers are trustworthy."
+          />
           <DeckMetric
             label="Instructions"
             value={
@@ -104,6 +125,7 @@ export function PreRaceCommandDeck() {
                 ? `${course.specialRoutingConstraints.length} constraints`
                 : "Standard marks"
             }
+            help="This is your quick warning that the sailing instructions add extra rules, like passing certain marks on the channel side. If this number is not zero, review those constraints before leaving the dock."
           />
         </div>
       </section>
@@ -150,13 +172,22 @@ export function PreRaceCommandDeck() {
   );
 }
 
-function DeckMetric({ label, value }: { label: string; value: string }) {
+function DeckMetric(props: { label: string; value: string; help?: string }) {
   return (
     <div className="rounded-xl border border-[color:var(--divider)] bg-black/20 p-3">
-      <div className="text-[11px] font-black uppercase tracking-[0.16em] text-[color:var(--muted)]">
-        {label}
+      <div className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.16em] text-[color:var(--muted)]">
+        <span>{props.label}</span>
+        {props.help ? (
+          <InlineExplain
+            label={`Explain ${props.label}`}
+            title={props.label}
+            widthClassName="w-80"
+          >
+            {props.help}
+          </InlineExplain>
+        ) : null}
       </div>
-      <div className="mt-2 text-base font-black text-[color:var(--text)]">{value}</div>
+      <div className="mt-2 text-base font-black text-[color:var(--text)]">{props.value}</div>
     </div>
   );
 }
