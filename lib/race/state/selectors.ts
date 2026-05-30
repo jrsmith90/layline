@@ -1,3 +1,4 @@
+import { formatCourseLabel } from "@/data/race/getCourseData";
 import {
   calculateMarkProgress,
   type MarkProgressCall,
@@ -29,7 +30,7 @@ export function selectActiveMarks(state: RaceState) {
 }
 
 export function selectCourseLabel(state: RaceState) {
-  return `${state.course.summary.eventName}: ${state.course.summary.courseId}`;
+  return formatCourseLabel(state.course.summary.courseId);
 }
 
 export function selectHasUsablePosition(state: RaceState) {

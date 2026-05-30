@@ -25,6 +25,7 @@ export type RaceCourse = {
   distanceNmSI: number | null;
   distanceNmCalculated: number | null;
   legs: RaceLeg[];
+  label?: string;
   custom?: boolean;
   notes?: string;
 };
@@ -55,6 +56,16 @@ function getFirstRaceDate(dates: string) {
 
 function formatCourseCodeLabel(courseCode: string) {
   return courseCode === "99" ? "RC / Custom" : courseCode;
+}
+
+function getResolvedCourseDisplayLabel(
+  resolved: ReturnType<typeof resolveCourse> | null,
+  requestedCourseId: string,
+) {
+  const explicitLabel = resolved?.course.label?.trim();
+  if (explicitLabel) return explicitLabel;
+
+  return formatCourseCodeLabel(resolved?.courseId ?? getCourseCode(requestedCourseId));
 }
 
 function buildQualifiedCourseId(eventId: string, courseId: string) {
@@ -254,17 +265,15 @@ export function getCourseCode(courseId: string): string {
 }
 
 export function getCourseDisplayCode(courseId: string): string {
-  return formatCourseCodeLabel(getCourseCode(courseId));
+  return getResolvedCourseDisplayLabel(resolveCourse(courseId), courseId);
 }
 
 export function formatCourseLabel(courseId: string): string {
   const resolved = resolveCourse(courseId);
-  const courseCode = formatCourseCodeLabel(
-    resolved?.courseId ?? getCourseCode(courseId),
-  );
+  const courseCode = getResolvedCourseDisplayLabel(resolved, courseId);
   const eventName = resolved?.event.name ?? activeEvent.name;
 
-  return `${eventName}: ${courseCode}`;
+  return courseCode === eventName ? courseCode : `${eventName}: ${courseCode}`;
 }
 
 export function getDefaultCourseId(): CourseId {

@@ -49,6 +49,7 @@ export type RaceCourseRecord = {
   distanceNmSI: number | null;
   distanceNmCalculated: number | null;
   legs: RaceCourseLegRecord[];
+  label?: string;
   custom?: boolean;
   notes?: string;
 };
@@ -192,6 +193,7 @@ const tedOsiusTwilight2026CourseGeometry: RaceCourseGeometry = {
   marks: pickAnnapolisMarks(["X"]),
   courses: {
     "99": {
+      label: "Ted Osius Memorial Twilight Regatta",
       sequence: null,
       distanceNmSI: null,
       distanceNmCalculated: null,
