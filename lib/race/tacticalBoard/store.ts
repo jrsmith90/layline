@@ -18,6 +18,10 @@ import type {
   TacticalUpdateAction,
 } from "@/lib/race/checkPlanValidity";
 import type { RouteBiasAnswers } from "@/lib/race/scoreRouteBias";
+import type {
+  CourseStrategyAnswers,
+  CourseStrategyResult,
+} from "@/lib/race/courseStrategy/types";
 
 export type TacticalBoardRouteBiasState = {
   originalAnswers: RouteBiasAnswers | null;
@@ -39,6 +43,8 @@ export type TacticalBoardDraft = {
   downwindTrueWindAngleDeg: string;
   windTrend: WindTrend;
   routeBias: TacticalBoardRouteBiasState;
+  courseStrategy: CourseStrategyAnswers | null;
+  courseStrategyResult: CourseStrategyResult | null;
 };
 
 const KNOWN_COURSE_IDS = new Set(getAllCourseIds());
@@ -254,6 +260,71 @@ function sanitizeRouteBiasState(value: unknown): TacticalBoardRouteBiasState {
   };
 }
 
+function sanitizeCourseStrategyAnswers(value: unknown): CourseStrategyAnswers | null {
+  if (!value || typeof value !== "object") return null;
+
+  const input = value as Partial<CourseStrategyAnswers>;
+  const courseId = normalizeCourseId(input.courseId);
+  const zones = Array.isArray(input.zones)
+    ? input.zones.map((zone) => ({
+        id: sanitizeText(zone?.id, ""),
+        label: sanitizeText(zone?.label, ""),
+        headingDeg:
+          typeof zone?.headingDeg === "number" && Number.isFinite(zone.headingDeg)
+            ? wrap360(zone.headingDeg)
+            : null,
+        description: sanitizeText(zone?.description, ""),
+        windShiftRisk:
+          zone?.windShiftRisk === "high" ||
+          zone?.windShiftRisk === "moderate" ||
+          zone?.windShiftRisk === "low" ||
+          zone?.windShiftRisk === "unknown"
+            ? zone.windShiftRisk
+            : "unknown",
+        windShiftLocation: sanitizeText(zone?.windShiftLocation, ""),
+        currentEffect:
+          zone?.currentEffect === "favorable" ||
+          zone?.currentEffect === "adverse" ||
+          zone?.currentEffect === "neutral" ||
+          zone?.currentEffect === "unknown"
+            ? zone.currentEffect
+            : "unknown",
+        laylineHeadingDeg:
+          typeof zone?.laylineHeadingDeg === "number" && Number.isFinite(zone.laylineHeadingDeg)
+            ? wrap360(zone.laylineHeadingDeg)
+            : null,
+        notes: sanitizeText(zone?.notes, ""),
+      }))
+    : [];
+
+  if (zones.length === 0) return null;
+
+  return {
+    courseId,
+    zones,
+    openingLegBearingDeg:
+      typeof input.openingLegBearingDeg === "number" && Number.isFinite(input.openingLegBearingDeg)
+        ? wrap360(input.openingLegBearingDeg)
+        : null,
+    firstMarkDistance:
+      typeof input.firstMarkDistance === "number" && Number.isFinite(input.firstMarkDistance)
+        ? input.firstMarkDistance
+        : null,
+    strategyNotes: sanitizeText(input.strategyNotes, ""),
+  };
+}
+
+function sanitizeCourseStrategyResult(value: unknown): CourseStrategyResult | null {
+  if (!value || typeof value !== "object") return null;
+
+  const input = value as Partial<CourseStrategyResult>;
+  return {
+    zoneAnalysis: Array.isArray(input.zoneAnalysis) ? input.zoneAnalysis : [],
+    keyRisks: sanitizeStringList(input.keyRisks),
+    recommendations: sanitizeStringList(input.recommendations),
+  };
+}
+
 function courseSeed(courseId: string) {
   const courseData = getCourseData(courseId);
   const firstLegBearingDeg = courseData.firstLeg?.bearingDeg ?? null;
@@ -349,6 +420,8 @@ function sanitizeDraft(input: Partial<TacticalBoardDraft> | null | undefined): T
     ),
     windTrend: isWindTrend(input?.windTrend) ? input.windTrend : defaults.windTrend,
     routeBias: sanitizeRouteBiasState(input?.routeBias),
+    courseStrategy: sanitizeCourseStrategyAnswers(input?.courseStrategy),
+    courseStrategyResult: sanitizeCourseStrategyResult(input?.courseStrategyResult),
   };
 }
 
@@ -453,6 +526,8 @@ export function buildTacticalBoardDraftDefaults(courseId: string): TacticalBoard
     downwindTrueWindAngleDeg: "135",
     windTrend: "unknown",
     routeBias: createEmptyRouteBiasState(),
+    courseStrategy: null,
+    courseStrategyResult: null,
   };
 }
 
@@ -622,6 +697,32 @@ export function setTacticalBoardRouteBiasLatest(
     const tracker = getStoredTrackerStateSnapshot();
     if (tracker.courseId !== normalizedAnswers.courseId) {
       setTrackerCourseId(normalizedAnswers.courseId);
+    }
+  }
+
+  return nextDraft;
+}
+
+export function setTacticalBoardCourseStrategy(
+  input: {
+    answers: CourseStrategyAnswers;
+    result: CourseStrategyResult;
+  },
+  options: { syncTracker?: boolean } = {},
+) {
+  const sanitizedAnswers = sanitizeCourseStrategyAnswers(input.answers) ?? input.answers;
+  const sanitizedResult = sanitizeCourseStrategyResult(input.result) ?? input.result;
+
+  const nextDraft = updateTacticalBoardDraft((current) => ({
+    ...current,
+    courseStrategy: sanitizedAnswers,
+    courseStrategyResult: sanitizedResult,
+  }));
+
+  if (options.syncTracker !== false) {
+    const tracker = getStoredTrackerStateSnapshot();
+    if (tracker.courseId !== sanitizedAnswers.courseId) {
+      setTrackerCourseId(sanitizedAnswers.courseId);
     }
   }
 

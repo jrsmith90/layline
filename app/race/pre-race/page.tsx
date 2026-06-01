@@ -8,6 +8,7 @@ import { WorkflowDisclosure } from "@/components/layout/WorkflowDisclosure";
 import { WorkflowQuickLinks } from "@/components/navigation/WorkflowQuickLinks";
 import CoursePreviewCard from "@/components/race/CoursePreviewCard";
 import { PreRaceCommandDeck } from "@/components/race/PreRaceCommandDeck";
+import PreRaceCourseStrategyWorkflow from "@/components/race/PreRaceCourseStrategyWorkflow";
 import PreRaceRouteBiasWorkflow from "@/components/race/PreRaceRouteBiasWorkflow";
 import { TacticalBoardContent } from "@/components/race/TacticalBoard";
 import {
@@ -38,13 +39,18 @@ const PRE_RACE_QUICK_LINKS = [
     detail: "Turn the course and wind read into an inventory call.",
   },
   {
+    href: "#course-strategy",
+    label: "3. Course strategy",
+    detail: "Break down the opening leg by zone with headings and risk assessment.",
+  },
+  {
     href: "#route-plan",
-    label: "3. Opening bias",
+    label: "4. Opening bias",
     detail: "Save the first-leg side, then re-check only if needed.",
   },
   {
     href: "#tactical-board",
-    label: "4. Tactical board",
+    label: "5. Tactical board",
     detail: "Carry the saved setup into launch mode.",
   },
 ];
@@ -57,8 +63,8 @@ export default function Page() {
       <AppPageHeader
         eyebrow="Race Setup"
         title="Build the opening picture."
-        description="Run the updated dockside plan in one pass: confirm the course, make the sail call, lock the opening bias, and seed the tactical board before switching to Race Live."
-        badges={["Course", "Sail Choice", "Opening Bias", "Tactical Board"]}
+        description="Run the updated dockside plan in one pass: confirm the course, make the sail call, analyze zones with strategy, lock the opening bias, and seed the tactical board before switching to Race Live."
+        badges={["Course", "Sail Choice", "Course Strategy", "Opening Bias", "Tactical Board"]}
         actions={
           <Link
             href="/race/live"
@@ -98,8 +104,18 @@ export default function Page() {
       </WorkflowDisclosure>
 
       <WorkflowDisclosure
-        id="route-plan"
+        id="course-strategy"
         badge="Step 3"
+        title="Break down the opening leg strategy"
+        detail="Analyze each zone with expected headings, wind shifts, current patterns, and laylines."
+        defaultOpen
+      >
+        <PreRaceCourseStrategyWorkflow />
+      </WorkflowDisclosure>
+
+      <WorkflowDisclosure
+        id="route-plan"
+        badge="Step 4"
         title="Lock and re-check opening bias"
         detail="Save the opening side first, then use the live re-check only if conditions have changed."
         defaultOpen
@@ -109,7 +125,7 @@ export default function Page() {
 
       <WorkflowDisclosure
         id="tactical-board"
-        badge="Step 4"
+        badge="Step 5"
         title="Seed the tactical board"
         detail="Carry the saved course and opening picture into the launch board so Race Live starts from the same plan."
       >
