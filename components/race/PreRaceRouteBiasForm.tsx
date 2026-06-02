@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, type FormEvent } from "react";
+import { getCustomCourseRecord } from "@/data/race/customCourses";
 import {
   getRouteBiasInputs,
   type CurrentSide,
@@ -128,6 +129,7 @@ export default function PreRaceRouteBiasForm({
         },
         body: JSON.stringify({
           courseId: values.courseId,
+          customCourse: getCustomCourseRecord(values.courseId),
           openingLegType: values.openingLegType,
           windDirectionDeg: parsedWindDirectionDeg,
           windSpeedKt: parsedWindSpeedKt,

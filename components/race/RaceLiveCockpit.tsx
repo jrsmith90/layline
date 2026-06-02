@@ -8,8 +8,6 @@ import { WorkflowDisclosure } from "@/components/layout/WorkflowDisclosure";
 import { Flag, LocateFixed, TimerReset, Wind } from "lucide-react";
 import {
   formatCourseLabel,
-  getAllCourseIds,
-  getCourseData,
   getDefaultCourseId,
 } from "@/data/race/getCourseData";
 import { usePhoneGps } from "@/components/gps/PhoneGpsProvider";
@@ -72,9 +70,9 @@ import {
   saveTackCalibrations,
   type TackCalibrationResult,
 } from "@/lib/race/tackCalibration";
+import { useCourseIds, useResolvedCourseData } from "@/lib/race/useCourseCatalogVersion";
 import { buildLiveCoachBrief } from "@/lib/ai/coach";
 
-const courseIds = getAllCourseIds();
 const CALIBRATION_DURATION_MS = 35_000;
 const MARK_APPROACH_DISTANCE_NM = 0.08;
 const DEFAULT_TACTICAL_BOARD_DRAFT = buildTacticalBoardDraftDefaults(getDefaultCourseId());
@@ -400,6 +398,7 @@ function getLegalityCockpitOverride(legality: RaceLegalityState) {
 }
 
 export default function RaceLiveCockpit() {
+  const courseIds = useCourseIds();
   const { mode, isRaceMode } = useAppMode();
   const gps = usePhoneGps();
   const trackerState = useSyncExternalStore(
@@ -413,7 +412,7 @@ export default function RaceLiveCockpit() {
     () => DEFAULT_TACTICAL_BOARD_DRAFT,
   );
   const courseId = trackerState.courseId;
-  const courseData = useMemo(() => getCourseData(courseId), [courseId]);
+  const courseData = useResolvedCourseData(courseId);
   const legIndex = trackerState.legIndex;
   const windFrom = trackerState.windFrom;
   const windSource = trackerState.windSource;

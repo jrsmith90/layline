@@ -13,11 +13,13 @@ import {
   type CourseSummary,
   formatCourseLabel,
   getDefaultCourseId,
-  getAllCourseIds,
-  getCourseData,
 } from "@/data/race/getCourseData";
 import type { TacticalUpdateAction } from "@/lib/race/checkPlanValidity";
 import { wrap360 } from "@/lib/race/courseTracker";
+import {
+  useCourseIds,
+  useResolvedCourseData,
+} from "@/lib/race/useCourseCatalogVersion";
 import type {
   RouteBiasAnswers,
   RouteBiasConfidence,
@@ -40,7 +42,6 @@ import {
   subscribeTacticalBoardStore,
 } from "@/lib/race/tacticalBoard/store";
 
-const courseIds = getAllCourseIds();
 const DEFAULT_TACTICAL_BOARD_DRAFT = buildTacticalBoardDraftDefaults(getDefaultCourseId());
 
 function formatDeg(value: number | null) {
@@ -194,16 +195,14 @@ export default function TacticalBoard() {
 
 export function TacticalBoardContent({ embedded = false }: { embedded?: boolean }) {
   const { isRaceMode } = useAppMode();
+  const courseIds = useCourseIds();
   const draft = useSyncExternalStore(
     subscribeTacticalBoardStore,
     getStoredTacticalBoardDraft,
     () => DEFAULT_TACTICAL_BOARD_DRAFT,
   );
-  const courseData = useMemo(() => getCourseData(draft.courseId), [draft.courseId]);
-  const routeBiasInputModel = useMemo(
-    () => getRouteBiasInputs(draft.courseId),
-    [draft.courseId],
-  );
+  const courseData = useResolvedCourseData(draft.courseId);
+  const routeBiasInputModel = getRouteBiasInputs(draft.courseId);
   const board = useMemo(
     () =>
       deriveTacticalBoard({

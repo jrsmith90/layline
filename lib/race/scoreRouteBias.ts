@@ -5,7 +5,7 @@ import type {
   PressureSide,
   WindTrend
 } from "@/data/race/getRouteBiasInputs";
-import { getCourseData } from "@/data/race/getCourseData";
+import { getCourseData, type CourseSummary } from "@/data/race/getCourseData";
 import { getRouteBiasReferenceBasis } from "@/lib/reference/decisionBasis";
 import { summarizeConstraintImpact } from "@/lib/race/instructionConstraints";
 
@@ -67,12 +67,17 @@ function applyConfidencePenalty(
   return "low";
 }
 
-export function scoreRouteBias(input: RouteBiasAnswers): RouteBiasResult {
+export function scoreRouteBias(
+  input: RouteBiasAnswers,
+  options: {
+    courseData?: CourseSummary;
+  } = {},
+): RouteBiasResult {
   let shoreScore = 0;
   let bayScore = 0;
   const reasons: string[] = [];
   const warnings: string[] = [];
-  const course = getCourseData(input.courseId);
+  const course = options.courseData ?? getCourseData(input.courseId);
   const constraintImpact = summarizeConstraintImpact(course, input.openingLegType);
 
   const ew = edgeWeight(input.edgeStrength);

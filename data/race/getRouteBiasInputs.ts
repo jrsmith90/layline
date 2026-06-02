@@ -1,4 +1,10 @@
-import { formatCourseLabel, getAllCourseIds, getCourseCode, getCourseData } from "./getCourseData";
+import {
+  formatCourseLabel,
+  getAllCourseIds,
+  getCourseCode,
+  getCourseData,
+  isCustomCourse,
+} from "./getCourseData";
 import type { RaceCourseConstraintRecord } from "./eventDatabase";
 
 export type RouteBiasCourseType =
@@ -97,6 +103,13 @@ function getCourseType(courseId: string): RouteBiasCourseType {
 function getCourseNotes(courseId: string): string[] {
   const course = getCourseData(courseId);
   const courseCode = getCourseCode(courseId);
+
+  if (isCustomCourse(courseId)) {
+    return [
+      "Custom course from the Course Manager.",
+      "Confirm the mark order, first-leg angle, and any instruction-side rules before saving the opening bias.",
+    ];
+  }
 
   if (
     course.eventId === "2026-scc-ewe-spirit-cup-annapolis-md" &&

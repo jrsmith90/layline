@@ -24,6 +24,7 @@ const groups = [
   {
     title: "Reference and History",
     items: [
+      { href: "/race/courses", label: "Course Manager" },
       { href: "/weather/current", label: "Current Weather" },
       { href: "/race/review#logs", label: "Trim Logs" },
       { href: "/race/review#notes", label: "Notes" },

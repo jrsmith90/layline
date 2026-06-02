@@ -5,7 +5,7 @@ import type {
   PressureSide,
   WindTrend,
 } from "@/data/race/getRouteBiasInputs";
-import { getAllCourseIds, getCourseData, getDefaultCourseId } from "@/data/race/getCourseData";
+import { getCourseData, getDefaultCourseId, hasCourse } from "@/data/race/getCourseData";
 import { wrap360 } from "@/lib/race/courseTracker";
 import {
   getStoredTrackerStateSnapshot,
@@ -47,7 +47,6 @@ export type TacticalBoardDraft = {
   courseStrategyResult: CourseStrategyResult | null;
 };
 
-const KNOWN_COURSE_IDS = new Set(getAllCourseIds());
 const TACTICAL_BOARD_DRAFT_KEY = "layline-tactical-board-draft-v1";
 const TACTICAL_BOARD_STORE_EVENT = "layline:tactical-board-store";
 
@@ -130,7 +129,7 @@ function isTacticalUpdateAction(value: unknown): value is TacticalUpdateAction {
 }
 
 function normalizeCourseId(value: unknown) {
-  return typeof value === "string" && KNOWN_COURSE_IDS.has(value)
+  return typeof value === "string" && hasCourse(value)
     ? value
     : getDefaultCourseId();
 }

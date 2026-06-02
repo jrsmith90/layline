@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { buildCourseSummaryFromRecord } from "@/data/race/getCourseData";
+import type { RaceCourseRecord } from "@/data/race/eventDatabase";
 import {
   scoreRouteBias,
   type RouteBiasAnswers
@@ -69,6 +71,7 @@ export async function POST(request: Request) {
 
     const {
       courseId,
+      customCourse,
       openingLegType,
       windDirectionDeg,
       windSpeedKt,
@@ -183,6 +186,21 @@ export async function POST(request: Request) {
       );
     }
 
+    const customCourseData =
+      customCourse &&
+      typeof customCourse === "object" &&
+      !Array.isArray(customCourse) &&
+      (customCourse as { id?: unknown; course?: unknown }).id === courseId &&
+      typeof (customCourse as { eventId?: unknown }).eventId === "string" &&
+      (customCourse as { course?: unknown }).course &&
+      typeof (customCourse as { course?: { sequence?: unknown; legs?: unknown } }).course === "object"
+        ? buildCourseSummaryFromRecord({
+            courseId,
+            eventId: (customCourse as { eventId: string }).eventId,
+            course: (customCourse as { course: RaceCourseRecord }).course,
+          })
+        : undefined;
+
     const result = scoreRouteBias({
       courseId,
       openingLegType,
@@ -192,6 +210,8 @@ export async function POST(request: Request) {
       pressureSide,
       currentSide,
       edgeStrength
+    }, {
+      courseData: customCourseData,
     });
 
     return NextResponse.json(result);

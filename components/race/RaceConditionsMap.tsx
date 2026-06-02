@@ -17,8 +17,6 @@ import "leaflet/dist/leaflet.css";
 import { RoutingConstraintsList } from "@/components/race/RoutingConstraintsList";
 import {
   formatCourseLabel,
-  getAllCourseIds,
-  getCourseData,
   getCourseDisplayCode,
   getDefaultCourseId,
 } from "@/data/race/getCourseData";
@@ -29,6 +27,7 @@ import {
   setTacticalBoardCourseId,
   subscribeTacticalBoardStore,
 } from "@/lib/race/tacticalBoard/store";
+import { useCourseIds, useResolvedCourseData } from "@/lib/race/useCourseCatalogVersion";
 
 type CurrentDirection = "flood" | "ebb" | "slack" | "unknown";
 
@@ -127,7 +126,6 @@ type WindMarker = {
   windDirectionDeg?: number;
 };
 
-const courseIds = getAllCourseIds();
 const DEFAULT_TACTICAL_BOARD_DRAFT = buildTacticalBoardDraftDefaults(getDefaultCourseId());
 const NOAA_CHART_WMS_URL =
   "https://gis.charttools.noaa.gov/arcgis/rest/services/MCS/NOAAChartDisplay/MapServer/exts/MaritimeChartService/WMSServer";
@@ -314,6 +312,7 @@ function FitMapToBounds({ bounds }: { bounds: MapBounds["bounds"] }) {
 }
 
 export default function RaceConditionsMap() {
+  const courseIds = useCourseIds();
   const draft = useSyncExternalStore(
     subscribeTacticalBoardStore,
     getStoredTacticalBoardDraft,
@@ -330,7 +329,7 @@ export default function RaceConditionsMap() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const courseId = draft.courseId;
-  const courseData = useMemo(() => getCourseData(courseId), [courseId]);
+  const courseData = useResolvedCourseData(courseId);
   const courseSequence = useMemo(
     () => courseData.course.sequence ?? courseData.course.previewSequence ?? [],
     [courseData.course.previewSequence, courseData.course.sequence],

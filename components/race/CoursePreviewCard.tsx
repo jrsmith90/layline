@@ -1,9 +1,11 @@
 "use client";
 
-import { useMemo, useSyncExternalStore } from "react";
-import { formatCourseLabel, getAllCourseIds, getCourseData, getDefaultCourseId } from "@/data/race/getCourseData";
+import Link from "next/link";
+import { useSyncExternalStore } from "react";
+import { formatCourseLabel, getDefaultCourseId } from "@/data/race/getCourseData";
 import CourseChart from "@/components/race/CourseChart";
 import { RoutingConstraintsList } from "@/components/race/RoutingConstraintsList";
+import { useCourseIds, useResolvedCourseData } from "@/lib/race/useCourseCatalogVersion";
 import {
   buildTacticalBoardDraftDefaults,
   getStoredTacticalBoardDraft,
@@ -11,17 +13,17 @@ import {
   subscribeTacticalBoardStore,
 } from "@/lib/race/tacticalBoard/store";
 
-const courseIds = getAllCourseIds();
 const DEFAULT_TACTICAL_BOARD_DRAFT = buildTacticalBoardDraftDefaults(getDefaultCourseId());
 
 export default function CoursePreviewCard() {
+  const courseIds = useCourseIds();
   const draft = useSyncExternalStore(
     subscribeTacticalBoardStore,
     getStoredTacticalBoardDraft,
     () => DEFAULT_TACTICAL_BOARD_DRAFT,
   );
   const courseId = draft.courseId;
-  const courseData = useMemo(() => getCourseData(courseId), [courseId]);
+  const courseData = useResolvedCourseData(courseId);
   const displaySequence =
     courseData.course.sequence ??
     courseData.course.previewSequence ??
@@ -39,22 +41,30 @@ export default function CoursePreviewCard() {
               Pick the announced course and check the mark order before leaving the dock.
             </p>
           </div>
-          <label className="space-y-1">
-            <div className="text-xs font-black uppercase tracking-[0.16em] text-[color:var(--muted)]">
-              Course
-            </div>
-            <select
-              className="w-full rounded-xl border border-[color:var(--divider)] bg-black/30 p-3"
-              value={courseId}
-              onChange={(event) => setTacticalBoardCourseId(event.target.value)}
+          <div className="space-y-2">
+            <label className="space-y-1">
+              <div className="text-xs font-black uppercase tracking-[0.16em] text-[color:var(--muted)]">
+                Course
+              </div>
+              <select
+                className="w-full rounded-xl border border-[color:var(--divider)] bg-black/30 p-3"
+                value={courseId}
+                onChange={(event) => setTacticalBoardCourseId(event.target.value)}
+              >
+                {courseIds.map((id) => (
+                  <option key={id} value={id} className="bg-slate-900">
+                    {formatCourseLabel(id)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <Link
+              href="/race/courses"
+              className="inline-flex rounded-xl border border-[color:var(--divider)] bg-black/20 px-3 py-2 text-xs font-black uppercase tracking-wide text-[color:var(--text)]"
             >
-              {courseIds.map((id) => (
-                <option key={id} value={id} className="bg-slate-900">
-                  {formatCourseLabel(id)}
-                </option>
-              ))}
-            </select>
-          </label>
+              Manage Courses
+            </Link>
+          </div>
         </div>
       </section>
 

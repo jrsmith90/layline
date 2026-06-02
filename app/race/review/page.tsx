@@ -13,6 +13,7 @@ import {
   formatCourseLabel,
   getAllCourseIds,
   getCourseData,
+  hasCourse,
 } from "@/data/race/getCourseData";
 import { buildReviewCoachBrief } from "@/lib/ai/coach";
 import {
@@ -60,14 +61,13 @@ import {
   type RaceWeatherSample,
   type RaceSessionRepositoryRecoveryResult,
 } from "@/lib/raceSessionStore";
+import { useCourseCatalogVersion } from "@/lib/race/useCourseCatalogVersion";
 import type { GpsTrackPoint } from "@/lib/useGpsCourse";
 
 const SessionReplayMap = dynamic(
   () => import("@/components/race/SessionReplayMap"),
   { ssr: false },
 );
-
-const IMPORTABLE_COURSE_IDS = getAllCourseIds();
 
 type HistoricalWeatherImportResponse = {
   error?: string;
@@ -1225,6 +1225,8 @@ function GpxImportPanel({
 }: {
   onImported: (sessionId: string, message: string, tone?: "info" | "warning") => void;
 }) {
+  useCourseCatalogVersion();
+  const importableCourseIds = getAllCourseIds();
   const [files, setFiles] = useState<File[]>([]);
   const [courseId, setCourseId] = useState("");
   const [attachHistoricalWeather, setAttachHistoricalWeather] = useState(true);
@@ -1382,7 +1384,7 @@ function GpxImportPanel({
             onChange={(event) => setCourseId(event.target.value)}
           >
             <option value="">No course attachment</option>
-            {IMPORTABLE_COURSE_IDS.map((candidate) => (
+            {importableCourseIds.map((candidate) => (
               <option key={candidate} value={candidate} className="bg-slate-900">
                 {formatCourseLabel(candidate)}
               </option>
@@ -1441,6 +1443,7 @@ function GpxImportPanel({
 }
 
 export default function RaceReviewPage() {
+  useCourseCatalogVersion();
   const [, refresh] = useReducer((value: number) => value + 1, 0);
   const sessions = getRaceSessions();
   const mostRecent = getMostRecentRaceSession();
@@ -1454,7 +1457,8 @@ export default function RaceReviewPage() {
   const session =
     sessions.find((candidate) => candidate.id === effectiveSelectedId) ?? mostRecent;
   const review = session ? buildRaceSessionReview(session) : null;
-  const reviewCourseData = session?.courseId ? getCourseData(session.courseId) : null;
+  const reviewCourseData =
+    session?.courseId && hasCourse(session.courseId) ? getCourseData(session.courseId) : null;
   const latestRaceStateSnapshot = session?.raceStateSnapshots.at(-1) ?? null;
   const latestTacticalBoardSnapshot = session?.tacticalBoardSnapshots.at(-1) ?? null;
   const [selectedTacticalBoardSnapshotISO, setSelectedTacticalBoardSnapshotISO] = useState("");

@@ -1,7 +1,7 @@
 import {
-  getAllCourseIds,
   getCourseData,
   getDefaultCourseId,
+  hasCourse,
   type CourseSummary,
 } from "@/data/race/getCourseData";
 import {
@@ -62,7 +62,6 @@ export type AutomaticLegTransitionResult = {
   transition: TrackerLegTransition | null;
 };
 
-const KNOWN_COURSE_IDS = new Set(getAllCourseIds());
 const TRACKER_STATE_EVENT = "layline:active-course-tracker";
 const AUTO_ADVANCE_CONFIRM_DISTANCE_NM = 0.05;
 const AUTO_ADVANCE_DEPARTURE_DELTA_NM = 0.03;
@@ -95,7 +94,7 @@ function canUseLocalStorage() {
 }
 
 function readStorageCourseId(value: unknown) {
-  return typeof value === "string" && KNOWN_COURSE_IDS.has(value)
+  return typeof value === "string" && hasCourse(value)
     ? value
     : getDefaultCourseId();
 }

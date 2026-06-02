@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useAppMode } from "@/components/display/AppModeProvider";
-import { formatCourseLabel, getAllCourseIds, getCourseData } from "@/data/race/getCourseData";
+import { formatCourseLabel } from "@/data/race/getCourseData";
 import { LiveInstrumentsPanel } from "@/components/gps/LiveInstrumentsPanel";
 import { LiveTacticalBoardCard } from "@/components/race/LiveTacticalBoardCard";
 import { RoutingConstraintsList } from "@/components/race/RoutingConstraintsList";
@@ -46,8 +46,8 @@ import {
   getRaceDayHalfAngle,
   readTackCalibrations,
 } from "@/lib/race/tackCalibration";
+import { useCourseIds, useResolvedCourseData } from "@/lib/race/useCourseCatalogVersion";
 
-const courseIds = getAllCourseIds();
 const MARK_APPROACH_DISTANCE_NM = 0.08;
 
 function formatNumber(value: number | null, decimals = 1) {
@@ -89,10 +89,11 @@ function legalityTone(overall: RaceLegalityOverall) {
 
 export default function ActiveCourseTracker() {
   const { mode, isLearningMode } = useAppMode();
+  const courseIds = useCourseIds();
   const gps = usePhoneGps();
   const [trackerState, setTrackerState] = useState(() => getStoredTrackerStateSnapshot());
   const courseId = trackerState.courseId;
-  const courseData = useMemo(() => getCourseData(courseId), [courseId]);
+  const courseData = useResolvedCourseData(courseId);
   const legIndex = trackerState.legIndex;
   const windFrom = trackerState.windFrom;
   const [standardTackAngle, setStandardTackAngle] = useState<number | null>(() => {
