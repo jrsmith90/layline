@@ -948,6 +948,17 @@ function appendSessionTrimNote(existing: string | undefined, note: string) {
   return trimmedExisting ? `${trimmedExisting} ${note}` : note;
 }
 
+function isAutomaticTackCalibration(calibration: TackCalibrationResult) {
+  return calibration.source === "auto" || calibration.id.startsWith("auto-tack-");
+}
+
+function isAutomaticTackRecord(record: TackRecord) {
+  return (
+    record.sourceCalibrationId.startsWith("auto-tack-") ||
+    record.id.startsWith("auto-tack-")
+  );
+}
+
 function buildSessionSlice(
   session: RaceSession,
   options: {
@@ -1227,6 +1238,45 @@ export function archiveRaceSessionOutsideWindow(
   return {
     session: getRaceSession(id) ?? keptSession,
     archivedSessions: archivedSessions.map((candidate) => getRaceSession(candidate.id) ?? candidate),
+  };
+}
+
+export function reevaluateRaceSession(id: string) {
+  const session = getRaceSession(id);
+  if (!session) {
+    throw new Error("Race session not found.");
+  }
+
+  const gpsTrack = sortTrack(session.gpsTrack);
+  if (gpsTrack.length < 2) {
+    throw new Error("Need at least 2 GPS points to reevaluate this session.");
+  }
+
+  const detectedTackCalibrations = detectAutomaticTackCalibrations(gpsTrack);
+  const detectedTackRecords = detectAutomaticTackRecords(gpsTrack);
+  const preservedTackCalibrations = session.tackCalibrations.filter(
+    (calibration) => !isAutomaticTackCalibration(calibration),
+  );
+  const preservedTackRecords = session.tackRecords.filter(
+    (record) => !isAutomaticTackRecord(record),
+  );
+
+  const updated: RaceSession = {
+    ...session,
+    gpsTrack,
+    tackCalibrations: mergeTackCalibrations(
+      preservedTackCalibrations,
+      detectedTackCalibrations,
+    ),
+    tackRecords: mergeTackRecords(preservedTackRecords, detectedTackRecords),
+  };
+
+  replaceSessionInStore(updated);
+
+  return {
+    session: getRaceSession(id) ?? updated,
+    autoTackCalibrationCount: detectedTackCalibrations.length,
+    autoTackRecordCount: detectedTackRecords.length,
   };
 }
 

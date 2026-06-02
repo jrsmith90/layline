@@ -50,6 +50,7 @@ import {
   getMostRecentRaceSession,
   getRaceSessions,
   importRaceSession,
+  reevaluateRaceSession,
   recoverRaceSessionsFromRepository,
   recoverTodayRaceSession,
   subscribeRaceSessionStore,
@@ -481,6 +482,7 @@ function SessionReplayPanel({
   hasCourseOverlay,
   onArchiveOutsideWindow,
   onDeleteWindow,
+  onRunReevaluation,
 }: {
   track: GpsTrackPoint[];
   weatherSamples: RaceWeatherSample[];
@@ -488,6 +490,7 @@ function SessionReplayPanel({
   hasCourseOverlay: boolean;
   onArchiveOutsideWindow: (startISO: string, endISO: string) => void;
   onDeleteWindow: (startISO: string, endISO: string) => void;
+  onRunReevaluation: () => void;
 }) {
   const points = track.filter(
     (point) =>
@@ -716,6 +719,13 @@ function SessionReplayPanel({
             >
               Delete Marked Window
             </button>
+            <button
+              type="button"
+              onClick={onRunReevaluation}
+              className="rounded-xl border border-cyan-400/30 bg-cyan-400/10 px-3 py-2 text-xs font-black uppercase tracking-wide text-cyan-50"
+            >
+              Run Reevaluation
+            </button>
           </div>
 
           <div className="mt-3 text-xs leading-5 text-[color:var(--muted)]">
@@ -728,6 +738,7 @@ function SessionReplayPanel({
             ) : (
               "Mark a start and end point on the replay, then archive everything outside that window or delete a middle block."
             )}
+            {" "}Run reevaluation after trimming if you want the app to rebuild auto tack detections and refresh the coaching from the kept track.
           </div>
         </div>
       </div>
@@ -1594,6 +1605,32 @@ export default function RaceReviewPage() {
     }
   }
 
+  function runReplayReevaluation() {
+    if (!session) return;
+
+    try {
+      const result = reevaluateRaceSession(session.id);
+      setReplayFocusRequest(null);
+      setSelectedId(result.session.id);
+      setRecoveryNotice({
+        message: `Reevaluation complete. Rebuilt auto tack analysis from ${result.session.gpsTrack.length} track points and found ${result.autoTackRecordCount} likely tack${
+          result.autoTackRecordCount === 1 ? "" : "s"
+        }. The debrief now reflects the current kept track.`,
+        tone: "info",
+      });
+      refresh();
+      document.getElementById("debrief")?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    } catch (error) {
+      setRecoveryNotice({
+        message: error instanceof Error ? error.message : "Reevaluation failed.",
+        tone: "warning",
+      });
+    }
+  }
+
   function removeSession(id: string) {
     deleteRaceSession(id);
     const next = getMostRecentRaceSession();
@@ -1941,6 +1978,7 @@ export default function RaceReviewPage() {
                 hasCourseOverlay={reviewCourseData != null}
                 onArchiveOutsideWindow={archiveOutsideReplayWindow}
                 onDeleteWindow={deleteReplayWindow}
+                onRunReevaluation={runReplayReevaluation}
               />
             )}
 
