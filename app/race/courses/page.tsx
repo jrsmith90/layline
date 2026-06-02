@@ -119,7 +119,7 @@ function getSequenceRoleCopy(role: SequenceRole) {
 
 function getLegRoleCopy(legNumber: number, totalLegs: number) {
   if (totalLegs <= 1) {
-    return "Start -> Finish";
+    return "Finish";
   }
 
   if (legNumber === 1) {
@@ -131,6 +131,14 @@ function getLegRoleCopy(legNumber: number, totalLegs: number) {
   }
 
   return "--";
+}
+
+function hasSelectedBoundaryMarks(sequence: string[]) {
+  if (sequence.length < 2) {
+    return false;
+  }
+
+  return Boolean(sequence[0]?.trim() && sequence[sequence.length - 1]?.trim());
 }
 
 function toEditorState(courseId: string): EditorState {
@@ -179,7 +187,7 @@ export default function CourseManagerPage() {
     const label = editor.label.trim();
     const { sequence, markRoundings } = cleanEditorSequence(editor);
 
-    if (!label || sequence.length < 2) {
+    if (!label || sequence.length < 2 || !hasSelectedBoundaryMarks(editor.sequence)) {
       return null;
     }
 
@@ -259,25 +267,41 @@ export default function CourseManagerPage() {
   }
 
   function addSequenceItem() {
-    setEditor((current) => ({
-      ...current,
-      sequence: [...current.sequence, ""],
-      roundingSides: [...current.roundingSides, ""],
-    }));
+    setEditor((current) => {
+      const insertIndex = Math.max(current.sequence.length - 1, 1);
+
+      return {
+        ...current,
+        sequence: [
+          ...current.sequence.slice(0, insertIndex),
+          "",
+          ...current.sequence.slice(insertIndex),
+        ],
+        roundingSides: [
+          ...current.roundingSides.slice(0, insertIndex),
+          "",
+          ...current.roundingSides.slice(insertIndex),
+        ],
+      };
+    });
   }
 
   function removeSequenceItem(index: number) {
-    setEditor((current) => ({
-      ...current,
-      sequence:
-        current.sequence.length <= 2
-          ? current.sequence
-          : current.sequence.filter((_, itemIndex) => itemIndex !== index),
-      roundingSides:
-        current.roundingSides.length <= 2
-          ? current.roundingSides
-          : current.roundingSides.filter((_, itemIndex) => itemIndex !== index),
-    }));
+    setEditor((current) => {
+      if (
+        current.sequence.length <= 2 ||
+        index === 0 ||
+        index === current.sequence.length - 1
+      ) {
+        return current;
+      }
+
+      return {
+        ...current,
+        sequence: current.sequence.filter((_, itemIndex) => itemIndex !== index),
+        roundingSides: current.roundingSides.filter((_, itemIndex) => itemIndex !== index),
+      };
+    });
   }
 
   function handleEdit(courseId: string) {
@@ -317,6 +341,11 @@ export default function CourseManagerPage() {
 
     if (!label) {
       setError("Course name is required.");
+      return;
+    }
+
+    if (!hasSelectedBoundaryMarks(editor.sequence)) {
+      setError("Pick both a start mark and a finish mark.");
       return;
     }
 
@@ -484,8 +513,9 @@ export default function CourseManagerPage() {
               <div>
                 <div className="mb-2 text-sm font-medium">Mark sequence</div>
                 <p className="mb-3 text-xs leading-5 text-[color:var(--muted)]">
-                  The same selector area now shows whether a row is acting as Start or Finish.
-                  Use Port or Starboard when a turning mark needs a side instruction.
+                  Start stays pinned to the top, Finish stays pinned to the bottom, and Add Mark
+                  always inserts a new row between them. Use Port or Starboard when a turning
+                  mark needs a side instruction.
                 </p>
                 <div className="space-y-2">
                   {editor.sequence.map((markKey, index) => (
@@ -536,7 +566,11 @@ export default function CourseManagerPage() {
                       <button
                         type="button"
                         onClick={() => removeSequenceItem(index)}
-                        disabled={editor.sequence.length <= 2}
+                        disabled={
+                          editor.sequence.length <= 2 ||
+                          index === 0 ||
+                          index === editor.sequence.length - 1
+                        }
                         className="rounded-xl border border-[color:var(--divider)] bg-black/20 px-3 py-2 text-xs font-black uppercase tracking-wide disabled:opacity-50"
                       >
                         Remove
@@ -684,7 +718,8 @@ export default function CourseManagerPage() {
             </>
           ) : (
             <section className="layline-panel p-5 text-sm text-[color:var(--text-soft)]">
-              Add a course name and at least two marks to see the preview.
+              Add a course name, choose both Start and Finish marks, and add any turn marks to
+              see the preview.
             </section>
           )}
         </div>
