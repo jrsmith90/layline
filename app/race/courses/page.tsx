@@ -618,6 +618,7 @@ export default function CourseManagerPage() {
                         <th className="pb-2 pr-4 font-medium">Leg</th>
                         <th className="pb-2 pr-4 font-medium">From</th>
                         <th className="pb-2 pr-4 font-medium">To</th>
+                        <th className="pb-2 pr-4 font-medium">Role</th>
                         <th className="pb-2 pr-4 font-medium">Rounding</th>
                         <th className="pb-2 pr-4 font-medium">Bearing</th>
                         <th className="pb-2 pr-4 font-medium">Distance</th>
