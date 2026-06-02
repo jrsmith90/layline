@@ -5,6 +5,7 @@ import { useSyncExternalStore } from "react";
 import { formatCourseLabel, getDefaultCourseId } from "@/data/race/getCourseData";
 import CourseChart from "@/components/race/CourseChart";
 import { RoutingConstraintsList } from "@/components/race/RoutingConstraintsList";
+import { formatMarkSequence } from "@/lib/race/markLabels";
 import { useCourseIds, useResolvedCourseData } from "@/lib/race/useCourseCatalogVersion";
 import {
   buildTacticalBoardDraftDefaults,
@@ -73,7 +74,7 @@ export default function CoursePreviewCard() {
         title={formatCourseLabel(courseId)}
         subtitle={
           displaySequence.length > 0
-            ? displaySequence.join(" -> ")
+            ? formatMarkSequence(displaySequence, courseData.marks)
             : "Course sequence announced on VHF 73"
         }
       />

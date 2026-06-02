@@ -21,6 +21,7 @@ import {
   getDefaultCourseId,
 } from "@/data/race/getCourseData";
 import { getConstraintActionCopy, getConstraintsForMark } from "@/lib/race/instructionConstraints";
+import { getMarkShortLabel } from "@/lib/race/markLabels";
 import {
   buildTacticalBoardDraftDefaults,
   getStoredTacticalBoardDraft,
@@ -655,11 +656,13 @@ export default function RaceConditionsMap() {
                       }}
                     >
                       <Tooltip direction="top" offset={[0, -6]} opacity={0.95}>
-                        {markId}
+                        {getMarkShortLabel(markId, mark)}
                       </Tooltip>
                       <Popup>
                         <div className="space-y-1 text-sm">
-                          <div className="font-bold">{markId}: {mark.name}</div>
+                          <div className="font-bold">
+                            {getMarkShortLabel(markId, mark)}: {mark.name}
+                          </div>
                           <div>{mark.characteristics}</div>
                           {markConstraints.length > 0 ? (
                             <div className="rounded-md border border-amber-300/30 bg-amber-300/10 px-2 py-1 text-xs text-amber-50">

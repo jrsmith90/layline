@@ -2,6 +2,7 @@ import type {
   RaceCourseGeometry,
   RaceCourseLegRecord,
   RaceCourseMarkRecord,
+  RaceCourseMarkRounding,
   RaceCourseRecord,
 } from "@/data/race/eventDatabase";
 import {
@@ -10,9 +11,32 @@ import {
   isAnnapolisPublishedDistanceTableMark,
 } from "@/data/race/annapolisMarkDataset";
 import { bearingDeg, distanceNm } from "@/lib/race/courseTracker";
+import { getMarkShortLabel } from "@/lib/race/markLabels";
 
 function cleanSequence(sequence: string[]) {
   return sequence.map((item) => item.trim()).filter((item) => item.length > 0);
+}
+
+function cleanSequenceEntries(
+  sequence: string[],
+  markRoundings?: Array<RaceCourseMarkRounding | null | undefined>,
+) {
+  return sequence.reduce(
+    (accumulator, item, index) => {
+      const markKey = item.trim();
+      if (!markKey) {
+        return accumulator;
+      }
+
+      accumulator.sequence.push(markKey);
+      accumulator.markRoundings.push(markRoundings?.[index] ?? null);
+      return accumulator;
+    },
+    {
+      sequence: [] as string[],
+      markRoundings: [] as Array<RaceCourseMarkRounding | null>,
+    },
+  );
 }
 
 export type CustomCourseLegDetail = RaceCourseLegRecord & {
@@ -120,12 +144,19 @@ export function buildLegRecordsFromSequence(
 export function buildDefaultTextSummary(
   sequence: string[],
   marks: RaceCourseGeometry["marks"],
+  markRoundings?: Array<RaceCourseMarkRounding | null>,
 ) {
-  const cleanedSequence = cleanSequence(sequence);
+  const { sequence: cleanedSequence, markRoundings: cleanedRoundings } = cleanSequenceEntries(
+    sequence,
+    markRoundings,
+  );
 
   return cleanedSequence.map((markKey, index) => {
     const mark = marks[markKey];
-    const description = mark ? `${mark.name} (${markKey})` : markKey;
+    const description = mark
+      ? `${mark.name} (${getMarkShortLabel(markKey, mark)})`
+      : markKey;
+    const roundingSide = cleanedRoundings[index];
 
     if (index === 0) {
       return `Start at ${description}.`;
@@ -133,6 +164,14 @@ export function buildDefaultTextSummary(
 
     if (index === cleanedSequence.length - 1) {
       return `Finish at ${description}.`;
+    }
+
+    if (roundingSide === "port") {
+      return `Round ${description} to port.`;
+    }
+
+    if (roundingSide === "starboard") {
+      return `Round ${description} to starboard.`;
     }
 
     return `Round ${description}.`;
@@ -143,10 +182,14 @@ export function buildCustomCourseRecord(params: {
   label: string;
   sequence: string[];
   marks: RaceCourseGeometry["marks"];
+  markRoundings?: Array<RaceCourseMarkRounding | null | undefined>;
   notes?: string;
   textSummary?: string[];
 }) {
-  const cleanedSequence = cleanSequence(params.sequence);
+  const { sequence: cleanedSequence, markRoundings: cleanedRoundings } = cleanSequenceEntries(
+    params.sequence,
+    params.markRoundings,
+  );
   const legs = buildLegRecordsFromSequence(cleanedSequence, params.marks);
   const calculatedDistance = Number(
     legs.reduce((total, leg) => total + leg.distanceNmCalculated, 0).toFixed(2),
@@ -155,6 +198,7 @@ export function buildCustomCourseRecord(params: {
   return {
     label: params.label.trim(),
     sequence: cleanedSequence,
+    markRoundings: cleanedRoundings,
     distanceNmSI: null,
     distanceNmCalculated: calculatedDistance,
     legs,
@@ -162,11 +206,9 @@ export function buildCustomCourseRecord(params: {
     textSummary:
       params.textSummary && params.textSummary.length > 0
         ? params.textSummary
-        : buildDefaultTextSummary(cleanedSequence, params.marks),
+        : buildDefaultTextSummary(cleanedSequence, params.marks, cleanedRoundings),
     notes: params.notes?.trim() ? params.notes.trim() : undefined,
   } satisfies RaceCourseRecord;
 }
 
-export function formatMarkChoice(markKey: string, mark: RaceCourseMarkRecord) {
-  return `${markKey} - ${mark.name}`;
-}
+export { formatMarkChoice } from "@/lib/race/markLabels";

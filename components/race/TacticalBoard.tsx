@@ -41,6 +41,7 @@ import {
   setTacticalBoardDraftField,
   subscribeTacticalBoardStore,
 } from "@/lib/race/tacticalBoard/store";
+import { getMarkShortLabel } from "@/lib/race/markLabels";
 
 const DEFAULT_TACTICAL_BOARD_DRAFT = buildTacticalBoardDraftDefaults(getDefaultCourseId());
 
@@ -64,7 +65,7 @@ function formatMarkTarget(markId: string | null, marks: CourseSummary["marks"]) 
   const mark = marks[markId];
   if (!mark) return markId;
 
-  return `${markId} - ${mark.name}`;
+  return getMarkShortLabel(markId, mark);
 }
 
 function parseAngle(value: string) {

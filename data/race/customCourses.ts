@@ -1,5 +1,6 @@
 import {
   activeRaceEventId,
+  type RaceCourseMarkRounding,
   type RaceCourseLegRecord,
   type RaceCourseRecord,
 } from "./eventDatabase";
@@ -54,6 +55,19 @@ function sanitizeLegRecord(value: unknown): RaceCourseLegRecord | null {
   };
 }
 
+function sanitizeMarkRoundings(value: unknown, expectedLength: number) {
+  if (!Array.isArray(value) || expectedLength <= 0) {
+    return undefined;
+  }
+
+  return Array.from({ length: expectedLength }, (_, index) => {
+    const side = value[index];
+    return side === "port" || side === "starboard"
+      ? (side satisfies RaceCourseMarkRounding)
+      : null;
+  });
+}
+
 function sanitizeCourseRecord(value: unknown): RaceCourseRecord | null {
   if (!value || typeof value !== "object") return null;
 
@@ -73,6 +87,10 @@ function sanitizeCourseRecord(value: unknown): RaceCourseRecord | null {
     input.textSummary.every((item) => typeof item === "string" && item.length > 0)
       ? input.textSummary
       : undefined;
+  const markRoundings = sanitizeMarkRoundings(
+    input.markRoundings,
+    sequence?.length ?? previewSequence?.length ?? 0,
+  );
   const legs =
     Array.isArray(input.legs)
       ? input.legs.map(sanitizeLegRecord).filter((leg): leg is RaceCourseLegRecord => leg != null)
@@ -84,6 +102,7 @@ function sanitizeCourseRecord(value: unknown): RaceCourseRecord | null {
 
   return {
     sequence,
+    markRoundings,
     previewSequence,
     textSummary,
     distanceNmSI:

@@ -9,6 +9,7 @@ import {
   raceEvents,
   type RaceCourseConstraintRecord,
   type RaceCourseGeometry,
+  type RaceCourseMarkRounding,
 } from "./eventDatabase";
 
 const activeEvent = getActiveRaceEvent();
@@ -35,6 +36,7 @@ export type RaceLeg = {
 
 export type RaceCourse = {
   sequence: MarkId[] | null;
+  markRoundings?: Array<RaceCourseMarkRounding | null>;
   previewSequence?: MarkId[];
   textSummary?: string[];
   distanceNmSI: number | null;
@@ -241,12 +243,34 @@ function deriveCourseConstraints(params: {
   marks: Partial<Record<MarkId, RaceMark>>;
   courseGeometry: RaceCourseGeometry;
 }) {
+  const turnMarkIds = (params.course.sequence ?? []).slice(1, -1);
+  if (params.course.markRoundings && params.course.markRoundings.length > 0) {
+    return turnMarkIds.flatMap((markId, index) => {
+      const mark = params.marks[markId];
+      const roundingSide = params.course.markRoundings?.[index + 1];
+      if (!mark || !roundingSide) return [];
+
+      const incomingLeg = params.course.legs[index];
+
+      return [
+        {
+          id: `${params.courseId}-${markId}-${roundingSide}-${incomingLeg?.legNumber ?? index + 1}`,
+          type: roundingSide === "port" ? "leave_to_port" : "leave_to_starboard",
+          appliesTo: "selected_course",
+          markLabel: mark.id,
+          markName: mark.name,
+          markKey: markId,
+          legNumbers: incomingLeg ? [incomingLeg.legNumber] : undefined,
+        } satisfies RaceCourseConstraintRecord,
+      ];
+    });
+  }
+
   const notes = [
     params.course.notes,
     ...params.courseGeometry.specialRoutingNotes,
   ].filter((note): note is string => typeof note === "string" && note.length > 0);
   const roundingType = detectCourseRoundingType(notes);
-  const turnMarkIds = (params.course.sequence ?? []).slice(1, -1);
 
   if (!roundingType || turnMarkIds.length === 0) {
     return [] as RaceCourseConstraintRecord[];

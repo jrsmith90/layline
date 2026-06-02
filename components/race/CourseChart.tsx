@@ -1,6 +1,7 @@
 import type { GpsTrackPoint } from "@/lib/useGpsCourse";
 import { getCourseDisplayCode, type CourseSummary } from "@/data/race/getCourseData";
 import { getConstraintBadge, getConstraintsForMark } from "@/lib/race/instructionConstraints";
+import { getMarkShortLabel } from "@/lib/race/markLabels";
 
 type ChartPoint = {
   id?: string;
@@ -91,7 +92,7 @@ export default function CourseChart({
         return mark
           ? {
               id: String(markId),
-              label: String(markId),
+              label: getMarkShortLabel(String(markId), mark),
               name: mark.name,
               lat: mark.lat,
               lon: mark.lon,

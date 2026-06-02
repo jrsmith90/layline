@@ -16,32 +16,79 @@ import {
 import {
   getActiveRaceEvent,
   getCustomCourseMarkCatalogForEvent,
+  type RaceCourseMarkRounding,
 } from "@/data/race/eventDatabase";
 import {
   buildCustomCourseRecord,
   buildLegDetailsFromSequence,
-  formatMarkChoice,
 } from "@/lib/race/customCourseHelpers";
+import {
+  formatMarkChoice,
+  formatMarkSequence,
+  getMarkShortLabel,
+} from "@/lib/race/markLabels";
 import { useCourseCatalogVersion } from "@/lib/race/useCourseCatalogVersion";
 
 type EditorState = {
   label: string;
   sequence: string[];
+  roundingSides: Array<"" | RaceCourseMarkRounding>;
   textSummaryText: string;
   notes: string;
 };
 
+type CleanedSequenceEditorState = {
+  sequence: string[];
+  markRoundings: Array<RaceCourseMarkRounding | null>;
+};
+
 const activeEvent = getActiveRaceEvent();
 const customCourseMarks = getCustomCourseMarkCatalogForEvent(activeEvent);
-const availableMarkIds = Object.keys(customCourseMarks).sort((a, b) => a.localeCompare(b));
+const availableMarkIds = Object.keys(customCourseMarks).sort((a, b) => {
+  const labelCompare = getMarkShortLabel(a, customCourseMarks[a]).localeCompare(
+    getMarkShortLabel(b, customCourseMarks[b]),
+  );
+
+  return labelCompare || a.localeCompare(b);
+});
 
 function createEmptyEditorState(): EditorState {
   return {
     label: "",
     sequence: [activeEvent.courseGeometry.startFinishMark, ""],
+    roundingSides: ["", ""],
     textSummaryText: "",
     notes: "",
   };
+}
+
+function normalizeEditorRoundings(
+  sequence: string[],
+  markRoundings?: Array<RaceCourseMarkRounding | null>,
+) {
+  return sequence.map((_, index) => {
+    const side = markRoundings?.[index];
+    return side === "port" || side === "starboard" ? side : "";
+  });
+}
+
+function cleanEditorSequence(editor: Pick<EditorState, "sequence" | "roundingSides">) {
+  return editor.sequence.reduce<CleanedSequenceEditorState>(
+    (accumulator, item, index) => {
+      const markKey = item.trim();
+      if (!markKey) {
+        return accumulator;
+      }
+
+      accumulator.sequence.push(markKey);
+      accumulator.markRoundings.push(editor.roundingSides[index] || null);
+      return accumulator;
+    },
+    {
+      sequence: [],
+      markRoundings: [],
+    },
+  );
 }
 
 function toEditorState(courseId: string): EditorState {
@@ -52,10 +99,20 @@ function toEditorState(courseId: string): EditorState {
 
   return {
     label: saved.course.label ?? "",
-    sequence:
+    sequence: (() => {
+      const nextSequence =
+        saved.course.sequence ??
+        saved.course.previewSequence ??
+        [activeEvent.courseGeometry.startFinishMark, ""];
+
+      return nextSequence;
+    })(),
+    roundingSides: normalizeEditorRoundings(
       saved.course.sequence ??
-      saved.course.previewSequence ??
-      [activeEvent.courseGeometry.startFinishMark, ""],
+        saved.course.previewSequence ??
+        [activeEvent.courseGeometry.startFinishMark, ""],
+      saved.course.markRoundings,
+    ),
     textSummaryText: (saved.course.textSummary ?? []).join("\n"),
     notes: saved.course.notes ?? "",
   };
@@ -78,16 +135,17 @@ export default function CourseManagerPage() {
 
   const previewCourseRecord = useMemo(() => {
     const label = editor.label.trim();
-    const sequence = editor.sequence.map((item) => item.trim()).filter((item) => item.length > 0);
+    const { sequence, markRoundings } = cleanEditorSequence(editor);
 
     if (!label || sequence.length < 2) {
       return null;
     }
 
-      return buildCustomCourseRecord({
+    return buildCustomCourseRecord({
       label,
       sequence,
       marks: customCourseMarks,
+      markRoundings,
       notes: editor.notes,
       textSummary: cleanTextLines(editor.textSummaryText),
     });
@@ -147,10 +205,20 @@ export default function CourseManagerPage() {
     }));
   }
 
+  function updateRoundingSide(index: number, value: "" | RaceCourseMarkRounding) {
+    setEditor((current) => ({
+      ...current,
+      roundingSides: current.roundingSides.map((item, itemIndex) =>
+        itemIndex === index ? value : item,
+      ),
+    }));
+  }
+
   function addSequenceItem() {
     setEditor((current) => ({
       ...current,
       sequence: [...current.sequence, ""],
+      roundingSides: [...current.roundingSides, ""],
     }));
   }
 
@@ -161,6 +229,10 @@ export default function CourseManagerPage() {
         current.sequence.length <= 2
           ? current.sequence
           : current.sequence.filter((_, itemIndex) => itemIndex !== index),
+      roundingSides:
+        current.roundingSides.length <= 2
+          ? current.roundingSides
+          : current.roundingSides.filter((_, itemIndex) => itemIndex !== index),
     }));
   }
 
@@ -197,7 +269,7 @@ export default function CourseManagerPage() {
     setError(null);
 
     const label = editor.label.trim();
-    const sequence = editor.sequence.map((item) => item.trim()).filter((item) => item.length > 0);
+    const { sequence, markRoundings } = cleanEditorSequence(editor);
 
     if (!label) {
       setError("Course name is required.");
@@ -223,6 +295,7 @@ export default function CourseManagerPage() {
         label,
         sequence,
         marks: customCourseMarks,
+        markRoundings,
         notes: editor.notes,
         textSummary: cleanTextLines(editor.textSummaryText),
       }),
@@ -283,7 +356,10 @@ export default function CourseManagerPage() {
                         {course.course.label ?? course.id}
                       </div>
                       <div className="mt-1 text-xs text-[color:var(--muted)]">
-                        {(course.course.sequence ?? course.course.previewSequence ?? []).join(" -> ")}
+                        {formatMarkSequence(
+                          course.course.sequence ?? course.course.previewSequence ?? [],
+                          customCourseMarks,
+                        )}
                       </div>
                       <div className="mt-1 text-xs text-[color:var(--muted)]">
                         Updated {new Date(course.updatedAtISO).toLocaleString()}
@@ -329,7 +405,7 @@ export default function CourseManagerPage() {
                     key={markKey}
                     className="rounded-xl border border-[color:var(--divider)] bg-black/20 px-3 py-2 text-sm text-[color:var(--text-soft)]"
                   >
-                    {formatMarkChoice(markKey, mark)}
+                    {formatMarkChoice(markKey, mark, customCourseMarks)}
                   </div>
                 );
               })}
@@ -363,6 +439,10 @@ export default function CourseManagerPage() {
 
               <div>
                 <div className="mb-2 text-sm font-medium">Mark sequence</div>
+                <p className="mb-3 text-xs leading-5 text-[color:var(--muted)]">
+                  Optional rounding side applies to turning marks. Leave it blank when the mark
+                  does not need a port or starboard instruction.
+                </p>
                 <div className="space-y-2">
                   {editor.sequence.map((markKey, index) => (
                     <div key={`${index}-${markKey}`} className="flex gap-2">
@@ -374,9 +454,29 @@ export default function CourseManagerPage() {
                         <option value="">Choose mark</option>
                         {availableMarkIds.map((candidate) => (
                           <option key={candidate} value={candidate} className="bg-slate-900">
-                            {formatMarkChoice(candidate, customCourseMarks[candidate])}
+                            {formatMarkChoice(candidate, customCourseMarks[candidate], customCourseMarks)}
                           </option>
                         ))}
+                      </select>
+                      <select
+                        value={editor.roundingSides[index] ?? ""}
+                        onChange={(event) =>
+                          updateRoundingSide(
+                            index,
+                            event.target.value === "port" || event.target.value === "starboard"
+                              ? event.target.value
+                              : "",
+                          )
+                        }
+                        className="w-32 rounded-xl border border-[color:var(--divider)] bg-black/30 px-3 py-2"
+                      >
+                        <option value="">Empty</option>
+                        <option value="port" className="bg-slate-900">
+                          Port
+                        </option>
+                        <option value="starboard" className="bg-slate-900">
+                          Starboard
+                        </option>
                       </select>
                       <button
                         type="button"
@@ -455,7 +555,10 @@ export default function CourseManagerPage() {
               <CourseChart
                 courseData={previewCourseSummary}
                 title={previewCourseSummary.course.label ?? "Custom course preview"}
-                subtitle={(previewCourseSummary.course.sequence ?? []).join(" -> ")}
+                subtitle={formatMarkSequence(
+                  previewCourseSummary.course.sequence ?? [],
+                  customCourseMarks,
+                )}
               />
 
               <section className="layline-panel p-5">
@@ -467,6 +570,7 @@ export default function CourseManagerPage() {
                         <th className="pb-2 pr-4 font-medium">Leg</th>
                         <th className="pb-2 pr-4 font-medium">From</th>
                         <th className="pb-2 pr-4 font-medium">To</th>
+                        <th className="pb-2 pr-4 font-medium">Rounding</th>
                         <th className="pb-2 pr-4 font-medium">Bearing</th>
                         <th className="pb-2 pr-4 font-medium">Distance</th>
                         <th className="pb-2 font-medium">Source</th>
@@ -476,8 +580,19 @@ export default function CourseManagerPage() {
                       {previewLegDetails.map((leg) => (
                         <tr key={leg.legNumber} className="border-t border-[color:var(--divider)]">
                           <td className="py-2 pr-4">{leg.legNumber}</td>
-                          <td className="py-2 pr-4">{leg.fromMark}</td>
-                          <td className="py-2 pr-4">{leg.toMark}</td>
+                          <td className="py-2 pr-4">
+                            {getMarkShortLabel(leg.fromMark, customCourseMarks[leg.fromMark])}
+                          </td>
+                          <td className="py-2 pr-4">
+                            {getMarkShortLabel(leg.toMark, customCourseMarks[leg.toMark])}
+                          </td>
+                          <td className="py-2 pr-4">
+                            {previewCourseRecord?.markRoundings?.[leg.legNumber] === "port"
+                              ? "Port"
+                              : previewCourseRecord?.markRoundings?.[leg.legNumber] === "starboard"
+                                ? "Starboard"
+                                : "--"}
+                          </td>
                           <td className="py-2 pr-4">{leg.bearingDeg.toFixed(1)} deg</td>
                           <td className="py-2 pr-4">{leg.distanceNmCalculated.toFixed(2)} nm</td>
                           <td className="py-2">

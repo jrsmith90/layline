@@ -2,6 +2,7 @@ import hellyHansen2026CourseGeometryRaw from "../../race/course-geometry-2026-hh
 import eweSpiritCup2026CourseGeometryRaw from "../../race/course-geometry-2026-scc-ewe-spirit-cup.json";
 import {
   ANNAPOLIS_LOCAL_EVENT_MARKS,
+  ANNAPOLIS_SUPPLEMENTAL_PLOTTER_MARKS,
   ANNAPOLIS_STANDARD_GOVERNMENT_MARKS,
   pickAnnapolisMarks,
 } from "./annapolisMarkDataset";
@@ -14,6 +15,10 @@ export type RaceCourseMarkRecord = {
   lat: number;
   lon: number;
   characteristics: string;
+  shortName?: string;
+  labelHint?: string;
+  markType?: "government_buoy" | "government_light";
+  markColor?: string;
 };
 
 export type RaceCourseLegRecord = {
@@ -23,6 +28,8 @@ export type RaceCourseLegRecord = {
   bearingDeg: number;
   distanceNmCalculated: number;
 };
+
+export type RaceCourseMarkRounding = "port" | "starboard";
 
 export type RaceCourseConstraintRecord = {
   id: string;
@@ -47,6 +54,7 @@ export type RaceCourseConstraintRecord = {
 
 export type RaceCourseRecord = {
   sequence: string[] | null;
+  markRoundings?: Array<RaceCourseMarkRounding | null>;
   previewSequence?: string[];
   textSummary?: string[];
   distanceNmSI: number | null;
@@ -453,6 +461,7 @@ export function getCustomCourseMarkCatalogForEvent(event: RaceEventRecord) {
 
   return {
     ...ANNAPOLIS_STANDARD_GOVERNMENT_MARKS,
+    ...ANNAPOLIS_SUPPLEMENTAL_PLOTTER_MARKS,
     ...event.courseGeometry.marks,
   };
 }
