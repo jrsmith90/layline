@@ -356,6 +356,11 @@ export function getCourseDisplayCode(courseId: string): string {
 export function formatCourseLabel(courseId: string): string {
   const resolved = resolveCourse(courseId);
   const courseCode = getResolvedCourseDisplayLabel(resolved, courseId);
+
+  if (resolved?.course.custom) {
+    return courseCode;
+  }
+
   const eventName = resolved?.event.name ?? activeEvent.name;
 
   return courseCode === eventName ? courseCode : `${eventName}: ${courseCode}`;
