@@ -746,7 +746,7 @@ function SessionReplayPanel({
         <Metric label="Top-bottom" value={topBottomSpreadKt == null ? "--" : `${formatNumber(topBottomSpreadKt)} kt`} />
       </div>
 
-      <div className="mt-4 overflow-hidden rounded-lg border border-[color:var(--divider)] bg-[#08233a]">
+      <div className="mt-4 overflow-hidden rounded-lg border border-[color:var(--divider)] bg-[#cfe0e8]">
         <svg
           viewBox={`0 0 ${geometry.width} ${geometry.height}`}
           preserveAspectRatio="xMidYMid meet"
@@ -754,23 +754,41 @@ function SessionReplayPanel({
           aria-label="Interactive session replay"
           className="aspect-[1.7] w-full"
         >
-          <rect width={geometry.width} height={geometry.height} fill="#08233a" />
+          <rect width={geometry.width} height={geometry.height} fill="#cfe0e8" />
           <path
-            d="M 40 82 C 154 28 244 104 364 74 S 576 106 680 56"
-            fill="none"
-            stroke="rgba(127,183,255,0.12)"
-            strokeWidth="34"
+            d="M 0 0 H 228 C 270 28 294 62 288 112 C 282 152 258 182 228 214 C 188 256 182 314 214 420 H 0 Z"
+            fill="#d8c9ab"
+            stroke="#8d7f61"
+            strokeWidth="2"
           />
           <path
-            d="M 28 334 C 162 286 256 374 380 320 S 560 354 692 276"
-            fill="none"
-            stroke="rgba(0,168,168,0.10)"
-            strokeWidth="40"
+            d="M 720 420 H 454 C 444 382 452 350 478 322 C 510 286 560 270 590 238 C 622 204 634 158 626 110 C 620 72 646 34 720 0 Z"
+            fill="#d8c9ab"
+            stroke="#8d7f61"
+            strokeWidth="2"
+          />
+          <path
+            d="M 336 116 C 358 104 386 106 402 124 C 416 140 416 166 396 180 C 374 194 346 186 332 166 C 320 150 322 126 336 116 Z"
+            fill="#d8c9ab"
+            stroke="#8d7f61"
+            strokeWidth="1.8"
+          />
+          <path
+            d="M 118 268 C 134 258 156 260 166 274 C 178 290 170 312 150 320 C 128 330 106 320 102 300 C 98 286 104 276 118 268 Z"
+            fill="#d8c9ab"
+            stroke="#8d7f61"
+            strokeWidth="1.6"
+          />
+          <path
+            d="M 568 78 C 580 70 598 72 606 84 C 614 96 610 112 596 120 C 580 128 562 122 556 108 C 552 96 556 86 568 78 Z"
+            fill="#d8c9ab"
+            stroke="#8d7f61"
+            strokeWidth="1.6"
           />
           <polyline
             points={geometry.polyline}
             fill="none"
-            stroke="rgba(248,250,252,0.18)"
+            stroke="rgba(15,23,42,0.16)"
             strokeLinecap="round"
             strokeLinejoin="round"
             strokeWidth="4"
@@ -780,9 +798,9 @@ function SessionReplayPanel({
             y1={geometry.start.y}
             x2={geometry.end.x}
             y2={geometry.end.y}
-            stroke="rgba(255,255,255,0.28)"
+            stroke="rgba(15,23,42,0.22)"
             strokeDasharray="5 5"
-              strokeWidth="2"
+            strokeWidth="2"
           />
           {selectionPolyline && (
             <polyline
