@@ -3,11 +3,18 @@ import type {
   CourseStrategyAnswers,
   CourseStrategyResult,
 } from "@/lib/race/courseStrategy/types";
-import { getCourseStrategyReferenceBasis } from "@/lib/reference/decisionBasis";
+import { getCourseStrategyReferencePolicy } from "@/lib/reference/decisionBasis";
+
+function pushUnique(items: string[], value: string) {
+  if (!items.includes(value)) {
+    items.push(value);
+  }
+}
 
 function scoreStrategy(answers: CourseStrategyAnswers): CourseStrategyResult {
   const keyRisks: string[] = [];
   const recommendations: string[] = [];
+  const referencePolicy = getCourseStrategyReferencePolicy(answers.zones);
 
   // Analyze zones for risks
   const highRiskZones = answers.zones.filter((z) => z.windShiftRisk === "high");
@@ -32,31 +39,66 @@ function scoreStrategy(answers: CourseStrategyAnswers): CourseStrategyResult {
     if (port?.headingDeg != null && starboard?.headingDeg != null) {
       const headingDiff = Math.abs(port.headingDeg - starboard.headingDeg);
       if (headingDiff < 30) {
-        recommendations.push("Zone headings are very similar; monitor for shifts that favor one side");
+        pushUnique(
+          recommendations,
+          "Zone headings are very similar; monitor for shifts that favor one side.",
+        );
       } else if (headingDiff > 60) {
-        recommendations.push("Wide heading difference between zones; clear lane separation strategy");
+        pushUnique(
+          recommendations,
+          "Wide heading difference between zones; clear lane separation strategy.",
+        );
       }
     }
 
     if (port?.windShiftRisk === "high" && starboard?.windShiftRisk === "low") {
-      recommendations.push(
+      pushUnique(
+        recommendations,
         `Favor ${starboard.label.toLowerCase()} to avoid wind shift risk in ${port.label.toLowerCase()}`,
       );
     } else if (starboard?.windShiftRisk === "high" && port?.windShiftRisk === "low") {
-      recommendations.push(
+      pushUnique(
+        recommendations,
         `Favor ${port.label.toLowerCase()} to avoid wind shift risk in ${starboard.label.toLowerCase()}`,
       );
     }
 
     if (port?.currentEffect === "favorable" && starboard?.currentEffect === "adverse") {
-      recommendations.push(`Current advantage favors ${port.label.toLowerCase()} side`);
+      pushUnique(
+        recommendations,
+        `Current advantage favors ${port.label.toLowerCase()} side.`,
+      );
     } else if (starboard?.currentEffect === "favorable" && port?.currentEffect === "adverse") {
-      recommendations.push(`Current advantage favors ${starboard.label.toLowerCase()} side`);
+      pushUnique(
+        recommendations,
+        `Current advantage favors ${starboard.label.toLowerCase()} side.`,
+      );
     }
   }
 
+  if (referencePolicy.phaseOverCorners) {
+    pushUnique(
+      recommendations,
+      "Stay in phase with the shifts before forcing a full-corner split.",
+    );
+  }
+
+  if (referencePolicy.currentBreaksTies) {
+    pushUnique(
+      recommendations,
+      "If the wind picture stays close, let current break the tie instead of splitting on heading alone.",
+    );
+  }
+
+  if (referencePolicy.preferFlexibility) {
+    pushUnique(
+      recommendations,
+      "Keep the first move flexible until the observed lane confirms the forecasted edge.",
+    );
+  }
+
   if (recommendations.length === 0) {
-    recommendations.push("Monitor both zones equally for shifts and current changes");
+    recommendations.push("Monitor both zones equally for shifts and current changes.");
   }
 
   if (
@@ -64,7 +106,8 @@ function scoreStrategy(answers: CourseStrategyAnswers): CourseStrategyResult {
       (zone) => zone.windShiftRisk === "unknown" && zone.currentEffect === "unknown",
     )
   ) {
-    recommendations.push(
+    pushUnique(
+      recommendations,
       "No clean edge is mapped yet; keep options open and preserve the first tack or gybe change.",
     );
   }
@@ -73,7 +116,7 @@ function scoreStrategy(answers: CourseStrategyAnswers): CourseStrategyResult {
     zoneAnalysis: answers.zones,
     keyRisks,
     recommendations,
-    referenceBasis: getCourseStrategyReferenceBasis(answers.zones),
+    referenceBasis: referencePolicy.basis,
   };
 }
 
@@ -107,7 +150,10 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      if (zone.laylineHeadingDeg != null && (zone.laylineHeadingDeg < 0 || zone.laylineHeadingDeg > 360)) {
+      if (
+        zone.laylineHeadingDeg != null &&
+        (zone.laylineHeadingDeg < 0 || zone.laylineHeadingDeg > 360)
+      ) {
         return NextResponse.json(
           { error: `Invalid layline heading in ${zone.label}: must be 0-360` },
           { status: 400 },

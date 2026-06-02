@@ -3,10 +3,10 @@ import type {
   EdgeStrength,
   OpeningLegType,
   PressureSide,
-  WindTrend
+  WindTrend,
 } from "@/data/race/getRouteBiasInputs";
 import { getCourseData, type CourseSummary } from "@/data/race/getCourseData";
-import { getRouteBiasReferenceBasis } from "@/lib/reference/decisionBasis";
+import { getRouteBiasReferencePolicy } from "@/lib/reference/decisionBasis";
 import { summarizeConstraintImpact } from "@/lib/race/instructionConstraints";
 
 export type RouteBiasDecision =
@@ -81,13 +81,24 @@ export function scoreRouteBias(
   const constraintImpact = summarizeConstraintImpact(course, input.openingLegType);
 
   const ew = edgeWeight(input.edgeStrength);
+  const referencePolicy = getRouteBiasReferencePolicy({
+    openingLegType: input.openingLegType,
+    windTrend: input.windTrend,
+    pressureSide: input.pressureSide,
+    currentSide: input.currentSide,
+    edgeStrength: input.edgeStrength,
+    windSpeedKt: input.windSpeedKt,
+  });
+  const pressureWeight =
+    ew > 0 ? ew + (referencePolicy.emphasizePressureLane ? 1 : 0) : 0;
+  const currentWeight = ew > 0 ? ew + (referencePolicy.emphasizeCurrentRelief ? 1 : 0) : 0;
 
   // Pressure side
   if (input.pressureSide === "shore") {
-    shoreScore += ew;
+    shoreScore += pressureWeight;
     reasons.push("Pressure appears stronger closer to shore.");
   } else if (input.pressureSide === "bay") {
-    bayScore += ew;
+    bayScore += pressureWeight;
     reasons.push("Pressure appears stronger out in the bay.");
   }
 
@@ -96,13 +107,13 @@ export function scoreRouteBias(
     input.currentSide === "shore_less_adverse" ||
     input.currentSide === "shore_more_favorable"
   ) {
-    shoreScore += ew;
+    shoreScore += currentWeight;
     reasons.push("Current setup looks better near shore.");
   } else if (
     input.currentSide === "bay_less_adverse" ||
     input.currentSide === "bay_more_favorable"
   ) {
-    bayScore += ew;
+    bayScore += currentWeight;
     reasons.push("Current setup looks better out in the bay.");
   }
 
@@ -117,6 +128,16 @@ export function scoreRouteBias(
     warnings.push(
       "Oscillating breeze favors staying in phase more than forcing an early corner.",
     );
+  }
+
+  if (referencePolicy.preferFlexibility) {
+    warnings.push(
+      "Reference guidance favors preserving options until wind and current align more cleanly.",
+    );
+  }
+
+  if (referencePolicy.phaseOverCorners) {
+    warnings.push("Reference guidance says to stay in phase before stretching leverage.");
   }
 
   if (input.windTrend === "building" && input.windSpeedKt >= 10) {
@@ -134,7 +155,9 @@ export function scoreRouteBias(
     input.openingLegType === "beam_reach" ||
     input.openingLegType === "broad_reach"
   ) {
-    warnings.push("Opening leg is freer, so route bias may matter less than pressure and lane management.");
+    warnings.push(
+      "Opening leg is freer, so route bias may matter less than pressure and lane management.",
+    );
     shoreScore -= 1;
     bayScore -= 1;
   }
@@ -159,24 +182,18 @@ export function scoreRouteBias(
       ((input.pressureSide === "even" || input.pressureSide === "unclear") &&
         (input.currentSide === "even" || input.currentSide === "unclear")))
   ) {
-    warnings.push("No clean opening edge yet. Keep the first beat flexible instead of forcing a corner.");
+    warnings.push(
+      "No clean opening edge yet. Keep the first beat flexible instead of forcing a corner.",
+    );
   }
 
   reasons.push(...constraintImpact.reasons);
   warnings.push(...constraintImpact.warnings);
 
-  const referenceBasis = getRouteBiasReferenceBasis({
-    openingLegType: input.openingLegType,
-    windTrend: input.windTrend,
-    pressureSide: input.pressureSide,
-    currentSide: input.currentSide,
-    edgeStrength: input.edgeStrength,
-  });
-
   const delta = Math.abs(shoreScore - bayScore);
   const confidence = applyConfidencePenalty(
     confidenceFromDelta(delta, input.edgeStrength),
-    constraintImpact.confidencePenalty,
+    constraintImpact.confidencePenalty + referencePolicy.confidencePenalty,
   );
 
   if ((windFavorsShore && currentFavorsBay) || (windFavorsBay && currentFavorsShore)) {
@@ -187,11 +204,11 @@ export function scoreRouteBias(
       bayScore,
       reasons,
       warnings,
-      referenceBasis,
+      referenceBasis: referencePolicy.basis,
     };
   }
 
-  if (shoreScore >= bayScore + 2) {
+  if (shoreScore >= bayScore + referencePolicy.commitmentMargin) {
     return {
       decision: "shore_first",
       confidence,
@@ -199,11 +216,11 @@ export function scoreRouteBias(
       bayScore,
       reasons,
       warnings,
-      referenceBasis,
+      referenceBasis: referencePolicy.basis,
     };
   }
 
-  if (bayScore >= shoreScore + 2) {
+  if (bayScore >= shoreScore + referencePolicy.commitmentMargin) {
     return {
       decision: "bay_first",
       confidence,
@@ -211,7 +228,7 @@ export function scoreRouteBias(
       bayScore,
       reasons,
       warnings,
-      referenceBasis,
+      referenceBasis: referencePolicy.basis,
     };
   }
 
@@ -222,6 +239,6 @@ export function scoreRouteBias(
     bayScore,
     reasons,
     warnings,
-    referenceBasis,
+    referenceBasis: referencePolicy.basis,
   };
 }

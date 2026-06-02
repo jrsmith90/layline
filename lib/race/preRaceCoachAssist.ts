@@ -13,8 +13,8 @@ import type { AiCoachBrief } from "@/lib/ai/coach";
 import type { CourseZone } from "@/lib/race/courseStrategy/types";
 import { wrap360 } from "@/lib/race/courseTracker";
 import {
-  getCoachReferenceBasis,
-  getCourseStrategyReferenceBasis,
+  getCoachReferencePolicy,
+  getCourseStrategyReferencePolicy,
 } from "@/lib/reference/decisionBasis";
 import { buildWaterSetupAssessment } from "@/lib/weather/logic/waterSetup";
 import type { CurrentReading, TideReading } from "@/types/current";
@@ -580,11 +580,26 @@ export function getSuggestedRiskMode(params: {
   currentImpact: CurrentImpactDecision;
   waveHeightFt?: number;
 }): RiskMode {
+  const coachPolicy = getCoachReferencePolicy({
+    mode: "pre_race",
+    action:
+      params.currentImpact.level === "high" || params.forecastDecision.confidence === "low"
+        ? "stay_flexible"
+        : "hold_course",
+    hasDirectionalPlan:
+      params.forecastDecision.confidence === "high" && params.currentImpact.level !== "high",
+    confidenceFragile:
+      params.forecastDecision.confidence !== "high" || params.currentImpact.level === "high",
+  });
+
   if (
     params.currentImpact.level === "high" ||
     (params.forecastDecision.nextThreeHourMaxGustKt ?? 0) >= 22 ||
     (params.forecastDecision.directionSpreadDeg ?? 0) >= 18 ||
-    (params.waveHeightFt ?? 0) >= 2.5
+    (params.waveHeightFt ?? 0) >= 2.5 ||
+    (coachPolicy.preferFlexibility &&
+      (params.forecastDecision.confidence === "low" ||
+        params.currentImpact.level === "medium"))
   ) {
     return "conservative";
   }
@@ -671,17 +686,27 @@ export function buildStrategyAutofill(params: {
       : null,
     params.forecastDecision.summary,
     params.currentImpact.summary,
-    params.forecastDecision.confidence === "low" || params.currentImpact.level === "high"
-      ? "Keep the first move flexible until the real lane picture matches the forecast."
-      : "If the first few minutes match this picture, commit earlier to the cleaner lane.",
-  ]
-    .filter((line): line is string => Boolean(line))
-    .join("\n");
+  ];
+  const referencePolicy = getCourseStrategyReferencePolicy(zones);
+
+  strategyNotes.push(
+    referencePolicy.preferFlexibility
+      ? "Reference playbook says to keep the first move flexible until the real lane picture confirms the edge."
+      : referencePolicy.phaseOverCorners
+        ? "Reference playbook says to stay in phase with the shifts before stretching leverage."
+        : "If the first few minutes match this picture, commit earlier to the cleaner lane.",
+  );
+
+  if (referencePolicy.currentBreaksTies) {
+    strategyNotes.push("If both lanes stay close in pressure, let current break the tie.");
+  }
 
   return {
     zones,
-    strategyNotes,
-    referenceBasis: getCourseStrategyReferenceBasis(zones),
+    strategyNotes: strategyNotes
+      .filter((line): line is string => Boolean(line))
+      .join("\n"),
+    referenceBasis: referencePolicy.basis,
   };
 }
 
@@ -693,6 +718,12 @@ export function buildSailSelectionAssistBrief(params: {
 }): AiCoachBrief {
   const fragile =
     params.forecastDecision.confidence !== "high" || params.currentImpact.level === "high";
+  const coachPolicy = getCoachReferencePolicy({
+    mode: "pre_race",
+    action: fragile ? "stay_flexible" : "hold_course",
+    hasDirectionalPlan: !fragile,
+    confidenceFragile: fragile,
+  });
 
   return {
     eyebrow: "AI Coach Lane",
@@ -717,12 +748,7 @@ export function buildSailSelectionAssistBrief(params: {
           ? "focus"
           : "positive",
     readiness: params.forecastDecision.recommendedWindKt == null ? "watch" : "ready",
-    referenceBasis: getCoachReferenceBasis({
-      mode: "pre_race",
-      action: fragile ? "stay_flexible" : "hold_course",
-      hasDirectionalPlan: !fragile,
-      confidenceFragile: fragile,
-    }),
+    referenceBasis: coachPolicy.basis,
   };
 }
 
@@ -736,6 +762,12 @@ export function buildCourseStrategyAssistBrief(params: {
     params.forecastDecision.confidence !== "high" ||
     params.currentImpact.level === "high" ||
     params.strategyAutofill.zones.some((zone) => zone.windShiftRisk === "high");
+  const coachPolicy = getCoachReferencePolicy({
+    mode: "pre_race",
+    action: fragile ? "stay_flexible" : "hold_course",
+    hasDirectionalPlan: !fragile,
+    confidenceFragile: fragile,
+  });
 
   return {
     eyebrow: "AI Coach Lane",
@@ -759,11 +791,6 @@ export function buildCourseStrategyAssistBrief(params: {
     referenceBasis:
       params.strategyAutofill.referenceBasis.length > 0
         ? params.strategyAutofill.referenceBasis
-        : getCoachReferenceBasis({
-            mode: "pre_race",
-            action: fragile ? "stay_flexible" : "hold_course",
-            hasDirectionalPlan: !fragile,
-            confidenceFragile: fragile,
-          }),
+        : coachPolicy.basis,
   };
 }
