@@ -43,6 +43,7 @@ import {
   deleteSessionTrimLog,
   deleteRaceSession,
   downloadTextFile,
+  editRaceSessionTimeRange,
   exportRaceSessionJson,
   getMostRecentRaceSession,
   getRaceSessions,
@@ -331,6 +332,12 @@ function replayPolyline(points: { x: number; y: number }[]) {
   return points.map((point) => `${point.x.toFixed(1)},${point.y.toFixed(1)}`).join(" ");
 }
 
+function orderReplayWindow(startISO: string, endISO: string) {
+  return startISO.localeCompare(endISO) <= 0
+    ? { startISO, endISO }
+    : { startISO: endISO, endISO: startISO };
+}
+
 function nearestTrackIndex(points: GpsTrackPoint[], atISO: string) {
   const targetMs = new Date(atISO).getTime();
   if (!Number.isFinite(targetMs) || points.length === 0) return 0;
@@ -465,11 +472,15 @@ function SessionReplayPanel({
   weatherSamples,
   initialFocusISO,
   hasCourseOverlay,
+  onKeepWindow,
+  onDeleteWindow,
 }: {
   track: GpsTrackPoint[];
   weatherSamples: RaceWeatherSample[];
   initialFocusISO?: string | null;
   hasCourseOverlay: boolean;
+  onKeepWindow: (startISO: string, endISO: string) => void;
+  onDeleteWindow: (startISO: string, endISO: string) => void;
 }) {
   const points = track.filter(
     (point) =>
@@ -487,6 +498,8 @@ function SessionReplayPanel({
   );
   const [isPlaying, setIsPlaying] = useState(false);
   const [playbackRate, setPlaybackRate] = useState<1 | 4 | 8>(4);
+  const [selectionStartISO, setSelectionStartISO] = useState<string | null>(null);
+  const [selectionEndISO, setSelectionEndISO] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isPlaying || points.length < 2) return;
@@ -531,6 +544,33 @@ function SessionReplayPanel({
       ? null
       : Math.abs(nearestWeather.topWindAvgKt - nearestWeather.bottomWindAvgKt);
   const distanceSailedNm = elapsedTrackDistanceNm(points, safeIndex);
+  const selectedWindow =
+    selectionStartISO && selectionEndISO
+      ? orderReplayWindow(selectionStartISO, selectionEndISO)
+      : null;
+  const selectionStartIndex =
+    selectionStartISO == null ? null : nearestTrackIndex(points, selectionStartISO);
+  const selectionEndIndex = selectionEndISO == null ? null : nearestTrackIndex(points, selectionEndISO);
+  const selectionMinIndex =
+    selectionStartIndex == null || selectionEndIndex == null
+      ? null
+      : Math.min(selectionStartIndex, selectionEndIndex);
+  const selectionMaxIndex =
+    selectionStartIndex == null || selectionEndIndex == null
+      ? null
+      : Math.max(selectionStartIndex, selectionEndIndex);
+  const selectionPointCount =
+    selectionMinIndex == null || selectionMaxIndex == null
+      ? 0
+      : selectionMaxIndex - selectionMinIndex + 1;
+  const selectionPolyline =
+    selectionMinIndex == null || selectionMaxIndex == null
+      ? ""
+      : replayPolyline(geometry.projected.slice(selectionMinIndex, selectionMaxIndex + 1));
+  const selectionStartProjected =
+    selectionStartIndex == null ? null : geometry.projected[selectionStartIndex] ?? null;
+  const selectionEndProjected =
+    selectionEndIndex == null ? null : geometry.projected[selectionEndIndex] ?? null;
   const startedAtISO = points[0]?.at;
   const endedAtISO = points[points.length - 1]?.at;
 
@@ -626,6 +666,69 @@ function SessionReplayPanel({
             <span>{formatDateTime(endedAtISO)}</span>
           </div>
         </div>
+
+        <div className="mt-3 rounded-xl border border-white/10 bg-black/20 p-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setSelectionStartISO(currentPoint?.at ?? null)}
+              className="rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-xs font-black uppercase tracking-wide"
+            >
+              Mark Start Here
+            </button>
+            <button
+              type="button"
+              onClick={() => setSelectionEndISO(currentPoint?.at ?? null)}
+              className="rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-xs font-black uppercase tracking-wide"
+            >
+              Mark End Here
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setSelectionStartISO(null);
+                setSelectionEndISO(null);
+              }}
+              className="rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-xs font-black uppercase tracking-wide"
+            >
+              Clear Marks
+            </button>
+            <button
+              type="button"
+              disabled={!selectedWindow || selectionPointCount < 2}
+              onClick={() => {
+                if (!selectedWindow) return;
+                onKeepWindow(selectedWindow.startISO, selectedWindow.endISO);
+              }}
+              className="rounded-xl border border-emerald-400/30 bg-emerald-400/10 px-3 py-2 text-xs font-black uppercase tracking-wide text-emerald-50 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Keep Marked Window
+            </button>
+            <button
+              type="button"
+              disabled={!selectedWindow || selectionPointCount < 2}
+              onClick={() => {
+                if (!selectedWindow) return;
+                onDeleteWindow(selectedWindow.startISO, selectedWindow.endISO);
+              }}
+              className="rounded-xl border border-red-400/35 bg-red-400/10 px-3 py-2 text-xs font-black uppercase tracking-wide text-red-100 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Delete Marked Window
+            </button>
+          </div>
+
+          <div className="mt-3 text-xs leading-5 text-[color:var(--muted)]">
+            {selectedWindow ? (
+              <>
+                Selected window: {formatDateTime(selectedWindow.startISO)} to{" "}
+                {formatDateTime(selectedWindow.endISO)} ({formatDuration(selectedWindow.startISO, selectedWindow.endISO)} ·{" "}
+                {selectionPointCount} pts)
+              </>
+            ) : (
+              "Mark a start and end point on the replay to trim away motoring time at the beginning or end, or delete a middle block."
+            )}
+          </div>
+        </div>
       </div>
 
       <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
@@ -678,8 +781,18 @@ function SessionReplayPanel({
             y2={geometry.end.y}
             stroke="rgba(255,255,255,0.28)"
             strokeDasharray="5 5"
-            strokeWidth="2"
+              strokeWidth="2"
           />
+          {selectionPolyline && (
+            <polyline
+              points={selectionPolyline}
+              fill="none"
+              stroke="rgba(34,211,238,0.95)"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="6"
+            />
+          )}
           <polyline
             points={pastPolyline}
             fill="none"
@@ -698,6 +811,26 @@ function SessionReplayPanel({
             stroke="#fff7ed"
             strokeWidth="2.5"
           />
+          {selectionStartProjected && (
+            <circle
+              cx={selectionStartProjected.x}
+              cy={selectionStartProjected.y}
+              r="7"
+              fill="#0f172a"
+              stroke="#f59e0b"
+              strokeWidth="3"
+            />
+          )}
+          {selectionEndProjected && (
+            <circle
+              cx={selectionEndProjected.x}
+              cy={selectionEndProjected.y}
+              r="7"
+              fill="#0f172a"
+              stroke="#22d3ee"
+              strokeWidth="3"
+            />
+          )}
         </svg>
       </div>
 
@@ -713,6 +846,7 @@ function SessionReplayPanel({
         <div className="rounded-full border border-white/10 bg-black/20 px-3 py-1">End: teal</div>
         <div className="rounded-full border border-white/10 bg-black/20 px-3 py-1">Live point: amber</div>
         <div className="rounded-full border border-white/10 bg-black/20 px-3 py-1">Sailed so far: pink</div>
+        <div className="rounded-full border border-white/10 bg-black/20 px-3 py-1">Trim window: cyan</div>
         <div className="rounded-full border border-white/10 bg-black/20 px-3 py-1">
           Direct progress: dashed
         </div>
@@ -1469,6 +1603,50 @@ export default function RaceReviewPage() {
     });
   }
 
+  function applySessionTimeEdit(
+    mode: "keep_window" | "delete_window",
+    startISO: string,
+    endISO: string,
+  ) {
+    if (!session) return;
+
+    const actionLabel =
+      mode === "keep_window"
+        ? "keep only the selected replay window"
+        : "delete the selected replay window";
+    const confirmed = window.confirm(
+      `This will ${actionLabel} from ${new Date(startISO).toLocaleString()} to ${new Date(
+        endISO,
+      ).toLocaleString()}. GPS track, weather, saved calls, snapshots, and trim logs in that time edit will be updated. Continue?`,
+    );
+
+    if (!confirmed) return;
+
+    try {
+      const updated = editRaceSessionTimeRange(session.id, {
+        startISO,
+        endISO,
+        mode,
+      });
+      setReplayFocusRequest(null);
+      setRecoveryNotice({
+        message:
+          mode === "keep_window"
+            ? `Kept only the window from ${formatDateTime(updated.startedAtISO)} to ${formatDateTime(
+                updated.endedAtISO,
+              )}.`
+            : `Deleted the window from ${formatDateTime(startISO)} to ${formatDateTime(endISO)}.`,
+        tone: "info",
+      });
+      refresh();
+    } catch (error) {
+      setRecoveryNotice({
+        message: error instanceof Error ? error.message : "Session time edit failed.",
+        tone: "warning",
+      });
+    }
+  }
+
   function removeSession(id: string) {
     deleteRaceSession(id);
     const next = getMostRecentRaceSession();
@@ -1805,13 +1983,21 @@ export default function RaceReviewPage() {
 
             {session.gpsTrack.length >= 2 && (
               <SessionReplayPanel
-                key={`${session.id}:${replayFocusRequest?.sessionId === session.id ? replayFocusRequest.nonce : "base"}`}
+                key={`${session.id}:${session.startedAtISO}:${session.endedAtISO ?? "active"}:${session.gpsTrack.length}:${
+                  replayFocusRequest?.sessionId === session.id ? replayFocusRequest.nonce : "base"
+                }`}
                 track={session.gpsTrack}
                 weatherSamples={session.weatherSamples}
                 initialFocusISO={
                   replayFocusRequest?.sessionId === session.id ? replayFocusRequest.atISO : null
                 }
                 hasCourseOverlay={reviewCourseData != null}
+                onKeepWindow={(startISO, endISO) =>
+                  applySessionTimeEdit("keep_window", startISO, endISO)
+                }
+                onDeleteWindow={(startISO, endISO) =>
+                  applySessionTimeEdit("delete_window", startISO, endISO)
+                }
               />
             )}
 

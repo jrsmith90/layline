@@ -195,6 +195,8 @@ export type ImportRaceSessionInput = {
   warnings?: string[];
 };
 
+export type RaceSessionTimeEditMode = "keep_window" | "delete_window";
+
 type RaceSessionStoreListener = () => void;
 
 let cachedSnapshot: RaceSessionRepositorySnapshot | null = null;
@@ -903,6 +905,26 @@ function sortWeatherSamples(samples: RaceWeatherSample[]) {
   );
 }
 
+function orderTimeWindow(startISO: string, endISO: string) {
+  return startISO.localeCompare(endISO) <= 0
+    ? { startISO, endISO }
+    : { startISO: endISO, endISO: startISO };
+}
+
+function isoWithinWindow(value: string, startISO: string, endISO: string) {
+  return value.localeCompare(startISO) >= 0 && value.localeCompare(endISO) <= 0;
+}
+
+function shouldKeepIso(
+  value: string,
+  startISO: string,
+  endISO: string,
+  mode: RaceSessionTimeEditMode,
+) {
+  const isWithin = isoWithinWindow(value, startISO, endISO);
+  return mode === "keep_window" ? isWithin : !isWithin;
+}
+
 function buildImportedSessionNotes(input: ImportRaceSessionInput) {
   const notes = [
     `Imported from ${input.fileName}.`,
@@ -1049,6 +1071,68 @@ export function deleteRaceSession(id: string) {
     activeSessionId: snapshot.activeSessionId === id ? null : snapshot.activeSessionId,
     updatedAtISO: nowISO(),
   });
+}
+
+export function editRaceSessionTimeRange(
+  id: string,
+  params: {
+    startISO: string;
+    endISO: string;
+    mode: RaceSessionTimeEditMode;
+  },
+) {
+  const session = getRaceSession(id);
+  if (!session) {
+    throw new Error("Race session not found.");
+  }
+
+  const { startISO, endISO } = orderTimeWindow(params.startISO, params.endISO);
+  const gpsTrack = sortTrack(
+    session.gpsTrack.filter((point) => shouldKeepIso(point.at, startISO, endISO, params.mode)),
+  );
+
+  if (gpsTrack.length < 2) {
+    throw new Error("The edited session would have fewer than 2 GPS points. Widen the selection.");
+  }
+
+  const updated: RaceSession = {
+    ...session,
+    startedAtISO: gpsTrack[0].at,
+    endedAtISO: session.status === "ended" ? gpsTrack.at(-1)?.at ?? session.endedAtISO : session.endedAtISO,
+    gpsTrack,
+    weatherSamples: sortWeatherSamples(
+      session.weatherSamples.filter((sample) =>
+        shouldKeepIso(sample.atISO, startISO, endISO, params.mode),
+      ),
+    ),
+    decisions: session.decisions.filter((decision) =>
+      shouldKeepIso(decision.atISO, startISO, endISO, params.mode),
+    ),
+    raceStateSnapshots: trimRaceStateSnapshots(
+      session.raceStateSnapshots.filter((snapshot) =>
+        shouldKeepIso(snapshot.capturedAtISO, startISO, endISO, params.mode),
+      ),
+    ),
+    tacticalBoardSnapshots: trimTacticalBoardSnapshots(
+      session.tacticalBoardSnapshots.filter((snapshot) =>
+        shouldKeepIso(snapshot.capturedAtISO, startISO, endISO, params.mode),
+      ),
+    ),
+    trimLogs: session.trimLogs.filter((log) =>
+      shouldKeepIso(log.createdAtISO, startISO, endISO, params.mode),
+    ),
+    tackCalibrations: session.tackCalibrations.filter((calibration) =>
+      calibration.source === "manual"
+        ? true
+        : shouldKeepIso(calibration.at, startISO, endISO, params.mode),
+    ),
+    tackRecords: session.tackRecords.filter((record) =>
+      shouldKeepIso(record.atISO, startISO, endISO, params.mode),
+    ),
+  };
+
+  upsertRaceSession(updated);
+  return getRaceSession(id) ?? updated;
 }
 
 export function appendRaceGpsSamples(
