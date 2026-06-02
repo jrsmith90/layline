@@ -300,11 +300,128 @@ function buildDecisionMetricTiles(
   return tiles.slice(0, 4);
 }
 
-function buildSegmentPreviewGeometry(points: GpsTrackPoint[]) {
+function distanceNmBetweenGpsPoints(start: GpsTrackPoint, end: GpsTrackPoint) {
+  const toRad = (value: number) => (value * Math.PI) / 180;
+  const radiusMeters = 6_371_000;
+  const phi1 = toRad(start.lat);
+  const phi2 = toRad(end.lat);
+  const deltaPhi = toRad(end.lat - start.lat);
+  const deltaLambda = toRad(end.lon - start.lon);
+  const a =
+    Math.sin(deltaPhi / 2) ** 2 +
+    Math.cos(phi1) * Math.cos(phi2) * Math.sin(deltaLambda / 2) ** 2;
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return (radiusMeters * c) / 1852;
+}
+
+function headingDeltaDeg(left: number, right: number) {
+  return Math.abs(((right - left + 540) % 360) - 180);
+}
+
+function formatCoordinate(
+  value: number | null | undefined,
+  positiveHemisphere: string,
+  negativeHemisphere: string,
+) {
+  if (typeof value !== "number" || !Number.isFinite(value)) return "--";
+  return `${Math.abs(value).toFixed(5)} deg ${value >= 0 ? positiveHemisphere : negativeHemisphere}`;
+}
+
+function replayPolyline(points: { x: number; y: number }[]) {
+  return points.map((point) => `${point.x.toFixed(1)},${point.y.toFixed(1)}`).join(" ");
+}
+
+function nearestTrackIndex(points: GpsTrackPoint[], atISO: string) {
+  const targetMs = new Date(atISO).getTime();
+  if (!Number.isFinite(targetMs) || points.length === 0) return 0;
+
+  let nearestIndex = 0;
+  let nearestDelta = Number.POSITIVE_INFINITY;
+
+  for (let index = 0; index < points.length; index += 1) {
+    const pointMs = new Date(points[index].at).getTime();
+    if (!Number.isFinite(pointMs)) continue;
+    const delta = Math.abs(pointMs - targetMs);
+    if (delta < nearestDelta) {
+      nearestDelta = delta;
+      nearestIndex = index;
+    }
+  }
+
+  return nearestIndex;
+}
+
+function nearestWeatherSample(samples: RaceWeatherSample[], atISO?: string | null) {
+  if (!atISO || samples.length === 0) return null;
+  const targetMs = new Date(atISO).getTime();
+  if (!Number.isFinite(targetMs)) return null;
+
+  let nearestSample: RaceWeatherSample | null = null;
+  let nearestDelta = Number.POSITIVE_INFINITY;
+
+  for (const sample of samples) {
+    const sampleMs = new Date(sample.atISO).getTime();
+    if (!Number.isFinite(sampleMs)) continue;
+    const delta = Math.abs(sampleMs - targetMs);
+    if (delta < nearestDelta) {
+      nearestDelta = delta;
+      nearestSample = sample;
+    }
+  }
+
+  return nearestSample;
+}
+
+function replayWindSummary(sample: RaceWeatherSample | null) {
+  if (!sample) return null;
+
+  if (sample.riverWindAvgKt != null || sample.riverWindDirectionDeg != null) {
+    return {
+      label: "River",
+      speedKt: sample.riverWindAvgKt ?? null,
+      directionDeg: sample.riverWindDirectionDeg ?? null,
+    };
+  }
+
+  if (sample.topWindAvgKt != null || sample.topWindDirectionDeg != null) {
+    return {
+      label: "Top",
+      speedKt: sample.topWindAvgKt ?? null,
+      directionDeg: sample.topWindDirectionDeg ?? null,
+    };
+  }
+
+  if (sample.bottomWindAvgKt != null || sample.bottomWindDirectionDeg != null) {
+    return {
+      label: "Bottom",
+      speedKt: sample.bottomWindAvgKt ?? null,
+      directionDeg: sample.bottomWindDirectionDeg ?? null,
+    };
+  }
+
+  return null;
+}
+
+function elapsedTrackDistanceNm(points: GpsTrackPoint[], endIndex: number) {
+  if (points.length < 2 || endIndex <= 0) return 0;
+
+  let totalDistanceNm = 0;
+
+  for (let index = 1; index <= Math.min(endIndex, points.length - 1); index += 1) {
+    totalDistanceNm += distanceNmBetweenGpsPoints(points[index - 1], points[index]);
+  }
+
+  return totalDistanceNm;
+}
+
+function buildSegmentPreviewGeometry(
+  points: GpsTrackPoint[],
+  dimensions: { width?: number; height?: number } = {},
+) {
   if (points.length < 2) return null;
 
-  const width = 240;
-  const height = 132;
+  const width = dimensions.width ?? 240;
+  const height = dimensions.height ?? 132;
   const padding = 12;
   const lats = points.map((point) => point.lat);
   const lons = points.map((point) => point.lon);
@@ -338,15 +455,20 @@ function buildSegmentPreviewGeometry(points: GpsTrackPoint[]) {
     height,
     start,
     end,
-    polyline: projected.map((point) => `${point.x.toFixed(1)},${point.y.toFixed(1)}`).join(" "),
+    projected,
+    polyline: replayPolyline(projected),
   };
 }
 
-function SessionTrackOverview({
+function SessionReplayPanel({
   track,
+  weatherSamples,
+  initialFocusISO,
   hasCourseOverlay,
 }: {
   track: GpsTrackPoint[];
+  weatherSamples: RaceWeatherSample[];
+  initialFocusISO?: string | null;
   hasCourseOverlay: boolean;
 }) {
   const points = track.filter(
@@ -356,33 +478,168 @@ function SessionTrackOverview({
       typeof point.at === "string" &&
       point.at.length > 0,
   );
-  const geometry = buildSegmentPreviewGeometry(points);
+  const geometry = buildSegmentPreviewGeometry(points, {
+    width: 720,
+    height: 420,
+  });
+  const [currentIndex, setCurrentIndex] = useState(() =>
+    initialFocusISO ? nearestTrackIndex(points, initialFocusISO) : 0,
+  );
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [playbackRate, setPlaybackRate] = useState<1 | 4 | 8>(4);
+
+  useEffect(() => {
+    if (!isPlaying || points.length < 2) return;
+    const lastIndex = points.length - 1;
+
+    const timer = window.setInterval(() => {
+      setCurrentIndex((current) => {
+        if (current >= lastIndex) {
+          setIsPlaying(false);
+          return current;
+        }
+
+        const next = Math.min(lastIndex, current + playbackRate);
+        if (next >= lastIndex) {
+          setIsPlaying(false);
+        }
+        return next;
+      });
+    }, 250);
+
+    return () => {
+      window.clearInterval(timer);
+    };
+  }, [isPlaying, playbackRate, points.length]);
+
   if (!geometry) return null;
 
+  const safeIndex = Math.min(currentIndex, points.length - 1);
+  const currentPoint = points[safeIndex] ?? points[0];
+  const currentProjected = geometry.projected[safeIndex] ?? geometry.end;
+  const nearestWeather = nearestWeatherSample(weatherSamples, currentPoint?.at);
+  const windSummary = replayWindSummary(nearestWeather);
+  const angleToWindDeg =
+    currentPoint?.cogDeg != null && windSummary?.directionDeg != null
+      ? headingDeltaDeg(currentPoint.cogDeg, windSummary.directionDeg)
+      : null;
+  const pastPolyline = replayPolyline(geometry.projected.slice(0, safeIndex + 1));
+  const currentSogKt =
+    currentPoint?.sogMps == null ? null : currentPoint.sogMps * 1.943844;
+  const topBottomSpreadKt =
+    nearestWeather?.topWindAvgKt == null || nearestWeather.bottomWindAvgKt == null
+      ? null
+      : Math.abs(nearestWeather.topWindAvgKt - nearestWeather.bottomWindAvgKt);
+  const distanceSailedNm = elapsedTrackDistanceNm(points, safeIndex);
   const startedAtISO = points[0]?.at;
   const endedAtISO = points[points.length - 1]?.at;
 
   return (
-    <section className="layline-panel overflow-hidden p-4">
+    <section id="session-replay" className="layline-panel overflow-hidden p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <div className="layline-kicker">Track View</div>
-          <h2 className="mt-1 text-xl font-black">Session track overview</h2>
+          <div className="layline-kicker">Replay</div>
+          <h2 className="mt-1 text-xl font-black">Interactive session replay</h2>
           <p className="mt-1 text-sm text-[color:var(--muted)]">
-            Raw sailed path from the imported or recorded GPS track.
+            Scrub through the sailed track with time-linked telemetry and weather, closer to the
+            Windii-style replay you pointed to.
             {hasCourseOverlay
               ? " The course overlay is also available below in Replay."
               : " Attach a course on import if you want the marks and planned shape overlaid too."}
           </p>
         </div>
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
           <Metric label="Track points" value={String(points.length)} />
           <Metric
-            label="Duration"
-            value={startedAtISO && endedAtISO ? formatDuration(startedAtISO, endedAtISO) : "--"}
+            label="Elapsed"
+            value={startedAtISO && currentPoint?.at ? formatDuration(startedAtISO, currentPoint.at) : "--"}
           />
-          <Metric label="Start" value={formatDateTime(startedAtISO)} />
+          <Metric label="Replay" value={`${Math.round((safeIndex / Math.max(points.length - 1, 1)) * 100)}%`} />
+          <Metric label="Distance" value={`${formatNumber(distanceSailedNm, 2)} nm`} />
         </div>
+      </div>
+
+      <div className="mt-4 rounded-xl border border-white/10 bg-black/20 p-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setCurrentIndex((current) => Math.max(0, current - 15))}
+            className="rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-xs font-black uppercase tracking-wide"
+          >
+            -15
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              if (safeIndex >= points.length - 1) {
+                setCurrentIndex(0);
+                setIsPlaying(true);
+                return;
+              }
+
+              setIsPlaying((current) => !current);
+            }}
+            className="rounded-xl border border-cyan-400/30 bg-cyan-400/10 px-4 py-2 text-xs font-black uppercase tracking-wide text-cyan-50"
+          >
+            {isPlaying ? "Pause" : "Play"}
+          </button>
+          <button
+            type="button"
+            onClick={() => setCurrentIndex((current) => Math.min(points.length - 1, current + 15))}
+            className="rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-xs font-black uppercase tracking-wide"
+          >
+            +15
+          </button>
+          {([1, 4, 8] as const).map((rate) => (
+            <button
+              key={rate}
+              type="button"
+              onClick={() => setPlaybackRate(rate)}
+              className={[
+                "rounded-xl border px-3 py-2 text-xs font-black uppercase tracking-wide",
+                playbackRate === rate
+                  ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-50"
+                  : "border-white/10 bg-black/20",
+              ].join(" ")}
+            >
+              {rate}x
+            </button>
+          ))}
+        </div>
+
+        <div className="mt-3">
+          <input
+            type="range"
+            min={0}
+            max={Math.max(points.length - 1, 0)}
+            step={1}
+            value={safeIndex}
+            onChange={(event) => {
+              setCurrentIndex(Number(event.target.value));
+              setIsPlaying(false);
+            }}
+            className="w-full accent-cyan-400"
+          />
+          <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs text-[color:var(--muted)]">
+            <span>{formatDateTime(startedAtISO)}</span>
+            <span>{currentPoint?.at ? formatDateTime(currentPoint.at) : "--"}</span>
+            <span>{formatDateTime(endedAtISO)}</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
+        <Metric label="SOG" value={`${formatNumber(currentSogKt)} kt`} />
+        <Metric label="COG" value={formatDeg(currentPoint?.cogDeg ?? null)} />
+        <Metric
+          label={windSummary ? `${windSummary.label} wind` : "Wind"}
+          value={windSummary?.speedKt == null ? "--" : `${formatNumber(windSummary.speedKt)} kt`}
+        />
+        <Metric label="Angle to wind" value={angleToWindDeg == null ? "--" : `${formatNumber(angleToWindDeg, 0)} deg`} />
+        <Metric label="Latitude" value={formatCoordinate(currentPoint?.lat, "N", "S")} />
+        <Metric label="Longitude" value={formatCoordinate(currentPoint?.lon, "E", "W")} />
+        <Metric label="Wind source" value={nearestWeather ? nearestWeather.source.replace(/-/g, " ") : "--"} />
+        <Metric label="Top-bottom" value={topBottomSpreadKt == null ? "--" : `${formatNumber(topBottomSpreadKt)} kt`} />
       </div>
 
       <div className="mt-4 overflow-hidden rounded-lg border border-[color:var(--divider)] bg-[#08233a]">
@@ -390,21 +647,29 @@ function SessionTrackOverview({
           viewBox={`0 0 ${geometry.width} ${geometry.height}`}
           preserveAspectRatio="xMidYMid meet"
           role="img"
-          aria-label="Session track overview"
-          className="aspect-[1.82] w-full"
+          aria-label="Interactive session replay"
+          className="aspect-[1.7] w-full"
         >
           <rect width={geometry.width} height={geometry.height} fill="#08233a" />
           <path
-            d="M 18 28 C 54 16 86 42 122 26 S 194 36 222 18"
+            d="M 40 82 C 154 28 244 104 364 74 S 576 106 680 56"
             fill="none"
             stroke="rgba(127,183,255,0.12)"
-            strokeWidth="16"
+            strokeWidth="34"
           />
           <path
-            d="M 10 108 C 52 92 88 122 134 102 S 198 110 232 88"
+            d="M 28 334 C 162 286 256 374 380 320 S 560 354 692 276"
             fill="none"
             stroke="rgba(0,168,168,0.10)"
-            strokeWidth="18"
+            strokeWidth="40"
+          />
+          <polyline
+            points={geometry.polyline}
+            fill="none"
+            stroke="rgba(248,250,252,0.18)"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth="4"
           />
           <line
             x1={geometry.start.x}
@@ -413,25 +678,41 @@ function SessionTrackOverview({
             y2={geometry.end.y}
             stroke="rgba(255,255,255,0.28)"
             strokeDasharray="5 5"
-            strokeWidth="1.5"
+            strokeWidth="2"
           />
           <polyline
-            points={geometry.polyline}
+            points={pastPolyline}
             fill="none"
             stroke="#ec4899"
             strokeLinecap="round"
             strokeLinejoin="round"
-            strokeWidth="3.5"
+            strokeWidth="5"
           />
-          <circle cx={geometry.start.x} cy={geometry.start.y} r="4" fill="#f8fafc" />
-          <circle cx={geometry.end.x} cy={geometry.end.y} r="4.5" fill="#2dd4bf" />
+          <circle cx={geometry.start.x} cy={geometry.start.y} r="6" fill="#f8fafc" />
+          <circle cx={geometry.end.x} cy={geometry.end.y} r="6.5" fill="#2dd4bf" />
+          <circle
+            cx={currentProjected.x}
+            cy={currentProjected.y}
+            r="8"
+            fill="#f59e0b"
+            stroke="#fff7ed"
+            strokeWidth="2.5"
+          />
         </svg>
       </div>
 
+      <div className="mt-3 rounded-xl border border-white/10 bg-black/20 p-3 text-xs leading-5 text-[color:var(--muted)]">
+        {nearestWeather
+          ? `Weather nearest this point was observed ${formatDateTime(nearestWeather.atISO)}`
+          : "No weather sample is attached near this replay point yet."}
+        {windSummary?.directionDeg != null ? ` Wind direction was ${formatDeg(windSummary.directionDeg)} from.` : ""}
+      </div>
+
       <div className="mt-3 flex flex-wrap gap-2 text-[10px] font-black uppercase tracking-[0.16em] text-[color:var(--muted)]">
-        <div className="rounded-full border border-white/10 bg-black/20 px-3 py-1">Start marker: white</div>
-        <div className="rounded-full border border-white/10 bg-black/20 px-3 py-1">End marker: teal</div>
-        <div className="rounded-full border border-white/10 bg-black/20 px-3 py-1">Track: pink</div>
+        <div className="rounded-full border border-white/10 bg-black/20 px-3 py-1">Start: white</div>
+        <div className="rounded-full border border-white/10 bg-black/20 px-3 py-1">End: teal</div>
+        <div className="rounded-full border border-white/10 bg-black/20 px-3 py-1">Live point: amber</div>
+        <div className="rounded-full border border-white/10 bg-black/20 px-3 py-1">Sailed so far: pink</div>
         <div className="rounded-full border border-white/10 bg-black/20 px-3 py-1">
           Direct progress: dashed
         </div>
@@ -1109,6 +1390,11 @@ export default function RaceReviewPage() {
   const latestRaceStateSnapshot = session?.raceStateSnapshots.at(-1) ?? null;
   const latestTacticalBoardSnapshot = session?.tacticalBoardSnapshots.at(-1) ?? null;
   const [selectedTacticalBoardSnapshotISO, setSelectedTacticalBoardSnapshotISO] = useState("");
+  const [replayFocusRequest, setReplayFocusRequest] = useState<{
+    sessionId: string;
+    atISO: string;
+    nonce: number;
+  } | null>(null);
   const tacticalBoardReplayFrames =
     session?.tacticalBoardSnapshots
       .slice()
@@ -1166,6 +1452,21 @@ export default function RaceReviewPage() {
     if (!session) return;
     updateRaceDecision(session.id, decisionId, patch);
     refresh();
+  }
+
+  function jumpReplayToISO(atISO: string) {
+    if (!session) return;
+
+    setReplayFocusRequest((current) => ({
+      sessionId: session.id,
+      atISO,
+      nonce: (current?.nonce ?? 0) + 1,
+    }));
+
+    document.getElementById("session-replay")?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
   }
 
   function removeSession(id: string) {
@@ -1502,6 +1803,18 @@ export default function RaceReviewPage() {
               </div>
             </section>
 
+            {session.gpsTrack.length >= 2 && (
+              <SessionReplayPanel
+                key={`${session.id}:${replayFocusRequest?.sessionId === session.id ? replayFocusRequest.nonce : "base"}`}
+                track={session.gpsTrack}
+                weatherSamples={session.weatherSamples}
+                initialFocusISO={
+                  replayFocusRequest?.sessionId === session.id ? replayFocusRequest.atISO : null
+                }
+                hasCourseOverlay={reviewCourseData != null}
+              />
+            )}
+
             <section className="layline-panel p-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <h2 className="text-xl font-black">Decision Review</h2>
@@ -1522,6 +1835,7 @@ export default function RaceReviewPage() {
                   key={decision.id}
                   decision={decision}
                   track={session.gpsTrack}
+                  onJumpToReplay={jumpReplayToISO}
                   onPatch={(patch) => patchDecision(decision.id, patch)}
                 />
               ))}
@@ -2091,10 +2405,12 @@ function Metric({ label, value }: { label: string; value: string }) {
 function DecisionCard({
   decision,
   track,
+  onJumpToReplay,
   onPatch,
 }: {
   decision: RaceDecisionRecord;
   track: GpsTrackPoint[];
+  onJumpToReplay?: (atISO: string) => void;
   onPatch: (patch: Partial<RaceDecisionRecord>) => void;
 }) {
   const autoGenerated = decision.inputs?.autoGenerated === true;
@@ -2130,6 +2446,16 @@ function DecisionCard({
         <p className="mt-2 rounded-lg border border-white/10 bg-black/20 p-3 text-xs leading-5 text-[color:var(--muted)]">
           {decision.coachingNote}
         </p>
+      )}
+
+      {decisionWindow && onJumpToReplay && (
+        <button
+          type="button"
+          onClick={() => onJumpToReplay(decisionWindow.startISO)}
+          className="mt-3 rounded-xl border border-cyan-400/30 bg-cyan-400/10 px-3 py-2 text-xs font-black uppercase tracking-wide text-cyan-50"
+        >
+          Replay this segment
+        </button>
       )}
 
       {hasSegmentContext && (
