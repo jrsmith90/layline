@@ -479,8 +479,9 @@ export default function CourseManagerPage() {
               <div>
                 <div className="mb-2 text-sm font-medium">Mark sequence</div>
                 <p className="mb-3 text-xs leading-5 text-[color:var(--muted)]">
-                  Optional rounding side applies to turning marks. Leave it blank when the mark
-                  does not need a port or starboard instruction.
+                  The same selector area now shows whether a row is acting as Start, Finish, or
+                  Start / Finish. Use Port or Starboard when a turning mark needs a side
+                  instruction.
                 </p>
                 <div className="space-y-2">
                   {editor.sequence.map((markKey, index) => (
@@ -518,7 +519,9 @@ export default function CourseManagerPage() {
                         }
                         className="w-32 rounded-xl border border-[color:var(--divider)] bg-black/30 px-3 py-2"
                       >
-                        <option value="">Empty</option>
+                        <option value="">
+                          {getSequenceRoleCopy(editorSequenceRoles[index]) || "Turn mark"}
+                        </option>
                         <option value="port" className="bg-slate-900">
                           Port
                         </option>

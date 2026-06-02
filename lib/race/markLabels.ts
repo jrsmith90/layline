@@ -26,8 +26,12 @@ export function formatMarkChoice(
   marks?: MarkCollection,
 ) {
   const shortLabel = getMarkShortLabel(markKey, mark);
+  const assignedMarkId = mark?.id?.trim();
+
   if (!marks) {
-    return shortLabel;
+    return assignedMarkId && assignedMarkId !== shortLabel
+      ? `${shortLabel} · ${assignedMarkId}`
+      : shortLabel;
   }
 
   const hasDuplicateShortLabel = Object.entries(marks).some(
@@ -35,11 +39,15 @@ export function formatMarkChoice(
       otherKey !== markKey && getMarkShortLabel(otherKey, otherMark) === shortLabel,
   );
 
-  if (!hasDuplicateShortLabel) {
-    return shortLabel;
+  const baseLabel = hasDuplicateShortLabel
+    ? `${shortLabel} · ${getDuplicateMarkLabelHint(markKey, mark)}`
+    : shortLabel;
+
+  if (!assignedMarkId || assignedMarkId === shortLabel) {
+    return baseLabel;
   }
 
-  return `${shortLabel} · ${getDuplicateMarkLabelHint(markKey, mark)}`;
+  return `${baseLabel} · ${assignedMarkId}`;
 }
 
 export function formatMarkSequence(sequence: string[], marks: MarkCollection) {
