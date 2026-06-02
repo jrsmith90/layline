@@ -42,7 +42,7 @@ type CleanedSequenceEditorState = {
   markRoundings: Array<RaceCourseMarkRounding | null>;
 };
 
-type SequenceRole = "start" | "finish" | "start_finish" | null;
+type SequenceRole = "start" | "finish" | null;
 
 const activeEvent = getActiveRaceEvent();
 const customCourseMarks = getCustomCourseMarkCatalogForEvent(activeEvent);
@@ -95,23 +95,14 @@ function cleanEditorSequence(editor: Pick<EditorState, "sequence" | "roundingSid
 
 function getSequenceRoles(sequence: string[]) {
   const roles: SequenceRole[] = sequence.map(() => null);
-  const populatedIndexes = sequence.flatMap((markKey, index) =>
-    markKey.trim().length > 0 ? [index] : [],
-  );
-  const firstIndex = populatedIndexes[0];
-  const lastIndex = populatedIndexes[populatedIndexes.length - 1];
-
-  if (firstIndex == null || lastIndex == null) {
+  if (sequence.length === 0) {
     return roles;
   }
 
-  if (firstIndex === lastIndex) {
-    roles[firstIndex] = "start_finish";
-    return roles;
+  roles[0] = "start";
+  if (sequence.length > 1) {
+    roles[sequence.length - 1] = "finish";
   }
-
-  roles[firstIndex] = "start";
-  roles[lastIndex] = "finish";
   return roles;
 }
 
@@ -121,11 +112,25 @@ function getSequenceRoleCopy(role: SequenceRole) {
       return "Start";
     case "finish":
       return "Finish";
-    case "start_finish":
-      return "Start / Finish";
     default:
       return "";
   }
+}
+
+function getLegRoleCopy(legNumber: number, totalLegs: number) {
+  if (totalLegs <= 1) {
+    return "Start -> Finish";
+  }
+
+  if (legNumber === 1) {
+    return "Start";
+  }
+
+  if (legNumber === totalLegs) {
+    return "Finish";
+  }
+
+  return "--";
 }
 
 function toEditorState(courseId: string): EditorState {
@@ -479,9 +484,8 @@ export default function CourseManagerPage() {
               <div>
                 <div className="mb-2 text-sm font-medium">Mark sequence</div>
                 <p className="mb-3 text-xs leading-5 text-[color:var(--muted)]">
-                  The same selector area now shows whether a row is acting as Start, Finish, or
-                  Start / Finish. Use Port or Starboard when a turning mark needs a side
-                  instruction.
+                  The same selector area now shows whether a row is acting as Start or Finish.
+                  Use Port or Starboard when a turning mark needs a side instruction.
                 </p>
                 <div className="space-y-2">
                   {editor.sequence.map((markKey, index) => (
@@ -639,10 +643,7 @@ export default function CourseManagerPage() {
                             {getMarkShortLabel(leg.toMark, customCourseMarks[leg.toMark])}
                           </td>
                           <td className="py-2 pr-4">
-                            {leg.legNumber === 1 ? "Start" : ""}
-                            {leg.legNumber === previewLegDetails.length ? (
-                              leg.legNumber === 1 ? " / Finish" : "Finish"
-                            ) : null}
+                            {getLegRoleCopy(leg.legNumber, previewLegDetails.length)}
                           </td>
                           <td className="py-2 pr-4">
                             {previewCourseRecord?.markRoundings?.[leg.legNumber] === "port"
