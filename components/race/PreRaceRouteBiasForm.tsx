@@ -407,6 +407,17 @@ export default function PreRaceRouteBiasForm({
               </ul>
             </div>
           )}
+
+          {result.referenceBasis.length > 0 && (
+            <div className="mt-4">
+              <div className="text-sm font-medium text-cyan-200">Reference basis</div>
+              <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-cyan-50/90">
+                {result.referenceBasis.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
       )}
     </div>

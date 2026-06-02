@@ -6,6 +6,7 @@ import type {
   WindTrend
 } from "@/data/race/getRouteBiasInputs";
 import { getCourseData } from "@/data/race/getCourseData";
+import { getRouteBiasReferenceBasis } from "@/lib/reference/decisionBasis";
 import { summarizeConstraintImpact } from "@/lib/race/instructionConstraints";
 
 export type RouteBiasDecision =
@@ -34,6 +35,7 @@ export type RouteBiasResult = {
   bayScore: number;
   reasons: string[];
   warnings: string[];
+  referenceBasis: string[];
 };
 
 function edgeWeight(edgeStrength: EdgeStrength): number {
@@ -106,6 +108,12 @@ export function scoreRouteBias(input: RouteBiasAnswers): RouteBiasResult {
     bayScore -= 1;
   }
 
+  if (input.windTrend === "oscillating" && input.openingLegType === "mostly_upwind") {
+    warnings.push(
+      "Oscillating breeze favors staying in phase more than forcing an early corner.",
+    );
+  }
+
   if (input.windTrend === "building" && input.windSpeedKt >= 10) {
     reasons.push("Building breeze may make pressure lanes more important.");
   }
@@ -140,8 +148,25 @@ export function scoreRouteBias(input: RouteBiasAnswers): RouteBiasResult {
     warnings.push("Wind and current are pointing to different sides.");
   }
 
+  if (
+    input.openingLegType === "mostly_upwind" &&
+    (input.edgeStrength === "unclear" ||
+      ((input.pressureSide === "even" || input.pressureSide === "unclear") &&
+        (input.currentSide === "even" || input.currentSide === "unclear")))
+  ) {
+    warnings.push("No clean opening edge yet. Keep the first beat flexible instead of forcing a corner.");
+  }
+
   reasons.push(...constraintImpact.reasons);
   warnings.push(...constraintImpact.warnings);
+
+  const referenceBasis = getRouteBiasReferenceBasis({
+    openingLegType: input.openingLegType,
+    windTrend: input.windTrend,
+    pressureSide: input.pressureSide,
+    currentSide: input.currentSide,
+    edgeStrength: input.edgeStrength,
+  });
 
   const delta = Math.abs(shoreScore - bayScore);
   const confidence = applyConfidencePenalty(
@@ -156,7 +181,8 @@ export function scoreRouteBias(input: RouteBiasAnswers): RouteBiasResult {
       shoreScore,
       bayScore,
       reasons,
-      warnings
+      warnings,
+      referenceBasis,
     };
   }
 
@@ -167,7 +193,8 @@ export function scoreRouteBias(input: RouteBiasAnswers): RouteBiasResult {
       shoreScore,
       bayScore,
       reasons,
-      warnings
+      warnings,
+      referenceBasis,
     };
   }
 
@@ -178,7 +205,8 @@ export function scoreRouteBias(input: RouteBiasAnswers): RouteBiasResult {
       shoreScore,
       bayScore,
       reasons,
-      warnings
+      warnings,
+      referenceBasis,
     };
   }
 
@@ -188,6 +216,7 @@ export function scoreRouteBias(input: RouteBiasAnswers): RouteBiasResult {
     shoreScore,
     bayScore,
     reasons,
-    warnings
+    warnings,
+    referenceBasis,
   };
 }

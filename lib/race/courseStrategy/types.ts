@@ -22,4 +22,5 @@ export type CourseStrategyResult = {
   zoneAnalysis: CourseZone[];
   keyRisks: string[];
   recommendations: string[];
+  referenceBasis: string[];
 };

@@ -3,6 +3,7 @@ import type {
   CourseStrategyAnswers,
   CourseStrategyResult,
 } from "@/lib/race/courseStrategy/types";
+import { getCourseStrategyReferenceBasis } from "@/lib/reference/decisionBasis";
 
 function scoreStrategy(answers: CourseStrategyAnswers): CourseStrategyResult {
   const keyRisks: string[] = [];
@@ -58,10 +59,21 @@ function scoreStrategy(answers: CourseStrategyAnswers): CourseStrategyResult {
     recommendations.push("Monitor both zones equally for shifts and current changes");
   }
 
+  if (
+    answers.zones.every(
+      (zone) => zone.windShiftRisk === "unknown" && zone.currentEffect === "unknown",
+    )
+  ) {
+    recommendations.push(
+      "No clean edge is mapped yet; keep options open and preserve the first tack or gybe change.",
+    );
+  }
+
   return {
     zoneAnalysis: answers.zones,
     keyRisks,
     recommendations,
+    referenceBasis: getCourseStrategyReferenceBasis(answers.zones),
   };
 }
 

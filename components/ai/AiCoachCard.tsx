@@ -62,6 +62,21 @@ export function AiCoachCard({
         </div>
       )}
 
+      {brief.referenceBasis.length > 0 && (
+        <div className="mt-3 rounded-xl border border-white/10 bg-black/20 p-3">
+          <div className="text-[10px] font-black uppercase tracking-[0.16em] text-[color:var(--muted)]">
+            Reference Basis
+          </div>
+          <div className="mt-2 space-y-2">
+            {brief.referenceBasis.map((item) => (
+              <div key={item} className="text-xs leading-5 text-[color:var(--text-soft)]">
+                {item}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="mt-3 text-xs leading-5 text-[color:var(--muted)]">{brief.footer}</div>
     </section>
   );

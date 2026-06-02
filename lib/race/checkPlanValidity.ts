@@ -27,6 +27,7 @@ export type RouteBiasSnapshot = {
   bayScore: number;
   reasons: string[];
   warnings: string[];
+  referenceBasis: string[];
 };
 
 export type PlanValidityInput = {

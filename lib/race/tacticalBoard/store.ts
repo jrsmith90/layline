@@ -207,6 +207,7 @@ function sanitizeRouteBiasPlan(value: unknown): RouteBiasSnapshot | null {
     bayScore: sanitizeNumber(input.bayScore),
     reasons: sanitizeStringList(input.reasons),
     warnings: sanitizeStringList(input.warnings),
+    referenceBasis: sanitizeStringList(input.referenceBasis),
   };
 }
 
@@ -322,6 +323,7 @@ function sanitizeCourseStrategyResult(value: unknown): CourseStrategyResult | nu
     zoneAnalysis: Array.isArray(input.zoneAnalysis) ? input.zoneAnalysis : [],
     keyRisks: sanitizeStringList(input.keyRisks),
     recommendations: sanitizeStringList(input.recommendations),
+    referenceBasis: sanitizeStringList(input.referenceBasis),
   };
 }
 

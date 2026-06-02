@@ -4,6 +4,7 @@ import type { RaceSessionReview } from "@/lib/raceSessionStore";
 import type { RaceState } from "@/lib/race/state/types";
 import type { DerivedLiveTacticalBoard } from "@/lib/race/tacticalBoard/deriveTacticalBoardFromRaceState";
 import type { TacticalBoardStatus } from "@/lib/race/tacticalBoard/types";
+import { getCoachReferenceBasis } from "@/lib/reference/decisionBasis";
 
 export type AiCoachBrief = {
   eyebrow: string;
@@ -13,6 +14,7 @@ export type AiCoachBrief = {
   footer: string;
   tone: "neutral" | "focus" | "warning" | "positive";
   readiness: "ready" | "needs_setup" | "watch";
+  referenceBasis: string[];
 };
 
 function formatDecision(
@@ -67,6 +69,11 @@ export function buildPreRaceCoachBrief(params: {
         "This advisory lane is structured now so a real model can take the same inputs later without changing the UI again.",
       tone: "neutral",
       readiness: "needs_setup",
+      referenceBasis: getCoachReferenceBasis({
+        mode: "pre_race",
+        hasDirectionalPlan: false,
+        confidenceFragile: true,
+      }),
     };
   }
 
@@ -103,6 +110,17 @@ export function buildPreRaceCoachBrief(params: {
         "When a real model is connected, this lane should synthesize weather, plan validity, and board setup into one launch-ready briefing.",
       tone: actionTone,
       readiness: "ready",
+      referenceBasis:
+        params.openingPlan.referenceBasis.length > 0
+          ? params.openingPlan.referenceBasis.slice(0, 3)
+          : getCoachReferenceBasis({
+              mode: "pre_race",
+              action: params.latestUpdate.action,
+              hasDirectionalPlan:
+                params.openingPlan.decision === "shore_first" ||
+                params.openingPlan.decision === "bay_first",
+              confidenceFragile: params.latestUpdate.confidence !== "high",
+            }),
     };
   }
 
@@ -122,6 +140,17 @@ export function buildPreRaceCoachBrief(params: {
       "This is the spot where a future model can turn the saved plan into a single pre-start briefing.",
     tone: "positive",
     readiness: "ready",
+    referenceBasis:
+      params.openingPlan.referenceBasis.length > 0
+        ? params.openingPlan.referenceBasis.slice(0, 3)
+        : getCoachReferenceBasis({
+            mode: "pre_race",
+            action: "hold_course",
+            hasDirectionalPlan:
+              params.openingPlan.decision === "shore_first" ||
+              params.openingPlan.decision === "bay_first",
+            confidenceFragile: params.openingPlan.confidence !== "high",
+          }),
   };
 }
 
@@ -163,6 +192,11 @@ export function buildLiveCoachBrief(params: {
           ? "focus"
           : "positive",
     readiness: overallConfidence === "none" ? "watch" : "ready",
+    referenceBasis: getCoachReferenceBasis({
+      mode: "live",
+      action: overallConfidence === "medium" ? "stay_flexible" : "hold_course",
+      confidenceFragile: overallConfidence === "low" || overallConfidence === "none",
+    }),
   };
 }
 
@@ -180,6 +214,10 @@ export function buildReviewCoachBrief(review: RaceSessionReview | null): AiCoach
         "This lane is meant to become the one-paragraph debrief a future model writes after the race.",
       tone: "neutral",
       readiness: "needs_setup",
+      referenceBasis: getCoachReferenceBasis({
+        mode: "review",
+        confidenceFragile: true,
+      }),
     };
   }
 
@@ -214,5 +252,9 @@ export function buildReviewCoachBrief(review: RaceSessionReview | null): AiCoach
           ? "focus"
           : "warning",
     readiness: review.decisionCount > 0 ? "ready" : "watch",
+    referenceBasis: getCoachReferenceBasis({
+      mode: "review",
+      confidenceFragile: review.decisionGrade === "mixed" || review.decisionGrade === "needs_work",
+    }),
   };
 }

@@ -105,6 +105,20 @@ export function CourseStrategyResultCard({
             </ul>
           </div>
         )}
+
+        {result.referenceBasis.length > 0 && (
+          <div className="rounded-lg border border-white/10 bg-white/5 p-3">
+            <h3 className="mb-2 text-sm font-semibold text-cyan-200">Reference basis</h3>
+            <ul className="space-y-1 text-xs text-white/75">
+              {result.referenceBasis.map((item, idx) => (
+                <li key={idx} className="flex gap-2">
+                  <span className="text-cyan-300">•</span>
+                  {item}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </div>
     </div>
   );
