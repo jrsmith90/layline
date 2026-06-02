@@ -8,7 +8,11 @@ import { AppPageHeader } from "@/components/layout/AppPageHeader";
 import { WorkflowDisclosure } from "@/components/layout/WorkflowDisclosure";
 import { WorkflowQuickLinks } from "@/components/navigation/WorkflowQuickLinks";
 import CourseChart from "@/components/race/CourseChart";
-import { formatCourseLabel, getCourseData } from "@/data/race/getCourseData";
+import {
+  formatCourseLabel,
+  getAllCourseIds,
+  getCourseData,
+} from "@/data/race/getCourseData";
 import { buildReviewCoachBrief } from "@/lib/ai/coach";
 import {
   formatOpeningLegTypeShort,
@@ -25,12 +29,14 @@ import {
   type LaylineLog,
   type Rating,
 } from "@/lib/logStore";
+import { parseGpxText } from "@/lib/race/gpxImport";
 import type { RaceStateSnapshot } from "@/lib/race/state/types";
 import {
   selectShiftHeadline,
   selectStartLineHeadline,
 } from "@/lib/race/tacticalBoard/selectors";
 import type { TacticalBoardSnapshot } from "@/lib/race/tacticalBoard/types";
+import { readJsonResponse } from "@/lib/readJsonResponse";
 import {
   buildRaceSessionReview,
   clearSessionTrimLogs,
@@ -40,14 +46,28 @@ import {
   exportRaceSessionJson,
   getMostRecentRaceSession,
   getRaceSessions,
+  importRaceSession,
   recoverRaceSessionsFromRepository,
   recoverTodayRaceSession,
   subscribeRaceSessionStore,
   updateRaceDecision,
   updateSessionTrimLog,
   type RaceDecisionRecord,
+  type RaceWeatherSample,
   type RaceSessionRepositoryRecoveryResult,
 } from "@/lib/raceSessionStore";
+
+const IMPORTABLE_COURSE_IDS = getAllCourseIds();
+
+type HistoricalWeatherImportResponse = {
+  error?: string;
+  samples?: RaceWeatherSample[];
+  sources?: {
+    topCount: number;
+    bottomCount: number;
+    riverCount: number;
+  };
+};
 
 function formatDateTime(iso?: string) {
   if (!iso) return "--";
@@ -428,6 +448,226 @@ function buildRecoveryNotice(
   return null;
 }
 
+function GpxImportPanel({
+  onImported,
+}: {
+  onImported: (sessionId: string, message: string, tone?: "info" | "warning") => void;
+}) {
+  const [files, setFiles] = useState<File[]>([]);
+  const [courseId, setCourseId] = useState("");
+  const [attachHistoricalWeather, setAttachHistoricalWeather] = useState(true);
+  const [isImporting, setIsImporting] = useState(false);
+  const [notice, setNotice] = useState<{
+    message: string;
+    tone: "info" | "warning";
+  } | null>(null);
+  const [inputKey, setInputKey] = useState(0);
+
+  async function importSelectedFiles() {
+    if (files.length === 0 || isImporting) return;
+
+    setIsImporting(true);
+    setNotice(null);
+
+    const importedSessionIds: string[] = [];
+    const errors: string[] = [];
+
+    for (const file of files) {
+      try {
+        const parsed = parseGpxText(await file.text(), file.name);
+        let weatherSamples: RaceWeatherSample[] = [];
+        const warnings = [...parsed.warnings];
+
+        if (attachHistoricalWeather) {
+          try {
+            const response = await fetch("/api/weather/history", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                startISO: parsed.startedAtISO,
+                endISO: parsed.endedAtISO,
+              }),
+            });
+            const payload = await readJsonResponse<HistoricalWeatherImportResponse>(response);
+
+            if (!response.ok) {
+              throw new Error(payload.error ?? "Historical weather import failed.");
+            }
+
+            weatherSamples = Array.isArray(payload.samples) ? payload.samples : [];
+
+            if (weatherSamples.length === 0) {
+              warnings.push(
+                "No historical weather observations matched this session's time range.",
+              );
+            }
+          } catch (error) {
+            warnings.push(
+              error instanceof Error
+                ? `Historical weather import failed: ${error.message}`
+                : "Historical weather import failed.",
+            );
+          }
+        }
+
+        const imported = importRaceSession({
+          fileName: file.name,
+          name: parsed.suggestedSessionName,
+          gpsTrack: parsed.track,
+          startedAtISO: parsed.startedAtISO,
+          endedAtISO: parsed.endedAtISO,
+          courseId: courseId || undefined,
+          weatherSamples,
+          warnings,
+        });
+
+        importedSessionIds.push(imported.id);
+      } catch (error) {
+        errors.push(
+          `${file.name}: ${
+            error instanceof Error ? error.message : "The file could not be imported."
+          }`,
+        );
+      }
+    }
+
+    setIsImporting(false);
+
+    if (importedSessionIds.length === 0) {
+      setNotice({
+        message: errors.join(" "),
+        tone: "warning",
+      });
+      return;
+    }
+
+    const importedCount = importedSessionIds.length;
+    const message = [
+      `Imported ${importedCount} GPX session${importedCount === 1 ? "" : "s"}.`,
+      courseId ? `Attached course ${formatCourseLabel(courseId)}.` : "No course attached.",
+      attachHistoricalWeather
+        ? "Historical weather was attached when observations were available."
+        : "Historical weather was skipped.",
+      errors.length
+        ? `${errors.length} file${errors.length === 1 ? "" : "s"} still failed to import.`
+        : "",
+    ]
+      .filter(Boolean)
+      .join(" ");
+    const tone = errors.length ? "warning" : "info";
+
+    setNotice({
+      message,
+      tone,
+    });
+    setFiles([]);
+    setInputKey((current) => current + 1);
+    onImported(importedSessionIds[importedSessionIds.length - 1], message, tone);
+  }
+
+  return (
+    <section className="layline-panel p-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <div className="text-xs font-black uppercase tracking-[0.16em] text-[color:var(--muted)]">
+            GPX Import
+          </div>
+          <h2 className="mt-1 text-xl font-black">Import track files into review</h2>
+          <p className="mt-1 text-sm text-[color:var(--muted)]">
+            GPX tracks become ended race sessions with derived COG and SOG. You can also attach a
+            course and fetch historical weather for the session timeline.
+          </p>
+        </div>
+        <div className="rounded-full border border-white/10 bg-black/20 px-3 py-2 text-xs font-black uppercase tracking-wide">
+          {files.length} file{files.length === 1 ? "" : "s"} selected
+        </div>
+      </div>
+
+      <div className="mt-4 grid gap-3 md:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
+        <label className="space-y-1">
+          <div className="text-xs font-black uppercase tracking-[0.16em] text-[color:var(--muted)]">
+            GPX files
+          </div>
+          <input
+            key={inputKey}
+            type="file"
+            accept=".gpx"
+            multiple
+            onChange={(event) => setFiles(Array.from(event.target.files ?? []))}
+            className="w-full rounded-xl border border-[color:var(--divider)] bg-black/30 p-3 text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-white/10 file:px-3 file:py-2 file:text-sm file:font-bold"
+          />
+        </label>
+
+        <label className="space-y-1">
+          <div className="text-xs font-black uppercase tracking-[0.16em] text-[color:var(--muted)]">
+            Optional course
+          </div>
+          <select
+            className="w-full rounded-xl border border-[color:var(--divider)] bg-black/30 p-3"
+            value={courseId}
+            onChange={(event) => setCourseId(event.target.value)}
+          >
+            <option value="">No course attachment</option>
+            {IMPORTABLE_COURSE_IDS.map((candidate) => (
+              <option key={candidate} value={candidate} className="bg-slate-900">
+                {formatCourseLabel(candidate)}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+
+      <label className="mt-3 flex items-start gap-3 rounded-xl border border-[color:var(--divider)] bg-black/20 p-3 text-sm">
+        <input
+          type="checkbox"
+          checked={attachHistoricalWeather}
+          onChange={(event) => setAttachHistoricalWeather(event.target.checked)}
+          className="mt-1 h-4 w-4"
+        />
+        <span>
+          Attach historical weather from official Annapolis, Thomas Point, and KNAK sources when
+          those observations are available for the GPX time range.
+        </span>
+      </label>
+
+      {files.length > 0 && (
+        <div className="mt-3 rounded-xl border border-white/10 bg-black/20 p-3 text-sm leading-6">
+          {files.map((file) => file.name).join(" · ")}
+        </div>
+      )}
+
+      <div className="mt-4 flex flex-wrap items-center gap-3">
+        <button
+          type="button"
+          onClick={importSelectedFiles}
+          disabled={files.length === 0 || isImporting}
+          className="rounded-xl border border-[color:var(--favorable)] bg-[color:var(--favorable)]/15 px-4 py-3 text-sm font-black uppercase tracking-wide text-teal-50 disabled:opacity-50"
+        >
+          {isImporting ? "Importing..." : "Import GPX"}
+        </button>
+        <div className="text-xs text-[color:var(--muted)]">
+          Derived sessions keep the track, auto-detect tacks, and can feed the full review screen.
+        </div>
+      </div>
+
+      {notice && (
+        <div
+          className={[
+            "mt-3 rounded-xl border p-3 text-sm",
+            notice.tone === "warning"
+              ? "border-amber-300/35 bg-amber-300/10 text-amber-50"
+              : "border-cyan-400/30 bg-cyan-400/10 text-cyan-50",
+          ].join(" ")}
+        >
+          {notice.message}
+        </div>
+      )}
+    </section>
+  );
+}
+
 export default function RaceReviewPage() {
   const [, refresh] = useReducer((value: number) => value + 1, 0);
   const sessions = getRaceSessions();
@@ -633,6 +873,17 @@ export default function RaceReviewPage() {
           </div>
         )}
       </section>
+
+      <GpxImportPanel
+        onImported={(sessionId, message, tone = "info") => {
+          setSelectedId(sessionId);
+          setRecoveryNotice({
+            message,
+            tone,
+          });
+          refresh();
+        }}
+      />
 
       {!session || !review ? (
         <>

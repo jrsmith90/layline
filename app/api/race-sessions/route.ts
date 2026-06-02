@@ -47,7 +47,7 @@ type StoredRaceSession = Record<string, unknown> & {
   startedAtISO: string;
   endedAtISO?: string;
   status?: "active" | "ended";
-  createdFrom?: "live" | "recovered";
+  createdFrom?: "live" | "recovered" | "imported";
   updatedAtISO?: string;
   gpsTrack?: StoredPoint[];
   weatherSamples?: StoredWeatherSample[];

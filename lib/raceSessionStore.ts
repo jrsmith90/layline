@@ -1,5 +1,6 @@
 "use client";
 
+import { getCourseData } from "@/data/race/getCourseData";
 import type { MarkProgressCall, MarkProgressResult } from "@/lib/race/courseTracker";
 import type {
   RaceState,
@@ -41,7 +42,7 @@ export type RaceDecisionKind =
 
 export type RaceWeatherSample = {
   atISO: string;
-  source: "live-weather";
+  source: "live-weather" | "historical-weather";
   topWindAvgKt?: number;
   topWindGustKt?: number;
   topWindDirectionDeg?: number;
@@ -102,7 +103,7 @@ export type RaceSession = {
   startedAtISO: string;
   endedAtISO?: string;
   status: RaceSessionStatus;
-  createdFrom?: "live" | "recovered";
+  createdFrom?: "live" | "recovered" | "imported";
   crewNotes?: string;
   updatedAtISO?: string;
   gpsTrack: GpsTrackPoint[];
@@ -181,6 +182,17 @@ export type RaceSessionRepositoryRecoveryResult = {
 export type RecoverTodayRaceSessionResult = {
   session: RaceSession;
   recovery: RaceSessionRepositoryRecoveryResult;
+};
+
+export type ImportRaceSessionInput = {
+  fileName: string;
+  gpsTrack: GpsTrackPoint[];
+  startedAtISO: string;
+  endedAtISO: string;
+  name?: string;
+  courseId?: string;
+  weatherSamples?: RaceWeatherSample[];
+  warnings?: string[];
 };
 
 type RaceSessionStoreListener = () => void;
@@ -875,6 +887,85 @@ export function getMostRecentRaceSession(): RaceSession | null {
 
 export function upsertRaceSession(session: RaceSession) {
   return updateSessionInStore(session);
+}
+
+function sortTrack(points: GpsTrackPoint[]) {
+  return points
+    .slice()
+    .sort((left, right) => left.at.localeCompare(right.at));
+}
+
+function sortWeatherSamples(samples: RaceWeatherSample[]) {
+  return uniqueByKey(
+    samples,
+    (sample) => sample.atISO,
+    (left, right) => left.atISO.localeCompare(right.atISO),
+  );
+}
+
+function buildImportedSessionNotes(input: ImportRaceSessionInput) {
+  const notes = [
+    `Imported from ${input.fileName}.`,
+    "COG and SOG were derived from the GPX trackpoint timeline.",
+  ];
+
+  if (input.courseId) {
+    notes.push(`Attached course: ${input.courseId}.`);
+  }
+
+  if ((input.weatherSamples?.length ?? 0) > 0) {
+    notes.push(
+      `Attached ${input.weatherSamples?.length ?? 0} historical weather sample${
+        input.weatherSamples?.length === 1 ? "" : "s"
+      } from official sources when available.`,
+    );
+  }
+
+  if (input.warnings?.length) {
+    notes.push(`Import notes: ${input.warnings.join(" ")}`);
+  }
+
+  return notes.join(" ");
+}
+
+export function importRaceSession(input: ImportRaceSessionInput) {
+  const now = nowISO();
+  const gpsTrack = sortTrack(input.gpsTrack);
+  const weatherSamples = sortWeatherSamples(input.weatherSamples ?? []);
+  const courseSummary = input.courseId ? getCourseData(input.courseId) : null;
+  const tackCalibrations = detectAutomaticTackCalibrations(gpsTrack);
+  const tackRecords = detectAutomaticTackRecords(gpsTrack);
+  const session: RaceSession = {
+    id: safeUUID(),
+    name: input.name?.trim() || "Imported GPX Session",
+    eventId: courseSummary?.eventId,
+    courseId: input.courseId,
+    openingBias: null,
+    startedAtISO: input.startedAtISO,
+    endedAtISO: input.endedAtISO,
+    status: "ended",
+    createdFrom: "imported",
+    crewNotes: buildImportedSessionNotes(input),
+    updatedAtISO: now,
+    gpsTrack,
+    weatherSamples,
+    decisions: [],
+    raceStateSnapshots: [],
+    tacticalBoardSnapshots: [],
+    trimLogs: [],
+    tackCalibrations,
+    tackRecords,
+  };
+
+  const snapshot = getCachedSnapshot();
+  commitSnapshot({
+    ...snapshot,
+    sessions: mergeRaceSessions(snapshot.sessions, [session]),
+    activeSessionId: snapshot.activeSessionId,
+    updatedAtISO: now,
+  });
+
+  return getRaceSession(session.id) ?? session;
 }
 
 export function startRaceSession(input: {
