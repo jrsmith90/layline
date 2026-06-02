@@ -43,6 +43,7 @@ import {
   deleteSessionTrimLog,
   deleteRaceSession,
   downloadTextFile,
+  archiveRaceSessionOutsideWindow,
   editRaceSessionTimeRange,
   exportRaceSessionJson,
   getMostRecentRaceSession,
@@ -472,14 +473,14 @@ function SessionReplayPanel({
   weatherSamples,
   initialFocusISO,
   hasCourseOverlay,
-  onKeepWindow,
+  onArchiveOutsideWindow,
   onDeleteWindow,
 }: {
   track: GpsTrackPoint[];
   weatherSamples: RaceWeatherSample[];
   initialFocusISO?: string | null;
   hasCourseOverlay: boolean;
-  onKeepWindow: (startISO: string, endISO: string) => void;
+  onArchiveOutsideWindow: (startISO: string, endISO: string) => void;
   onDeleteWindow: (startISO: string, endISO: string) => void;
 }) {
   const points = track.filter(
@@ -698,11 +699,11 @@ function SessionReplayPanel({
               disabled={!selectedWindow || selectionPointCount < 2}
               onClick={() => {
                 if (!selectedWindow) return;
-                onKeepWindow(selectedWindow.startISO, selectedWindow.endISO);
+                onArchiveOutsideWindow(selectedWindow.startISO, selectedWindow.endISO);
               }}
               className="rounded-xl border border-emerald-400/30 bg-emerald-400/10 px-3 py-2 text-xs font-black uppercase tracking-wide text-emerald-50 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              Keep Marked Window
+              Archive Outside Window
             </button>
             <button
               type="button"
@@ -725,7 +726,7 @@ function SessionReplayPanel({
                 {selectionPointCount} pts)
               </>
             ) : (
-              "Mark a start and end point on the replay to trim away motoring time at the beginning or end, or delete a middle block."
+              "Mark a start and end point on the replay, then archive everything outside that window or delete a middle block."
             )}
           </div>
         </div>
@@ -1603,21 +1604,47 @@ export default function RaceReviewPage() {
     });
   }
 
-  function applySessionTimeEdit(
-    mode: "keep_window" | "delete_window",
-    startISO: string,
-    endISO: string,
-  ) {
+  function archiveOutsideReplayWindow(startISO: string, endISO: string) {
     if (!session) return;
 
-    const actionLabel =
-      mode === "keep_window"
-        ? "keep only the selected replay window"
-        : "delete the selected replay window";
     const confirmed = window.confirm(
-      `This will ${actionLabel} from ${new Date(startISO).toLocaleString()} to ${new Date(
+      `This will keep only the replay window from ${new Date(startISO).toLocaleString()} to ${new Date(
         endISO,
-      ).toLocaleString()}. GPS track, weather, saved calls, snapshots, and trim logs in that time edit will be updated. Continue?`,
+      ).toLocaleString()} in the current session, archive the time outside that window as separate session segments, and then redo the review coaching. Continue?`,
+    );
+
+    if (!confirmed) return;
+
+    try {
+      const result = archiveRaceSessionOutsideWindow(session.id, {
+        startISO,
+        endISO,
+      });
+      setReplayFocusRequest(null);
+      setRecoveryNotice({
+        message: `Kept the replay window from ${formatDateTime(result.session.startedAtISO)} to ${formatDateTime(
+          result.session.endedAtISO,
+        )} and created ${result.archivedSessions.length} archived session${
+          result.archivedSessions.length === 1 ? "" : "s"
+        } from the outside time.`,
+        tone: "info",
+      });
+      refresh();
+    } catch (error) {
+      setRecoveryNotice({
+        message: error instanceof Error ? error.message : "Archiving outside the replay window failed.",
+        tone: "warning",
+      });
+    }
+  }
+
+  function deleteReplayWindow(startISO: string, endISO: string) {
+    if (!session) return;
+
+    const confirmed = window.confirm(
+      `This will permanently remove the replay window from ${new Date(startISO).toLocaleString()} to ${new Date(
+        endISO,
+      ).toLocaleString()} from the current session and then redo the review coaching. Continue?`,
     );
 
     if (!confirmed) return;
@@ -1626,22 +1653,20 @@ export default function RaceReviewPage() {
       const updated = editRaceSessionTimeRange(session.id, {
         startISO,
         endISO,
-        mode,
+        mode: "delete_window",
       });
       setReplayFocusRequest(null);
       setRecoveryNotice({
-        message:
-          mode === "keep_window"
-            ? `Kept only the window from ${formatDateTime(updated.startedAtISO)} to ${formatDateTime(
-                updated.endedAtISO,
-              )}.`
-            : `Deleted the window from ${formatDateTime(startISO)} to ${formatDateTime(endISO)}.`,
+        message: `Deleted the window from ${formatDateTime(startISO)} to ${formatDateTime(
+          endISO,
+        )}. Review coaching was recalculated for the remaining track.`,
         tone: "info",
       });
+      setSelectedId(updated.id);
       refresh();
     } catch (error) {
       setRecoveryNotice({
-        message: error instanceof Error ? error.message : "Session time edit failed.",
+        message: error instanceof Error ? error.message : "Deleting the replay window failed.",
         tone: "warning",
       });
     }
@@ -1992,12 +2017,8 @@ export default function RaceReviewPage() {
                   replayFocusRequest?.sessionId === session.id ? replayFocusRequest.atISO : null
                 }
                 hasCourseOverlay={reviewCourseData != null}
-                onKeepWindow={(startISO, endISO) =>
-                  applySessionTimeEdit("keep_window", startISO, endISO)
-                }
-                onDeleteWindow={(startISO, endISO) =>
-                  applySessionTimeEdit("delete_window", startISO, endISO)
-                }
+                onArchiveOutsideWindow={archiveOutsideReplayWindow}
+                onDeleteWindow={deleteReplayWindow}
               />
             )}
 

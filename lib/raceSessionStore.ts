@@ -560,6 +560,24 @@ function updateSessionInStore(session: RaceSession) {
   return commitSnapshot(nextSnapshot);
 }
 
+function replaceSessionInStore(session: RaceSession) {
+  const snapshot = getCachedSnapshot();
+  const updatedSession = normalizeRaceSession({
+    ...session,
+    updatedAtISO: nowISO(),
+  });
+  const nextSnapshot = {
+    ...snapshot,
+    sessions: mergeRaceSessions(
+      snapshot.sessions.filter((candidate) => candidate.id !== updatedSession.id),
+      [updatedSession],
+    ),
+    updatedAtISO: updatedSession.updatedAtISO ?? nowISO(),
+  };
+
+  return commitSnapshot(nextSnapshot);
+}
+
 function trimRaceStateSnapshots(snapshots: RaceStateSnapshot[]) {
   return snapshots
     .slice()
@@ -925,6 +943,51 @@ function shouldKeepIso(
   return mode === "keep_window" ? isWithin : !isWithin;
 }
 
+function appendSessionTrimNote(existing: string | undefined, note: string) {
+  const trimmedExisting = existing?.trim();
+  return trimmedExisting ? `${trimmedExisting} ${note}` : note;
+}
+
+function buildSessionSlice(
+  session: RaceSession,
+  options: {
+    keepTime: (value: string) => boolean;
+    id?: string;
+    name?: string;
+    crewNotes?: string;
+  },
+) {
+  const gpsTrack = sortTrack(session.gpsTrack.filter((point) => options.keepTime(point.at)));
+  if (gpsTrack.length < 2) return null;
+
+  return normalizeRaceSession({
+    ...session,
+    id: options.id ?? session.id,
+    name: options.name ?? session.name,
+    startedAtISO: gpsTrack[0].at,
+    endedAtISO: session.status === "ended" ? gpsTrack.at(-1)?.at ?? session.endedAtISO : session.endedAtISO,
+    crewNotes: options.crewNotes ?? session.crewNotes,
+    gpsTrack,
+    weatherSamples: sortWeatherSamples(
+      session.weatherSamples.filter((sample) => options.keepTime(sample.atISO)),
+    ),
+    decisions: session.decisions.filter((decision) => options.keepTime(decision.atISO)),
+    raceStateSnapshots: trimRaceStateSnapshots(
+      session.raceStateSnapshots.filter((snapshot) => options.keepTime(snapshot.capturedAtISO)),
+    ),
+    tacticalBoardSnapshots: trimTacticalBoardSnapshots(
+      session.tacticalBoardSnapshots.filter((snapshot) =>
+        options.keepTime(snapshot.capturedAtISO),
+      ),
+    ),
+    trimLogs: session.trimLogs.filter((log) => options.keepTime(log.createdAtISO)),
+    tackCalibrations: session.tackCalibrations.filter((calibration) =>
+      options.keepTime(calibration.at),
+    ),
+    tackRecords: session.tackRecords.filter((record) => options.keepTime(record.atISO)),
+  });
+}
+
 function buildImportedSessionNotes(input: ImportRaceSessionInput) {
   const notes = [
     `Imported from ${input.fileName}.`,
@@ -1087,52 +1150,84 @@ export function editRaceSessionTimeRange(
   }
 
   const { startISO, endISO } = orderTimeWindow(params.startISO, params.endISO);
-  const gpsTrack = sortTrack(
-    session.gpsTrack.filter((point) => shouldKeepIso(point.at, startISO, endISO, params.mode)),
-  );
+  const updated = buildSessionSlice(session, {
+    keepTime: (value) => shouldKeepIso(value, startISO, endISO, params.mode),
+    crewNotes: appendSessionTrimNote(
+      session.crewNotes,
+      `Time edited on ${nowISO()} from ${startISO} to ${endISO} using ${params.mode}.`,
+    ),
+  });
 
-  if (gpsTrack.length < 2) {
+  if (!updated) {
     throw new Error("The edited session would have fewer than 2 GPS points. Widen the selection.");
   }
 
-  const updated: RaceSession = {
-    ...session,
-    startedAtISO: gpsTrack[0].at,
-    endedAtISO: session.status === "ended" ? gpsTrack.at(-1)?.at ?? session.endedAtISO : session.endedAtISO,
-    gpsTrack,
-    weatherSamples: sortWeatherSamples(
-      session.weatherSamples.filter((sample) =>
-        shouldKeepIso(sample.atISO, startISO, endISO, params.mode),
-      ),
-    ),
-    decisions: session.decisions.filter((decision) =>
-      shouldKeepIso(decision.atISO, startISO, endISO, params.mode),
-    ),
-    raceStateSnapshots: trimRaceStateSnapshots(
-      session.raceStateSnapshots.filter((snapshot) =>
-        shouldKeepIso(snapshot.capturedAtISO, startISO, endISO, params.mode),
-      ),
-    ),
-    tacticalBoardSnapshots: trimTacticalBoardSnapshots(
-      session.tacticalBoardSnapshots.filter((snapshot) =>
-        shouldKeepIso(snapshot.capturedAtISO, startISO, endISO, params.mode),
-      ),
-    ),
-    trimLogs: session.trimLogs.filter((log) =>
-      shouldKeepIso(log.createdAtISO, startISO, endISO, params.mode),
-    ),
-    tackCalibrations: session.tackCalibrations.filter((calibration) =>
-      calibration.source === "manual"
-        ? true
-        : shouldKeepIso(calibration.at, startISO, endISO, params.mode),
-    ),
-    tackRecords: session.tackRecords.filter((record) =>
-      shouldKeepIso(record.atISO, startISO, endISO, params.mode),
-    ),
-  };
-
-  upsertRaceSession(updated);
+  replaceSessionInStore(updated);
   return getRaceSession(id) ?? updated;
+}
+
+export function archiveRaceSessionOutsideWindow(
+  id: string,
+  params: {
+    startISO: string;
+    endISO: string;
+  },
+) {
+  const session = getRaceSession(id);
+  if (!session) {
+    throw new Error("Race session not found.");
+  }
+
+  const { startISO, endISO } = orderTimeWindow(params.startISO, params.endISO);
+  const keptSession = buildSessionSlice(session, {
+    keepTime: (value) => isoWithinWindow(value, startISO, endISO),
+    crewNotes: appendSessionTrimNote(
+      session.crewNotes,
+      `Trimmed on ${nowISO()} to keep only the window from ${startISO} to ${endISO}.`,
+    ),
+  });
+
+  if (!keptSession) {
+    throw new Error("The kept window would have fewer than 2 GPS points. Widen the selection.");
+  }
+
+  const beforeArchive = buildSessionSlice(session, {
+    keepTime: (value) => value.localeCompare(startISO) < 0,
+    id: safeUUID(),
+    name: `${session.name} · Archived Before Trim`,
+    crewNotes: appendSessionTrimNote(
+      session.crewNotes,
+      `Archived when trimming ${session.name} to keep only ${startISO} through ${endISO}. This archive holds the time before the kept window.`,
+    ),
+  });
+
+  const afterArchive = buildSessionSlice(session, {
+    keepTime: (value) => value.localeCompare(endISO) > 0,
+    id: safeUUID(),
+    name: `${session.name} · Archived After Trim`,
+    crewNotes: appendSessionTrimNote(
+      session.crewNotes,
+      `Archived when trimming ${session.name} to keep only ${startISO} through ${endISO}. This archive holds the time after the kept window.`,
+    ),
+  });
+
+  const archivedSessions = [beforeArchive, afterArchive].filter(
+    (candidate): candidate is RaceSession => candidate != null,
+  );
+  const snapshot = getCachedSnapshot();
+  commitSnapshot({
+    ...snapshot,
+    sessions: mergeRaceSessions(
+      snapshot.sessions.filter((candidate) => candidate.id !== session.id),
+      [keptSession, ...archivedSessions],
+    ),
+    updatedAtISO: nowISO(),
+  });
+
+  return {
+    session: getRaceSession(id) ?? keptSession,
+    archivedSessions: archivedSessions.map((candidate) => getRaceSession(candidate.id) ?? candidate),
+  };
 }
 
 export function appendRaceGpsSamples(
