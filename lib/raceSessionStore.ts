@@ -1390,15 +1390,271 @@ function averageSpeed(points: GpsTrackPoint[]) {
   );
 }
 
+function distanceNmBetweenPoints(start: GpsTrackPoint, end: GpsTrackPoint) {
+  const toRad = (value: number) => (value * Math.PI) / 180;
+  const radiusMeters = 6_371_000;
+  const phi1 = toRad(start.lat);
+  const phi2 = toRad(end.lat);
+  const deltaPhi = toRad(end.lat - start.lat);
+  const deltaLambda = toRad(end.lon - start.lon);
+  const a =
+    Math.sin(deltaPhi / 2) ** 2 +
+    Math.cos(phi1) * Math.cos(phi2) * Math.sin(deltaLambda / 2) ** 2;
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return (radiusMeters * c) / 1852;
+}
+
+function segmentDistanceNm(points: GpsTrackPoint[]) {
+  let distanceNm = 0;
+
+  for (let index = 1; index < points.length; index += 1) {
+    distanceNm += distanceNmBetweenPoints(points[index - 1], points[index]);
+  }
+
+  return distanceNm;
+}
+
+function headingDeltaDeg(left: number, right: number) {
+  return Math.abs(((right - left + 540) % 360) - 180);
+}
+
+function segmentHeadingChurnDeg(points: GpsTrackPoint[]) {
+  const headings = points
+    .map((point) => point.cogDeg)
+    .filter((value): value is number => typeof value === "number" && Number.isFinite(value));
+
+  if (headings.length < 2) return null;
+
+  return average(
+    headings
+      .slice(1)
+      .map((heading, index) => headingDeltaDeg(headings[index], heading)),
+  );
+}
+
+function segmentLowSpeedSharePct(points: GpsTrackPoint[], slowThresholdKt: number) {
+  const speeds = points
+    .map(speedKt)
+    .filter((value): value is number => typeof value === "number" && Number.isFinite(value));
+
+  if (!speeds.length) return null;
+
+  const slowCount = speeds.filter((speed) => speed < slowThresholdKt).length;
+  return (slowCount / speeds.length) * 100;
+}
+
+function segmentPauseCount(points: GpsTrackPoint[], pauseThresholdKt = 1.2) {
+  let pauseCount = 0;
+  let inPause = false;
+
+  for (const point of points) {
+    const speed = speedKt(point);
+    const paused = typeof speed === "number" && speed < pauseThresholdKt;
+
+    if (paused && !inPause) {
+      pauseCount += 1;
+      inPause = true;
+    } else if (!paused) {
+      inPause = false;
+    }
+  }
+
+  return pauseCount;
+}
+
+function tackRecordsInWindow(records: TackRecord[], startISO: string, endISO: string) {
+  const startMs = new Date(startISO).getTime();
+  const endMs = new Date(endISO).getTime();
+  if (!Number.isFinite(startMs) || !Number.isFinite(endMs)) return [];
+
+  return records.filter((record) => {
+    const recordMs = new Date(record.atISO).getTime();
+    return Number.isFinite(recordMs) && recordMs >= startMs && recordMs <= endMs;
+  });
+}
+
+type TrackSliceAnalysis = {
+  averageSogKt: number | null;
+  sailedDistanceNm: number | null;
+  straightLineDistanceNm: number | null;
+  extraDistancePct: number | null;
+  lowSpeedSharePct: number | null;
+  headingChurnDeg: number | null;
+  pauseCount: number;
+  likelyManeuverCount: number;
+};
+
+function analyzeTrackSlice(
+  points: GpsTrackPoint[],
+  tackRecords: TackRecord[],
+  options: { raceAverageSogKt?: number | null; startISO?: string; endISO?: string } = {},
+): TrackSliceAnalysis | null {
+  if (points.length < 2) return null;
+
+  const averageSogKt = averageSpeed(points);
+  const sailedDistanceNm = segmentDistanceNm(points);
+  const straightLineDistanceNm =
+    points.length >= 2 ? distanceNmBetweenPoints(points[0], points[points.length - 1]) : null;
+  const extraDistancePct =
+    straightLineDistanceNm == null || straightLineDistanceNm < 0.02
+      ? null
+      : ((sailedDistanceNm / straightLineDistanceNm) - 1) * 100;
+  const slowThresholdKt = Math.max(2, (options.raceAverageSogKt ?? averageSogKt ?? 4) * 0.75);
+  const lowSpeedSharePct = segmentLowSpeedSharePct(points, slowThresholdKt);
+  const headingChurnDeg = segmentHeadingChurnDeg(points);
+  const pauseCount = segmentPauseCount(points);
+  const likelyManeuverCount =
+    options.startISO && options.endISO
+      ? tackRecordsInWindow(tackRecords, options.startISO, options.endISO).length
+      : 0;
+
+  return {
+    averageSogKt,
+    sailedDistanceNm,
+    straightLineDistanceNm,
+    extraDistancePct,
+    lowSpeedSharePct,
+    headingChurnDeg,
+    pauseCount,
+    likelyManeuverCount,
+  };
+}
+
+function trackSliceFeedback(
+  analysis: TrackSliceAnalysis,
+  outcome: "better" | "same" | "worse",
+) {
+  const feedback: string[] = [];
+
+  if (outcome === "worse") {
+    if (analysis.extraDistancePct != null && analysis.extraDistancePct >= 18) {
+      feedback.push(
+        `The path sailed about ${analysis.extraDistancePct.toFixed(0)}% more distance than the straight-line progress, so the loss came from extra distance as much as pace.`,
+      );
+    }
+
+    if (analysis.lowSpeedSharePct != null && analysis.lowSpeedSharePct >= 25) {
+      feedback.push(
+        `A large share of the segment stayed slow, which points to a pace or acceleration problem before it became a routing problem.`,
+      );
+    }
+
+    if (analysis.headingChurnDeg != null && analysis.headingChurnDeg >= 12) {
+      feedback.push(
+        `COG changed a lot through the segment, which suggests corrections, unstable lane holding, or not committing to one mode early enough.`,
+      );
+    }
+
+    if (analysis.likelyManeuverCount >= 2) {
+      feedback.push(
+        `There were ${analysis.likelyManeuverCount} likely maneuvers in this window, so maneuver cost may have been a bigger issue than pure boatspeed.`,
+      );
+    }
+
+    if (analysis.pauseCount >= 1 && (analysis.lowSpeedSharePct ?? 0) >= 20) {
+      feedback.push(
+        `The boat spent part of the segment near stop-speed, which usually means the mode broke down before the next call stabilized.`,
+      );
+    }
+  } else if (outcome === "better") {
+    if (
+      analysis.extraDistancePct != null &&
+      analysis.extraDistancePct <= 10 &&
+      analysis.headingChurnDeg != null &&
+      analysis.headingChurnDeg <= 8
+    ) {
+      feedback.push(
+        "The track stayed direct and calm, so this gain looks like committed lane management instead of a lucky speed spike.",
+      );
+    }
+
+    if (analysis.lowSpeedSharePct != null && analysis.lowSpeedSharePct <= 12) {
+      feedback.push(
+        "Speed stayed alive through most of the segment, which suggests the boat was kept in a sustainable mode rather than repeatedly rebuilding pace.",
+      );
+    }
+
+    if (analysis.likelyManeuverCount === 0) {
+      feedback.push(
+        "This section avoided obvious maneuver cost, so the advantage likely came from holding a cleaner lane for longer.",
+      );
+    }
+  } else {
+    if (analysis.extraDistancePct != null && analysis.extraDistancePct >= 20) {
+      feedback.push(
+        "Speed was close to average, but the path itself still looked expensive. Review whether the boat sailed extra distance without a clear gain.",
+      );
+    }
+
+    if (analysis.headingChurnDeg != null && analysis.headingChurnDeg >= 12) {
+      feedback.push(
+        "The segment was pace-neutral but not especially clean, so the next gain may come from fewer corrections instead of a different side choice.",
+      );
+    }
+  }
+
+  if (feedback.length === 0) {
+    if (outcome === "worse") {
+      feedback.push(
+        "This segment was slower than the race average, but the track does not isolate one single failure. Review pressure, lane quality, and trim together.",
+      );
+    } else if (outcome === "better") {
+      feedback.push(
+        "This segment beat the race average with a cleaner overall shape. Treat it as a repeatable mode worth copying.",
+      );
+    } else {
+      feedback.push(
+        "This segment was close to average. Look for clearer setup differences before changing your playbook around it.",
+      );
+    }
+  }
+
+  return feedback;
+}
+
+function primarySegmentRecommendation(
+  analysis: TrackSliceAnalysis,
+  outcome: "better" | "same" | "worse",
+) {
+  if (outcome === "better") {
+    if (analysis.extraDistancePct != null && analysis.extraDistancePct <= 10) {
+      return "This section won by staying direct. Repeat the calmer path and resist rescue turns once the lane is good enough.";
+    }
+
+    return "This section beat the race average. Repeat the mode, lane, and trim setup that produced it.";
+  }
+
+  if (outcome === "worse") {
+    if (analysis.lowSpeedSharePct != null && analysis.lowSpeedSharePct >= 25) {
+      return "This loss looks like a slow-mode problem first. Rebuild pace before spending more tactical capital on side choice.";
+    }
+
+    if (analysis.extraDistancePct != null && analysis.extraDistancePct >= 18) {
+      return "This loss looks path-driven. Commit earlier and avoid paying extra distance unless the gain is obvious.";
+    }
+
+    if (analysis.likelyManeuverCount >= 2) {
+      return "Treat each extra maneuver as expensive here. Hold the lane longer once pressure and trim are acceptable.";
+    }
+
+    return "This section trailed the race average. Review course choice, lane quality, trim, and whether the boat stayed in pressure.";
+  }
+
+  return "This section was close to the race average. Look for cleaner evidence before changing the playbook.";
+}
+
 function autoOutcomeForDecision(
   decision: RaceDecisionRecord,
   track: GpsTrackPoint[],
+  tackRecords: TackRecord[],
 ): RaceDecisionRecord {
   if (decision.outcome) return decision;
 
-  const before = averageSpeed(gpsWindow(track, decision.atISO, 90, 0));
-  const after = averageSpeed(gpsWindow(track, decision.atISO, 0, 120));
-  if (before == null || after == null) {
+  const beforeWindow = gpsWindow(track, decision.atISO, 90, 0);
+  const afterWindow = gpsWindow(track, decision.atISO, 0, 120);
+  const before = averageSpeed(beforeWindow);
+  const after = averageSpeed(afterWindow);
+  if (before == null || after == null || beforeWindow.length < 2 || afterWindow.length < 2) {
     return {
       ...decision,
       outcome: "same",
@@ -1408,13 +1664,52 @@ function autoOutcomeForDecision(
 
   const delta = after - before;
   const outcome = delta >= 0.25 ? "better" : delta <= -0.25 ? "worse" : "same";
+  const raceAverageSogKt = averageSpeed(track);
+  const beforeAnalysis = analyzeTrackSlice(beforeWindow, tackRecords, {
+    raceAverageSogKt,
+    startISO: beforeWindow[0]?.at,
+    endISO: beforeWindow[beforeWindow.length - 1]?.at,
+  });
+  const afterAnalysis = analyzeTrackSlice(afterWindow, tackRecords, {
+    raceAverageSogKt,
+    startISO: afterWindow[0]?.at,
+    endISO: afterWindow[afterWindow.length - 1]?.at,
+  });
+  const analysisFeedback =
+    afterAnalysis != null ? trackSliceFeedback(afterAnalysis, outcome) : [];
+  const directionSummary =
+    afterAnalysis?.extraDistancePct != null &&
+    beforeAnalysis?.extraDistancePct != null &&
+    afterAnalysis.extraDistancePct + 4 < beforeAnalysis.extraDistancePct
+      ? "The path also became more direct after the call."
+      : afterAnalysis?.headingChurnDeg != null &&
+          beforeAnalysis?.headingChurnDeg != null &&
+          afterAnalysis.headingChurnDeg + 3 < beforeAnalysis.headingChurnDeg
+        ? "The track looked calmer after the call, not just faster."
+        : "";
 
   return {
     ...decision,
     outcome,
+    inputs: {
+      ...decision.inputs,
+      analysisFeedback,
+      autoWindowStartAtISO: afterWindow[0]?.at,
+      autoWindowEndAtISO: afterWindow[afterWindow.length - 1]?.at,
+      afterAverageSogKt: afterAnalysis?.averageSogKt == null ? null : Number(afterAnalysis.averageSogKt.toFixed(2)),
+      afterExtraDistancePct:
+        afterAnalysis?.extraDistancePct == null ? null : Number(afterAnalysis.extraDistancePct.toFixed(1)),
+      afterHeadingChurnDeg:
+        afterAnalysis?.headingChurnDeg == null ? null : Number(afterAnalysis.headingChurnDeg.toFixed(1)),
+    },
     coachingNote:
       decision.coachingNote ??
-      `Auto-rated from GPS: speed changed ${delta >= 0 ? "+" : ""}${delta.toFixed(1)} kt after the call.`,
+      [
+        `Auto-rated from GPS: speed changed ${delta >= 0 ? "+" : ""}${delta.toFixed(1)} kt after the call.`,
+        directionSummary,
+      ]
+        .filter(Boolean)
+        .join(" "),
   };
 }
 
@@ -1441,6 +1736,14 @@ function buildAutoTrackDecisions(session: RaceSession) {
 
     const delta = segmentAverage - dayAverage;
     const outcome = delta >= 0.25 ? "better" : delta <= -0.25 ? "worse" : "same";
+    const segmentStartAtISO = segment[0].at;
+    const segmentEndAtISO = segment[segment.length - 1].at;
+    const analysis = analyzeTrackSlice(segment, session.tackRecords, {
+      raceAverageSogKt: dayAverage,
+      startISO: segmentStartAtISO,
+      endISO: segmentEndAtISO,
+    });
+    if (!analysis) continue;
     const label =
       outcome === "better"
         ? "Auto: strong pace segment"
@@ -1450,22 +1753,37 @@ function buildAutoTrackDecisions(session: RaceSession) {
 
     segments.push({
       id: `auto-${session.id}-${index}`,
-      atISO: segment[0].at,
+      atISO: segmentStartAtISO,
       kind: "route",
       label,
-      recommendation:
-        outcome === "better"
-          ? "This section beat the race average. Repeat the mode, lane, and trim setup that produced it."
-          : outcome === "worse"
-            ? "This section trailed the race average. Review course choice, lane quality, trim, and whether the boat stayed in pressure."
-            : "This section was close to the race average. Look for cleaner evidence before changing the playbook.",
+      recommendation: primarySegmentRecommendation(analysis, outcome),
       outcome,
       coachingNote: `Auto-rated from GPS: segment avg ${segmentAverage.toFixed(1)} kt vs race avg ${dayAverage.toFixed(1)} kt.`,
       inputs: {
         autoGenerated: true,
+        segmentStartAtISO,
+        segmentEndAtISO,
+        segmentStartIndex: index,
+        segmentEndIndex: index + segment.length - 1,
         segmentPointCount: segment.length,
         segmentAverageSogKt: Number(segmentAverage.toFixed(2)),
         raceAverageSogKt: Number(dayAverage.toFixed(2)),
+        segmentDeltaSogKt: Number(delta.toFixed(2)),
+        segmentSailedDistanceNm:
+          analysis.sailedDistanceNm == null ? null : Number(analysis.sailedDistanceNm.toFixed(2)),
+        segmentStraightLineDistanceNm:
+          analysis.straightLineDistanceNm == null
+            ? null
+            : Number(analysis.straightLineDistanceNm.toFixed(2)),
+        segmentExtraDistancePct:
+          analysis.extraDistancePct == null ? null : Number(analysis.extraDistancePct.toFixed(1)),
+        segmentLowSpeedSharePct:
+          analysis.lowSpeedSharePct == null ? null : Number(analysis.lowSpeedSharePct.toFixed(1)),
+        segmentHeadingChurnDeg:
+          analysis.headingChurnDeg == null ? null : Number(analysis.headingChurnDeg.toFixed(1)),
+        segmentLikelyManeuverCount: analysis.likelyManeuverCount,
+        segmentPauseCount: analysis.pauseCount,
+        analysisFeedback: trackSliceFeedback(analysis, outcome),
       },
     });
   }
@@ -1505,7 +1823,9 @@ export function buildRaceSessionReview(session: RaceSession): RaceSessionReview 
   );
   const assessedDecisions =
     scorableDecisions.length > 0
-      ? scorableDecisions.map((decision) => autoOutcomeForDecision(decision, session.gpsTrack))
+      ? scorableDecisions.map((decision) =>
+          autoOutcomeForDecision(decision, session.gpsTrack, session.tackRecords),
+        )
       : buildAutoTrackDecisions(session);
   const incorrectChoices = assessedDecisions.filter(
     (decision) => decision.outcome === "worse" || decision.userAction === "ignored",

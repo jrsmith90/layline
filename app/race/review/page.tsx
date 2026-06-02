@@ -56,6 +56,7 @@ import {
   type RaceWeatherSample,
   type RaceSessionRepositoryRecoveryResult,
 } from "@/lib/raceSessionStore";
+import type { GpsTrackPoint } from "@/lib/useGpsCourse";
 
 const IMPORTABLE_COURSE_IDS = getAllCourseIds();
 
@@ -78,6 +79,330 @@ function formatNumber(value: number | null | undefined, decimals = 1) {
   return typeof value === "number" && Number.isFinite(value)
     ? value.toFixed(decimals)
     : "--";
+}
+
+function formatSignedNumber(value: number | null | undefined, decimals = 1) {
+  if (typeof value !== "number" || !Number.isFinite(value)) return "--";
+  return `${value >= 0 ? "+" : ""}${value.toFixed(decimals)}`;
+}
+
+function formatDuration(startISO: string, endISO: string) {
+  const startMs = new Date(startISO).getTime();
+  const endMs = new Date(endISO).getTime();
+  if (!Number.isFinite(startMs) || !Number.isFinite(endMs) || endMs <= startMs) return "--";
+  const totalSeconds = Math.round((endMs - startMs) / 1000);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  if (hours > 0) {
+    return `${hours}h ${minutes}m`;
+  }
+
+  if (minutes > 0) {
+    return `${minutes}m ${seconds}s`;
+  }
+
+  return `${seconds}s`;
+}
+
+function readDecisionInputString(decision: RaceDecisionRecord, key: string) {
+  const value = decision.inputs?.[key];
+  return typeof value === "string" && value.length > 0 ? value : null;
+}
+
+function readDecisionInputNumber(decision: RaceDecisionRecord, key: string) {
+  const value = decision.inputs?.[key];
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function readDecisionInputStringArray(decision: RaceDecisionRecord, key: string) {
+  const value = decision.inputs?.[key];
+  if (!Array.isArray(value)) return [];
+  return value.filter((entry): entry is string => typeof entry === "string" && entry.length > 0);
+}
+
+type DecisionTrackWindow = {
+  label: string;
+  startISO: string;
+  endISO: string;
+};
+
+function getDecisionTrackWindow(decision: RaceDecisionRecord): DecisionTrackWindow | null {
+  const segmentStartAtISO = readDecisionInputString(decision, "segmentStartAtISO");
+  const segmentEndAtISO = readDecisionInputString(decision, "segmentEndAtISO");
+  if (segmentStartAtISO && segmentEndAtISO) {
+    return {
+      label: "Segment path",
+      startISO: segmentStartAtISO,
+      endISO: segmentEndAtISO,
+    };
+  }
+
+  const autoWindowStartAtISO = readDecisionInputString(decision, "autoWindowStartAtISO");
+  const autoWindowEndAtISO = readDecisionInputString(decision, "autoWindowEndAtISO");
+  if (autoWindowStartAtISO && autoWindowEndAtISO) {
+    return {
+      label: "Post-call path",
+      startISO: autoWindowStartAtISO,
+      endISO: autoWindowEndAtISO,
+    };
+  }
+
+  return null;
+}
+
+function sliceTrackBetween(track: GpsTrackPoint[], startISO: string, endISO: string) {
+  return track.filter((point) => point.at >= startISO && point.at <= endISO);
+}
+
+type DecisionSegmentMetrics = {
+  averageSogKt: number | null;
+  deltaSogKt: number | null;
+  extraDistancePct: number | null;
+  lowSpeedSharePct: number | null;
+  headingChurnDeg: number | null;
+  likelyManeuverCount: number | null;
+  pauseCount: number | null;
+  sailedDistanceNm: number | null;
+  straightLineDistanceNm: number | null;
+};
+
+function getDecisionSegmentMetrics(decision: RaceDecisionRecord): DecisionSegmentMetrics {
+  return {
+    averageSogKt:
+      readDecisionInputNumber(decision, "segmentAverageSogKt") ??
+      readDecisionInputNumber(decision, "afterAverageSogKt"),
+    deltaSogKt: readDecisionInputNumber(decision, "segmentDeltaSogKt"),
+    extraDistancePct:
+      readDecisionInputNumber(decision, "segmentExtraDistancePct") ??
+      readDecisionInputNumber(decision, "afterExtraDistancePct"),
+    lowSpeedSharePct: readDecisionInputNumber(decision, "segmentLowSpeedSharePct"),
+    headingChurnDeg:
+      readDecisionInputNumber(decision, "segmentHeadingChurnDeg") ??
+      readDecisionInputNumber(decision, "afterHeadingChurnDeg"),
+    likelyManeuverCount: readDecisionInputNumber(decision, "segmentLikelyManeuverCount"),
+    pauseCount: readDecisionInputNumber(decision, "segmentPauseCount"),
+    sailedDistanceNm: readDecisionInputNumber(decision, "segmentSailedDistanceNm"),
+    straightLineDistanceNm: readDecisionInputNumber(decision, "segmentStraightLineDistanceNm"),
+  };
+}
+
+function buildDecisionSignals(decision: RaceDecisionRecord) {
+  const metrics = getDecisionSegmentMetrics(decision);
+  const signals: string[] = [];
+
+  if (decision.outcome === "worse") {
+    if ((metrics.extraDistancePct ?? 0) >= 18) {
+      signals.push("Extra distance paid");
+    }
+    if ((metrics.lowSpeedSharePct ?? 0) >= 25) {
+      signals.push("Pace stayed below target");
+    }
+    if ((metrics.headingChurnDeg ?? 0) >= 12) {
+      signals.push("Too many course corrections");
+    }
+    if ((metrics.likelyManeuverCount ?? 0) >= 2) {
+      signals.push("Maneuver cost likely mattered");
+    }
+    if ((metrics.pauseCount ?? 0) >= 1) {
+      signals.push("Speed dropped near stop-speed");
+    }
+  } else if (decision.outcome === "better") {
+    if (metrics.extraDistancePct != null && metrics.extraDistancePct <= 10) {
+      signals.push("Direct path");
+    }
+    if (metrics.headingChurnDeg != null && metrics.headingChurnDeg <= 8) {
+      signals.push("Stable lane");
+    }
+    if (metrics.lowSpeedSharePct != null && metrics.lowSpeedSharePct <= 12) {
+      signals.push("Speed stayed alive");
+    }
+    if (metrics.likelyManeuverCount === 0) {
+      signals.push("No maneuver tax");
+    }
+  } else {
+    if ((metrics.extraDistancePct ?? 0) >= 20) {
+      signals.push("Average pace, expensive path");
+    }
+    if ((metrics.headingChurnDeg ?? 0) >= 12) {
+      signals.push("Neutral pace, unstable course");
+    }
+    if ((metrics.lowSpeedSharePct ?? 0) >= 25) {
+      signals.push("Repeated rebuilds of speed");
+    }
+  }
+
+  return signals.slice(0, 4);
+}
+
+type DecisionMetricTile = {
+  label: string;
+  value: string;
+};
+
+function buildDecisionMetricTiles(
+  decision: RaceDecisionRecord,
+  windowLabel: string | null,
+): DecisionMetricTile[] {
+  const metrics = getDecisionSegmentMetrics(decision);
+  const tiles: DecisionMetricTile[] = [];
+
+  if (metrics.averageSogKt != null) {
+    tiles.push({
+      label: windowLabel === "Post-call path" ? "Post-call avg" : "Segment avg",
+      value: `${formatNumber(metrics.averageSogKt)} kt`,
+    });
+  }
+
+  if (metrics.deltaSogKt != null) {
+    tiles.push({
+      label: "Vs race avg",
+      value: `${formatSignedNumber(metrics.deltaSogKt)} kt`,
+    });
+  }
+
+  if (metrics.extraDistancePct != null) {
+    tiles.push({
+      label: "Extra distance",
+      value: `${formatNumber(metrics.extraDistancePct, 0)}%`,
+    });
+  }
+
+  if (metrics.headingChurnDeg != null) {
+    tiles.push({
+      label: "COG churn",
+      value: `${formatNumber(metrics.headingChurnDeg, 0)} deg`,
+    });
+  }
+
+  if (metrics.lowSpeedSharePct != null && tiles.length < 4) {
+    tiles.push({
+      label: "Slow share",
+      value: `${formatNumber(metrics.lowSpeedSharePct, 0)}%`,
+    });
+  }
+
+  if (metrics.likelyManeuverCount != null && tiles.length < 4) {
+    tiles.push({
+      label: "Maneuvers",
+      value: String(metrics.likelyManeuverCount),
+    });
+  }
+
+  if (metrics.sailedDistanceNm != null && metrics.straightLineDistanceNm != null && tiles.length < 4) {
+    tiles.push({
+      label: "Path / direct",
+      value: `${formatNumber(metrics.sailedDistanceNm, 2)} / ${formatNumber(metrics.straightLineDistanceNm, 2)} nm`,
+    });
+  }
+
+  return tiles.slice(0, 4);
+}
+
+function buildSegmentPreviewGeometry(points: GpsTrackPoint[]) {
+  if (points.length < 2) return null;
+
+  const width = 240;
+  const height = 132;
+  const padding = 12;
+  const lats = points.map((point) => point.lat);
+  const lons = points.map((point) => point.lon);
+  const minLat = Math.min(...lats);
+  const maxLat = Math.max(...lats);
+  const minLon = Math.min(...lons);
+  const maxLon = Math.max(...lons);
+  const latSpan = maxLat - minLat;
+  const lonSpan = maxLon - minLon;
+  const safeLatSpan = latSpan === 0 ? 0.0001 : latSpan;
+  const safeLonSpan = lonSpan === 0 ? 0.0001 : lonSpan;
+  const availableWidth = width - padding * 2;
+  const availableHeight = height - padding * 2;
+  const scale = Math.min(availableWidth / safeLonSpan, availableHeight / safeLatSpan);
+  const drawnWidth = lonSpan * scale;
+  const drawnHeight = latSpan * scale;
+  const offsetX = padding + (availableWidth - drawnWidth) / 2;
+  const offsetY = padding + (availableHeight - drawnHeight) / 2;
+
+  const projectPoint = (point: GpsTrackPoint) => ({
+    x: offsetX + (point.lon - minLon) * scale,
+    y: height - offsetY - (point.lat - minLat) * scale,
+  });
+
+  const projected = points.map(projectPoint);
+  const start = projected[0];
+  const end = projected[projected.length - 1];
+
+  return {
+    width,
+    height,
+    start,
+    end,
+    polyline: projected.map((point) => `${point.x.toFixed(1)},${point.y.toFixed(1)}`).join(" "),
+  };
+}
+
+function SegmentPreview({
+  decision,
+  track,
+}: {
+  decision: RaceDecisionRecord;
+  track: GpsTrackPoint[];
+}) {
+  const window = getDecisionTrackWindow(decision);
+  if (!window) return null;
+
+  const points = sliceTrackBetween(track, window.startISO, window.endISO);
+  const geometry = buildSegmentPreviewGeometry(points);
+  if (!geometry) return null;
+
+  const stroke =
+    decision.outcome === "better"
+      ? "#2dd4bf"
+      : decision.outcome === "worse"
+        ? "#f87171"
+        : "#f8fafc";
+
+  return (
+    <div className="rounded-xl border border-white/10 bg-black/20 p-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="text-[10px] font-black uppercase tracking-[0.16em] text-[color:var(--muted)]">
+          {window.label}
+        </div>
+        <div className="text-[10px] font-black uppercase tracking-[0.16em] text-[color:var(--muted)]">
+          {formatDuration(window.startISO, window.endISO)}
+        </div>
+      </div>
+      <svg
+        viewBox={`0 0 ${geometry.width} ${geometry.height}`}
+        className="mt-3 h-36 w-full rounded-lg border border-white/10 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.08),transparent_55%),linear-gradient(180deg,rgba(255,255,255,0.04),rgba(0,0,0,0.18))]"
+      >
+        <line
+          x1={geometry.start.x}
+          y1={geometry.start.y}
+          x2={geometry.end.x}
+          y2={geometry.end.y}
+          stroke="rgba(255,255,255,0.35)"
+          strokeDasharray="5 5"
+          strokeWidth="1.5"
+        />
+        <polyline
+          points={geometry.polyline}
+          fill="none"
+          stroke={stroke}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth="3"
+        />
+        <circle cx={geometry.start.x} cy={geometry.start.y} r="4" fill="#f8fafc" />
+        <circle cx={geometry.end.x} cy={geometry.end.y} r="4.5" fill={stroke} />
+      </svg>
+      <p className="mt-2 text-xs leading-5 text-[color:var(--muted)]">
+        Solid line is the sailed path. Dashed line is direct progress from the start of this
+        window to the end.
+      </p>
+    </div>
+  );
 }
 
 function decisionTone(decision: RaceDecisionRecord) {
@@ -1098,6 +1423,7 @@ export default function RaceReviewPage() {
                 <DecisionCard
                   key={decision.id}
                   decision={decision}
+                  track={session.gpsTrack}
                   onPatch={(patch) => patchDecision(decision.id, patch)}
                 />
               ))}
@@ -1666,13 +1992,27 @@ function Metric({ label, value }: { label: string; value: string }) {
 
 function DecisionCard({
   decision,
+  track,
   onPatch,
 }: {
   decision: RaceDecisionRecord;
+  track: GpsTrackPoint[];
   onPatch: (patch: Partial<RaceDecisionRecord>) => void;
 }) {
   const autoGenerated = decision.inputs?.autoGenerated === true;
   const weatherSource = decision.sourceMeta?.weather;
+  const analysisFeedback = readDecisionInputStringArray(decision, "analysisFeedback");
+  const decisionSignals = buildDecisionSignals(decision);
+  const decisionWindow = getDecisionTrackWindow(decision);
+  const metricTiles = buildDecisionMetricTiles(decision, decisionWindow?.label ?? null);
+  const hasSegmentContext =
+    analysisFeedback.length > 0 || decisionSignals.length > 0 || metricTiles.length > 0 || decisionWindow;
+  const feedbackHeading =
+    decision.outcome === "better"
+      ? "What worked here"
+      : decision.outcome === "worse"
+        ? "What likely went wrong"
+        : "What the track suggests";
 
   return (
     <div className={`rounded-xl border p-4 ${decisionTone(decision)}`}>
@@ -1692,6 +2032,58 @@ function DecisionCard({
         <p className="mt-2 rounded-lg border border-white/10 bg-black/20 p-3 text-xs leading-5 text-[color:var(--muted)]">
           {decision.coachingNote}
         </p>
+      )}
+
+      {hasSegmentContext && (
+        <div className="mt-3 space-y-3">
+          {decisionSignals.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {decisionSignals.map((signal) => (
+                <div
+                  key={signal}
+                  className="rounded-full border border-white/10 bg-black/20 px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-[color:var(--muted)]"
+                >
+                  {signal}
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="grid gap-3 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
+            <SegmentPreview decision={decision} track={track} />
+
+            {metricTiles.length > 0 && (
+              <div className="rounded-xl border border-white/10 bg-black/20 p-3">
+                <div className="text-[10px] font-black uppercase tracking-[0.16em] text-[color:var(--muted)]">
+                  Segment readout
+                </div>
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  {metricTiles.map((metric) => (
+                    <Metric key={`${metric.label}-${metric.value}`} label={metric.label} value={metric.value} />
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {analysisFeedback.length > 0 && (
+            <div className="rounded-xl border border-white/10 bg-black/20 p-3">
+              <div className="text-[10px] font-black uppercase tracking-[0.16em] text-[color:var(--muted)]">
+                {feedbackHeading}
+              </div>
+              <div className="mt-3 grid gap-2">
+                {analysisFeedback.map((feedback) => (
+                  <div
+                    key={feedback}
+                    className="rounded-lg border border-white/10 bg-black/20 p-3 text-sm leading-6"
+                  >
+                    {feedback}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
       )}
 
       {weatherSource && (
@@ -1728,54 +2120,53 @@ function DecisionCard({
         </div>
       ) : (
         <>
+          <div className="mt-3 grid grid-cols-3 gap-2">
+            <button
+              type="button"
+              onClick={() => onPatch({ userAction: "followed" })}
+              className="rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-xs font-black uppercase tracking-wide"
+            >
+              Followed
+            </button>
+            <button
+              type="button"
+              onClick={() => onPatch({ userAction: "modified" })}
+              className="rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-xs font-black uppercase tracking-wide"
+            >
+              Modified
+            </button>
+            <button
+              type="button"
+              onClick={() => onPatch({ userAction: "ignored" })}
+              className="rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-xs font-black uppercase tracking-wide"
+            >
+              Ignored
+            </button>
+          </div>
 
-      <div className="mt-3 grid grid-cols-3 gap-2">
-        <button
-          type="button"
-          onClick={() => onPatch({ userAction: "followed" })}
-          className="rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-xs font-black uppercase tracking-wide"
-        >
-          Followed
-        </button>
-        <button
-          type="button"
-          onClick={() => onPatch({ userAction: "modified" })}
-          className="rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-xs font-black uppercase tracking-wide"
-        >
-          Modified
-        </button>
-        <button
-          type="button"
-          onClick={() => onPatch({ userAction: "ignored" })}
-          className="rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-xs font-black uppercase tracking-wide"
-        >
-          Ignored
-        </button>
-      </div>
-
-      <div className="mt-2 grid grid-cols-3 gap-2">
-        <button
-          type="button"
-          onClick={() => onPatch({ outcome: "better" })}
-          className="rounded-xl border border-emerald-400/30 bg-emerald-400/10 px-3 py-2 text-xs font-black uppercase tracking-wide text-emerald-50"
-        >
-          Better
-        </button>
-        <button
-          type="button"
-          onClick={() => onPatch({ outcome: "same" })}
-          className="rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-xs font-black uppercase tracking-wide"
-        >
-          Same
-        </button>
-        <button
-          type="button"
-          onClick={() => onPatch({ outcome: "worse" })}
-          className="rounded-xl border border-red-400/35 bg-red-400/10 px-3 py-2 text-xs font-black uppercase tracking-wide text-red-100"
-        >
-          Worse
-        </button>
-      </div>
+          <div className="mt-2 grid grid-cols-3 gap-2">
+            <button
+              type="button"
+              onClick={() => onPatch({ outcome: "better" })}
+              className="rounded-xl border border-emerald-400/30 bg-emerald-400/10 px-3 py-2 text-xs font-black uppercase tracking-wide text-emerald-50"
+            >
+              Better
+            </button>
+            <button
+              type="button"
+              onClick={() => onPatch({ outcome: "same" })}
+              className="rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-xs font-black uppercase tracking-wide"
+            >
+              Same
+            </button>
+            <button
+              type="button"
+              onClick={() => onPatch({ outcome: "worse" })}
+              className="rounded-xl border border-red-400/35 bg-red-400/10 px-3 py-2 text-xs font-black uppercase tracking-wide text-red-100"
+            >
+              Worse
+            </button>
+          </div>
         </>
       )}
     </div>
