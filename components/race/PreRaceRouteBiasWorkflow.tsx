@@ -17,6 +17,7 @@ import {
 import { readJsonResponse } from "@/lib/readJsonResponse";
 import { scoreRouteBias, type RouteBiasAnswers, type RouteBiasResult } from "@/lib/race/scoreRouteBias";
 import type { OpeningLegType, WindTrend, PressureSide, CurrentSide, EdgeStrength } from "@/data/race/getRouteBiasInputs";
+import { useCourseCatalogVersion } from "@/lib/race/useCourseCatalogVersion";
 import {
   buildTacticalBoardDraftDefaults,
   getStoredTacticalBoardDraft,
@@ -152,6 +153,7 @@ export default function PreRaceRouteBiasWorkflow() {
   const [latestError, setLatestError] = useState<string | null>(null);
   const [liveWeather, setLiveWeather] = useState<LiveWeatherContext | null>(null);
   const [liveWeatherError, setLiveWeatherError] = useState<string | null>(null);
+  useCourseCatalogVersion();
   const originalPlan = draft.routeBias.originalPlan;
   const liveUpdate = draft.routeBias.latestUpdate;
   const storedOriginalAnswers = draft.routeBias.originalAnswers;
@@ -161,10 +163,7 @@ export default function PreRaceRouteBiasWorkflow() {
     ? latestValuesOverride ?? toLatestValues(latestValuesSeed, draft.courseId)
     : toLatestValues(null, draft.courseId);
 
-  const latestConfig = useMemo(
-    () => getRouteBiasInputs(latestValues.courseId),
-    [latestValues.courseId]
-  );
+  const latestConfig = getRouteBiasInputs(latestValues.courseId);
   const primaryLiveWind = useMemo(() => getPrimaryLiveWind(liveWeather), [liveWeather]);
 
   useEffect(() => {

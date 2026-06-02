@@ -2,6 +2,7 @@ import {
   getCustomCourseRecord,
   getCustomCoursesForEvent,
 } from "./customCourses";
+import { getEffectiveRaceConstraints } from "./customConstraints";
 import {
   getActiveRaceEvent,
   getCustomCourseMarkCatalogForEvent,
@@ -213,7 +214,10 @@ function buildCourseSummaryFromResolved(
     startFinishMark: resolved.courseGeometry.startFinishMark as MarkId,
     specialRoutingNotes: resolved.courseGeometry.specialRoutingNotes,
     specialRoutingConstraints: [
-      ...resolved.courseGeometry.specialRoutingConstraints,
+      ...getEffectiveRaceConstraints(
+        resolved.courseGeometry.specialRoutingConstraints,
+        resolved.event.id,
+      ),
       ...derivedCourseConstraints,
     ],
   };

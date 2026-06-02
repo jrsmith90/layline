@@ -4,10 +4,11 @@ import { useMemo, useSyncExternalStore } from "react";
 import { AiCoachCard } from "@/components/ai/AiCoachCard";
 import { WorkflowStageStrip } from "@/components/layout/WorkflowStageStrip";
 import { InlineExplain } from "@/components/ui/InlineExplain";
-import { formatCourseLabel, getCourseData, getDefaultCourseId } from "@/data/race/getCourseData";
+import { formatCourseLabel, getDefaultCourseId } from "@/data/race/getCourseData";
 import { buildPreRaceCoachBrief } from "@/lib/ai/coach";
 import { deriveTacticalBoard } from "@/lib/race/tacticalBoard/deriveTacticalBoard";
 import { selectTacticalBoardStatus } from "@/lib/race/tacticalBoard/selectors";
+import { useResolvedCourseData } from "@/lib/race/useCourseCatalogVersion";
 import {
   buildTacticalBoardDraftDefaults,
   getStoredTacticalBoardDraft,
@@ -58,7 +59,7 @@ export function PreRaceCommandDeck() {
     getStoredTacticalBoardDraft,
     () => DEFAULT_TACTICAL_BOARD_DRAFT,
   );
-  const course = useMemo(() => getCourseData(draft.courseId), [draft.courseId]);
+  const course = useResolvedCourseData(draft.courseId);
   const board = useMemo(
     () =>
       deriveTacticalBoard({

@@ -14,7 +14,10 @@ import {
 function formatCitation(key: ReferenceBasisKey) {
   const entry = STRATEGY_REFERENCE_CATALOG[key];
   return entry.sources
-    .map((source) => `${source.sourceFile.replace(/\.pdf$/u, "")} p.${source.page}`)
+    .map((source) => {
+      const referenceLabel = /^Chapter\s/iu.test(source.sourceFile) ? "NS" : "DDB";
+      return `${referenceLabel} p.${source.page}`;
+    })
     .join("; ");
 }
 

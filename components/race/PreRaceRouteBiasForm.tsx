@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import { getCustomCourseRecord } from "@/data/race/customCourses";
 import {
   getRouteBiasInputs,
@@ -15,6 +15,7 @@ import {
   formatOpeningBiasConfidence,
   formatOpeningBiasLabel,
 } from "@/lib/race/openingBias";
+import { useCourseCatalogVersion } from "@/lib/race/useCourseCatalogVersion";
 import { RoutingConstraintsList } from "@/components/race/RoutingConstraintsList";
 import { readJsonResponse } from "@/lib/readJsonResponse";
 import type { RouteBiasAnswers, RouteBiasResult } from "@/lib/race/scoreRouteBias";
@@ -83,8 +84,9 @@ export default function PreRaceRouteBiasForm({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [result, setResult] = useState<RouteBiasResult | null>(() => initialResult ?? null);
   const [error, setError] = useState<string | null>(null);
+  useCourseCatalogVersion();
 
-  const config = useMemo(() => getRouteBiasInputs(values.courseId), [values.courseId]);
+  const config = getRouteBiasInputs(values.courseId);
 
   function updateField<K extends keyof FormValues>(key: K, value: FormValues[K]) {
     setValues((prev) => ({
@@ -130,6 +132,7 @@ export default function PreRaceRouteBiasForm({
         body: JSON.stringify({
           courseId: values.courseId,
           customCourse: getCustomCourseRecord(values.courseId),
+          routingConstraints: config.routingConstraints,
           openingLegType: values.openingLegType,
           windDirectionDeg: parsedWindDirectionDeg,
           windSpeedKt: parsedWindSpeedKt,

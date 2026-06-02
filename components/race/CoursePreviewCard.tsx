@@ -65,6 +65,12 @@ export default function CoursePreviewCard() {
             >
               Manage Courses
             </Link>
+            <Link
+              href="/race/constraints"
+              className="inline-flex rounded-xl border border-[color:var(--divider)] bg-black/20 px-3 py-2 text-xs font-black uppercase tracking-wide text-[color:var(--text)]"
+            >
+              Manage Constraints
+            </Link>
           </div>
         </div>
       </section>

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { buildCourseSummaryFromRecord } from "@/data/race/getCourseData";
+import { sanitizeRaceConstraintRecord } from "@/data/race/customConstraints";
+import { buildCourseSummaryFromRecord, getCourseData } from "@/data/race/getCourseData";
 import type { RaceCourseRecord } from "@/data/race/eventDatabase";
 import {
   scoreRouteBias,
@@ -72,6 +73,7 @@ export async function POST(request: Request) {
     const {
       courseId,
       customCourse,
+      routingConstraints,
       openingLegType,
       windDirectionDeg,
       windSpeedKt,
@@ -200,6 +202,17 @@ export async function POST(request: Request) {
             course: (customCourse as { course: RaceCourseRecord }).course,
           })
         : undefined;
+    const sanitizedRoutingConstraints = Array.isArray(routingConstraints)
+      ? routingConstraints
+          .map(sanitizeRaceConstraintRecord)
+          .filter((constraint): constraint is NonNullable<ReturnType<typeof sanitizeRaceConstraintRecord>> => constraint != null)
+      : null;
+    const resolvedCourseData = sanitizedRoutingConstraints
+      ? {
+          ...(customCourseData ?? getCourseData(courseId)),
+          specialRoutingConstraints: sanitizedRoutingConstraints,
+        }
+      : customCourseData;
 
     const result = scoreRouteBias({
       courseId,
@@ -211,7 +224,7 @@ export async function POST(request: Request) {
       currentSide,
       edgeStrength
     }, {
-      courseData: customCourseData,
+      courseData: resolvedCourseData,
     });
 
     return NextResponse.json(result);
