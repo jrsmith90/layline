@@ -32,6 +32,7 @@ function ReplayFitBounds({
   const map = useMap();
 
   useEffect(() => {
+    map.invalidateSize(false);
     map.fitBounds(bounds, {
       padding: [18, 18],
       animate: false,
@@ -88,6 +89,10 @@ export default function SessionReplayMap(props: SessionReplayMapProps) {
     () => toLatLngs(props.selectionTrack),
     [props.selectionTrack],
   );
+  const directProgressTrack =
+    fullTrack.length >= 2
+      ? ([fullTrack[0], fullTrack[fullTrack.length - 1]] as [[number, number], [number, number]])
+      : null;
   const currentPosition =
     props.currentPoint &&
     Number.isFinite(props.currentPoint.lat) &&
@@ -136,6 +141,17 @@ export default function SessionReplayMap(props: SessionReplayMapProps) {
           pathOptions={{
             color: "rgba(15,23,42,0.28)",
             weight: 4,
+          }}
+        />
+      )}
+
+      {directProgressTrack && (
+        <Polyline
+          positions={directProgressTrack}
+          pathOptions={{
+            color: "rgba(15,23,42,0.4)",
+            weight: 2,
+            dashArray: "6 6",
           }}
         />
       )}

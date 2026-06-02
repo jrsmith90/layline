@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useEffect, useReducer, useState } from "react";
 import { Download, RotateCcw, Trash2 } from "lucide-react";
@@ -39,11 +40,11 @@ import type { TacticalBoardSnapshot } from "@/lib/race/tacticalBoard/types";
 import { readJsonResponse } from "@/lib/readJsonResponse";
 import {
   buildRaceSessionReview,
-  clearSessionTrimLogs,
-  deleteSessionTrimLog,
-  deleteRaceSession,
-  downloadTextFile,
   archiveRaceSessionOutsideWindow,
+  clearSessionTrimLogs,
+  deleteRaceSession,
+  deleteSessionTrimLog,
+  downloadTextFile,
   editRaceSessionTimeRange,
   exportRaceSessionJson,
   getMostRecentRaceSession,
@@ -59,6 +60,11 @@ import {
   type RaceSessionRepositoryRecoveryResult,
 } from "@/lib/raceSessionStore";
 import type { GpsTrackPoint } from "@/lib/useGpsCourse";
+
+const SessionReplayMap = dynamic(
+  () => import("@/components/race/SessionReplayMap"),
+  { ssr: false },
+);
 
 const IMPORTABLE_COURSE_IDS = getAllCourseIds();
 
@@ -490,10 +496,6 @@ function SessionReplayPanel({
       typeof point.at === "string" &&
       point.at.length > 0,
   );
-  const geometry = buildSegmentPreviewGeometry(points, {
-    width: 720,
-    height: 420,
-  });
   const [currentIndex, setCurrentIndex] = useState(() =>
     initialFocusISO ? nearestTrackIndex(points, initialFocusISO) : 0,
   );
@@ -526,18 +528,16 @@ function SessionReplayPanel({
     };
   }, [isPlaying, playbackRate, points.length]);
 
-  if (!geometry) return null;
+  if (points.length < 2) return null;
 
   const safeIndex = Math.min(currentIndex, points.length - 1);
   const currentPoint = points[safeIndex] ?? points[0];
-  const currentProjected = geometry.projected[safeIndex] ?? geometry.end;
   const nearestWeather = nearestWeatherSample(weatherSamples, currentPoint?.at);
   const windSummary = replayWindSummary(nearestWeather);
   const angleToWindDeg =
     currentPoint?.cogDeg != null && windSummary?.directionDeg != null
       ? headingDeltaDeg(currentPoint.cogDeg, windSummary.directionDeg)
       : null;
-  const pastPolyline = replayPolyline(geometry.projected.slice(0, safeIndex + 1));
   const currentSogKt =
     currentPoint?.sogMps == null ? null : currentPoint.sogMps * 1.943844;
   const topBottomSpreadKt =
@@ -564,14 +564,14 @@ function SessionReplayPanel({
     selectionMinIndex == null || selectionMaxIndex == null
       ? 0
       : selectionMaxIndex - selectionMinIndex + 1;
-  const selectionPolyline =
+  const pastTrackPoints = points.slice(0, safeIndex + 1);
+  const selectionTrackPoints =
     selectionMinIndex == null || selectionMaxIndex == null
-      ? ""
-      : replayPolyline(geometry.projected.slice(selectionMinIndex, selectionMaxIndex + 1));
-  const selectionStartProjected =
-    selectionStartIndex == null ? null : geometry.projected[selectionStartIndex] ?? null;
-  const selectionEndProjected =
-    selectionEndIndex == null ? null : geometry.projected[selectionEndIndex] ?? null;
+      ? []
+      : points.slice(selectionMinIndex, selectionMaxIndex + 1);
+  const selectionStartPoint =
+    selectionStartIndex == null ? null : points[selectionStartIndex] ?? null;
+  const selectionEndPoint = selectionEndIndex == null ? null : points[selectionEndIndex] ?? null;
   const startedAtISO = points[0]?.at;
   const endedAtISO = points[points.length - 1]?.at;
 
@@ -746,111 +746,15 @@ function SessionReplayPanel({
         <Metric label="Top-bottom" value={topBottomSpreadKt == null ? "--" : `${formatNumber(topBottomSpreadKt)} kt`} />
       </div>
 
-      <div className="mt-4 overflow-hidden rounded-lg border border-[color:var(--divider)] bg-[#cfe0e8]">
-        <svg
-          viewBox={`0 0 ${geometry.width} ${geometry.height}`}
-          preserveAspectRatio="xMidYMid meet"
-          role="img"
-          aria-label="Interactive session replay"
-          className="aspect-[1.7] w-full"
-        >
-          <rect width={geometry.width} height={geometry.height} fill="#cfe0e8" />
-          <path
-            d="M 0 0 H 228 C 270 28 294 62 288 112 C 282 152 258 182 228 214 C 188 256 182 314 214 420 H 0 Z"
-            fill="#d8c9ab"
-            stroke="#8d7f61"
-            strokeWidth="2"
-          />
-          <path
-            d="M 720 420 H 454 C 444 382 452 350 478 322 C 510 286 560 270 590 238 C 622 204 634 158 626 110 C 620 72 646 34 720 0 Z"
-            fill="#d8c9ab"
-            stroke="#8d7f61"
-            strokeWidth="2"
-          />
-          <path
-            d="M 336 116 C 358 104 386 106 402 124 C 416 140 416 166 396 180 C 374 194 346 186 332 166 C 320 150 322 126 336 116 Z"
-            fill="#d8c9ab"
-            stroke="#8d7f61"
-            strokeWidth="1.8"
-          />
-          <path
-            d="M 118 268 C 134 258 156 260 166 274 C 178 290 170 312 150 320 C 128 330 106 320 102 300 C 98 286 104 276 118 268 Z"
-            fill="#d8c9ab"
-            stroke="#8d7f61"
-            strokeWidth="1.6"
-          />
-          <path
-            d="M 568 78 C 580 70 598 72 606 84 C 614 96 610 112 596 120 C 580 128 562 122 556 108 C 552 96 556 86 568 78 Z"
-            fill="#d8c9ab"
-            stroke="#8d7f61"
-            strokeWidth="1.6"
-          />
-          <polyline
-            points={geometry.polyline}
-            fill="none"
-            stroke="rgba(15,23,42,0.16)"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth="4"
-          />
-          <line
-            x1={geometry.start.x}
-            y1={geometry.start.y}
-            x2={geometry.end.x}
-            y2={geometry.end.y}
-            stroke="rgba(15,23,42,0.22)"
-            strokeDasharray="5 5"
-            strokeWidth="2"
-          />
-          {selectionPolyline && (
-            <polyline
-              points={selectionPolyline}
-              fill="none"
-              stroke="rgba(34,211,238,0.95)"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="6"
-            />
-          )}
-          <polyline
-            points={pastPolyline}
-            fill="none"
-            stroke="#ec4899"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth="5"
-          />
-          <circle cx={geometry.start.x} cy={geometry.start.y} r="6" fill="#f8fafc" />
-          <circle cx={geometry.end.x} cy={geometry.end.y} r="6.5" fill="#2dd4bf" />
-          <circle
-            cx={currentProjected.x}
-            cy={currentProjected.y}
-            r="8"
-            fill="#f59e0b"
-            stroke="#fff7ed"
-            strokeWidth="2.5"
-          />
-          {selectionStartProjected && (
-            <circle
-              cx={selectionStartProjected.x}
-              cy={selectionStartProjected.y}
-              r="7"
-              fill="#0f172a"
-              stroke="#f59e0b"
-              strokeWidth="3"
-            />
-          )}
-          {selectionEndProjected && (
-            <circle
-              cx={selectionEndProjected.x}
-              cy={selectionEndProjected.y}
-              r="7"
-              fill="#0f172a"
-              stroke="#22d3ee"
-              strokeWidth="3"
-            />
-          )}
-        </svg>
+      <div className="mt-4 overflow-hidden rounded-lg border border-[color:var(--divider)] bg-[#bfdfe9]">
+        <SessionReplayMap
+          track={points}
+          pastTrack={pastTrackPoints}
+          selectionTrack={selectionTrackPoints}
+          currentPoint={currentPoint ?? null}
+          selectionStartPoint={selectionStartPoint}
+          selectionEndPoint={selectionEndPoint}
+        />
       </div>
 
       <div className="mt-3 rounded-xl border border-white/10 bg-black/20 p-3 text-xs leading-5 text-[color:var(--muted)]">
