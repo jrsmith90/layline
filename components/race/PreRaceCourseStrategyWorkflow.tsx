@@ -39,12 +39,14 @@ export default function PreRaceCourseStrategyWorkflow() {
         defaultCourseId={draft.courseId}
         meanWindDirectionDeg={draft.meanWindDirectionDeg}
         tackAngleDeg={draft.tackAngleDeg}
+        confirmedSailSelection={draft.confirmedSailSelection}
         initialAnswers={draft.courseStrategy}
         onPlanReady={handleStrategyReady}
       />
 
       <CourseStrategyResultCard
         result={result}
+        strategyNotes={draft.courseStrategy?.strategyNotes}
         title="Saved course strategy"
       />
     </div>

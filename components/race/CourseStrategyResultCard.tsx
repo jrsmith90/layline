@@ -3,11 +3,13 @@ import type { CourseStrategyResult } from "@/lib/race/courseStrategy/types";
 interface CourseStrategyResultCardProps {
   result: CourseStrategyResult | null;
   title?: string;
+  strategyNotes?: string | null;
 }
 
 export function CourseStrategyResultCard({
   result,
   title = "Course strategy analysis",
+  strategyNotes,
 }: CourseStrategyResultCardProps) {
   if (!result) {
     return null;
@@ -105,6 +107,15 @@ export function CourseStrategyResultCard({
             </ul>
           </div>
         )}
+
+        {strategyNotes ? (
+          <div className="rounded-lg border border-white/10 bg-white/5 p-3">
+            <h3 className="mb-2 text-sm font-semibold text-emerald-200">Strategy notes</h3>
+            <div className="whitespace-pre-line text-xs leading-6 text-white/75">
+              {strategyNotes}
+            </div>
+          </div>
+        ) : null}
 
         {result.referenceBasis.length > 0 && (
           <div className="rounded-lg border border-white/10 bg-white/5 p-3">

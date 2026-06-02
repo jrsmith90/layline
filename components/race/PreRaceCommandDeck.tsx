@@ -146,9 +146,11 @@ export function PreRaceCommandDeck() {
           {
             label: "Sail choice",
             detail: "Use the same course context for the inventory call.",
-            status: "Open tool",
+            status:
+              draft.confirmedSailSelection?.courseId === draft.courseId ? "Confirmed" : "Waiting",
             href: "/race/pre-race/sail-selection",
-            tone: "focus",
+            tone:
+              draft.confirmedSailSelection?.courseId === draft.courseId ? "positive" : "focus",
           },
           {
             label: "Opening bias",

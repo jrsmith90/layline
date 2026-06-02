@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { AiCoachCard } from "@/components/ai/AiCoachCard";
 import { getCourseData } from "@/data/race/getCourseData";
 import { getCourseStrategyDefaults } from "@/data/race/getCourseStrategyInputs";
 import type {
@@ -8,6 +9,8 @@ import type {
   CourseStrategyResult,
   CourseZone,
 } from "@/lib/race/courseStrategy/types";
+import type { TacticalBoardConfirmedSailSelection } from "@/lib/race/tacticalBoard/store";
+import { usePreRaceCoachAssist } from "@/lib/race/usePreRaceCoachAssist";
 import { readJsonResponse } from "@/lib/readJsonResponse";
 
 type FormState = CourseStrategyAnswers & { error: string | null };
@@ -16,6 +19,7 @@ interface PreRaceCourseStrategyFormProps {
   defaultCourseId: string;
   meanWindDirectionDeg: string;
   tackAngleDeg: string;
+  confirmedSailSelection?: TacticalBoardConfirmedSailSelection | null;
   initialAnswers?: CourseStrategyAnswers | null;
   onPlanReady?: (payload: { result: CourseStrategyResult; answers: CourseStrategyAnswers }) => void;
 }
@@ -24,22 +28,28 @@ export default function PreRaceCourseStrategyForm({
   defaultCourseId,
   meanWindDirectionDeg,
   tackAngleDeg,
+  confirmedSailSelection,
   initialAnswers,
   onPlanReady,
 }: PreRaceCourseStrategyFormProps) {
   const course = useMemo(() => getCourseData(defaultCourseId), [defaultCourseId]);
+  const windDirNum = meanWindDirectionDeg ? Number(meanWindDirectionDeg) : null;
+  const tackAngleNum = tackAngleDeg ? Number(tackAngleDeg) : 42;
+  const coachAssist = usePreRaceCoachAssist({
+    courseId: defaultCourseId,
+    courseData: course,
+    tackAngleDeg: tackAngleNum,
+    confirmedSailSelection: confirmedSailSelection ?? null,
+  });
 
   const initialState = useMemo(() => {
     if (initialAnswers) {
       return { ...initialAnswers, error: null };
     }
 
-    const windDirNum = meanWindDirectionDeg ? Number(meanWindDirectionDeg) : null;
-    const tackAngleNum = tackAngleDeg ? Number(tackAngleDeg) : 42;
-
     const defaults = getCourseStrategyDefaults(defaultCourseId, course, windDirNum, tackAngleNum);
     return { ...defaults, error: null };
-  }, [defaultCourseId, course, meanWindDirectionDeg, tackAngleDeg, initialAnswers]);
+  }, [defaultCourseId, course, windDirNum, tackAngleNum, initialAnswers]);
 
   const [formState, setFormState] = useState<FormState>(initialState);
   const [submitting, setSubmitting] = useState(false);
@@ -53,6 +63,18 @@ export default function PreRaceCourseStrategyForm({
 
   function updateStrategyNotes(notes: string) {
     setFormState((prev) => ({ ...prev, strategyNotes: notes }));
+  }
+
+  function applyCoachAutofill() {
+    setFormState((prev) => ({
+      ...prev,
+      courseId: defaultCourseId,
+      zones: coachAssist.strategyAutofill.zones,
+      openingLegBearingDeg: course.firstLeg?.bearingDeg ?? prev.openingLegBearingDeg,
+      firstMarkDistance: course.firstLeg?.distanceNmCalculated ?? prev.firstMarkDistance,
+      strategyNotes: coachAssist.strategyAutofill.strategyNotes,
+      error: null,
+    }));
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -96,6 +118,42 @@ export default function PreRaceCourseStrategyForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      <div className="space-y-4 rounded-xl border border-white/10 bg-black/20 p-4">
+        <AiCoachCard brief={coachAssist.strategyBrief} compact />
+
+        <div className="grid gap-3 md:grid-cols-3">
+          <div className="rounded-lg border border-white/10 bg-white/5 p-3 text-xs leading-5 text-white/75">
+            <div className="text-[11px] font-black uppercase tracking-[0.16em] text-white/55">
+              Forecast blend
+            </div>
+            <div className="mt-2 text-sm text-white/90">{coachAssist.forecastDecision.summary}</div>
+          </div>
+          <div className="rounded-lg border border-white/10 bg-white/5 p-3 text-xs leading-5 text-white/75">
+            <div className="text-[11px] font-black uppercase tracking-[0.16em] text-white/55">
+              Current impact
+            </div>
+            <div className="mt-2 text-sm text-white/90">{coachAssist.currentImpact.summary}</div>
+          </div>
+          <div className="rounded-lg border border-white/10 bg-white/5 p-3 text-xs leading-5 text-white/75">
+            <div className="text-[11px] font-black uppercase tracking-[0.16em] text-white/55">
+              Sail context
+            </div>
+            <div className="mt-2 text-sm text-white/90">
+              {confirmedSailSelection?.finalCall ?? "No confirmed sail package yet."}
+            </div>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={applyCoachAutofill}
+          disabled={coachAssist.isLoading}
+          className="rounded-xl border border-[color:var(--divider)] bg-white px-4 py-3 text-sm font-black uppercase tracking-wide text-black disabled:opacity-40"
+        >
+          {coachAssist.isLoading ? "Loading Coach Assist..." : "AI Coach Auto-Fill Step 3"}
+        </button>
+      </div>
+
       <div className="space-y-4">
         <h3 className="text-lg font-semibold">Opening leg zones</h3>
 

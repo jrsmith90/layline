@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import {
   getRaceSailPlan,
@@ -12,154 +13,21 @@ import {
   type LegType,
 } from "@/data/logic/sailSelectionLogic";
 import { getRouteBiasInputs } from "@/data/race/getRouteBiasInputs";
-import { formatCourseLabel, getCourseCode, getDefaultCourseId } from "@/data/race/getCourseData";
-import { readJsonResponse } from "@/lib/readJsonResponse";
-
+import { formatCourseLabel, getCourseData, getDefaultCourseId } from "@/data/race/getCourseData";
+import { AiCoachCard } from "@/components/ai/AiCoachCard";
 import { Panel } from "@/components/ui/Panel";
-
-type WeatherTrend = "building" | "easing" | "steady" | "unknown";
-
-type LiveWeatherPayload = {
-  stationName?: string;
-  windAvgKt?: number;
-  windGustKt?: number;
-  windDirectionDeg?: number;
-  historyTrend?: {
-    trend: WeatherTrend;
-  };
-  cbibsAnnapolis?: {
-    platformName?: string;
-    windAvgKt?: number;
-    windGustKt?: number;
-    windDirectionDeg?: number;
-    waveHeightFt?: number;
-    wavePeriodSec?: number;
-  };
-  thomasPoint?: {
-    stationName?: string;
-    windAvgKt?: number;
-    windGustKt?: number;
-    windDirectionDeg?: number;
-    trend?: {
-      trend: WeatherTrend;
-    };
-  };
-  error?: string;
-};
-
-type CourseWindRead = {
-  sourceId: "thomas_point_wind" | "annapolis_buoy_wind" | "naval_academy_wind";
-  sourceLabel: string;
-  courseFit: string;
-  windAvgKt?: number;
-  windGustKt?: number;
-  windDirectionDeg?: number;
-  trend?: WeatherTrend;
-  waveHeightFt?: number;
-};
-
-function getSeaStateFromWind(wind: number): SeaState {
-  if (wind <= 0) return "calm_0";
-  if (wind <= 3) return "light_air_1_3";
-  if (wind <= 6) return "light_breeze_4_6";
-  if (wind <= 10) return "gentle_breeze_7_10";
-  if (wind <= 16) return "moderate_breeze_11_16";
-  if (wind <= 21) return "fresh_breeze_17_21";
-  return "strong_breeze_22_27";
-}
+import {
+  formatCourseWindRead,
+  getSeaStateFromWind,
+  mapWeatherTrendToPlanningText,
+} from "@/lib/race/preRaceCoachAssist";
+import { setTacticalBoardConfirmedSailSelection } from "@/lib/race/tacticalBoard/store";
+import { usePreRaceCoachAssist } from "@/lib/race/usePreRaceCoachAssist";
 
 function getDefaultHikingLevel(crewCount: CrewCount): HikingLevel {
   if (crewCount === 3) return "light";
   if (crewCount === 4) return "moderate";
   return "full";
-}
-
-function getLegTypeFromCourseWind(
-  firstLegBearingDeg: number | null,
-  windDirectionDeg?: number
-): LegType {
-  if (firstLegBearingDeg == null || typeof windDirectionDeg !== "number") {
-    return "upwind";
-  }
-
-  const angle = Math.abs(((firstLegBearingDeg - windDirectionDeg + 540) % 360) - 180);
-  return angle >= 105 ? "downwind" : "upwind";
-}
-
-function mapWeatherTrendToPlanningText(trend?: WeatherTrend): string {
-  if (trend === "building") return "Building";
-  if (trend === "easing") return "Easing";
-  if (trend === "steady") return "Steady";
-  return "Unclear";
-}
-
-function getPlanningWindFromTrend(windAvgKt?: number, trend?: WeatherTrend) {
-  if (typeof windAvgKt !== "number") return undefined;
-
-  const trendOffset =
-    trend === "building" ? 1.5 : trend === "easing" ? -1 : 0;
-
-  return Number(Math.max(0, windAvgKt + trendOffset).toFixed(1));
-}
-
-function getCourseWindSourceId(courseId: string): CourseWindRead["sourceId"] {
-  const courseCode = getCourseCode(courseId);
-
-  if (courseCode === "1" || courseCode === "1R") return "thomas_point_wind";
-  if (courseCode === "99") return "naval_academy_wind";
-  return "annapolis_buoy_wind";
-}
-
-function getCourseWindRead(
-  courseId: string,
-  weather: LiveWeatherPayload | null
-): CourseWindRead {
-  const sourceId = getCourseWindSourceId(courseId);
-
-  if (sourceId === "annapolis_buoy_wind") {
-    return {
-      sourceId,
-      sourceLabel: weather?.cbibsAnnapolis?.platformName ?? "Annapolis CBIBS Buoy",
-      courseFit: "Closest default for top-of-course pressure, Annapolis buoy wind, and wave state.",
-      windAvgKt: weather?.cbibsAnnapolis?.windAvgKt,
-      windGustKt: weather?.cbibsAnnapolis?.windGustKt,
-      windDirectionDeg: weather?.cbibsAnnapolis?.windDirectionDeg,
-      trend: weather?.historyTrend?.trend,
-      waveHeightFt: weather?.cbibsAnnapolis?.waveHeightFt,
-    };
-  }
-
-  if (sourceId === "naval_academy_wind") {
-    return {
-      sourceId,
-      sourceLabel: weather?.stationName ?? "Naval Academy / KNAK",
-      courseFit: "Best available default for custom or river-influenced racing until a closer source is selected.",
-      windAvgKt: weather?.windAvgKt,
-      windGustKt: weather?.windGustKt,
-      windDirectionDeg: weather?.windDirectionDeg,
-      trend: weather?.historyTrend?.trend,
-    };
-  }
-
-  return {
-    sourceId,
-    sourceLabel: weather?.thomasPoint?.stationName ?? "Thomas Point / TPLM2",
-    courseFit: "Closest default for bottom-of-course open-Bay pressure.",
-    windAvgKt: weather?.thomasPoint?.windAvgKt,
-    windGustKt: weather?.thomasPoint?.windGustKt,
-    windDirectionDeg: weather?.thomasPoint?.windDirectionDeg,
-    trend: weather?.thomasPoint?.trend?.trend,
-  };
-}
-
-function formatCourseWindRead(read: CourseWindRead) {
-  if (typeof read.windAvgKt !== "number") return "Live wind loading...";
-
-  return `${read.sourceLabel}: ${read.windAvgKt.toFixed(1)} kt${
-    read.windGustKt != null ? `, gust ${read.windGustKt.toFixed(1)} kt` : ""
-  }${
-    read.windDirectionDeg != null ? ` from ${Math.round(read.windDirectionDeg)} deg` : ""
-  } · ${mapWeatherTrendToPlanningText(read.trend)}`;
 }
 
 function formatMainChoice(value: string): string {
@@ -408,6 +276,7 @@ function buildFinalCall(params: {
 }
 
 export default function SailSelectionPage() {
+  const router = useRouter();
   const defaultCourseId = getDefaultCourseId();
   const routeConfig = useMemo(() => getRouteBiasInputs(defaultCourseId), [defaultCourseId]);
   const [courseId, setCourseId] = useState(defaultCourseId);
@@ -420,121 +289,101 @@ export default function SailSelectionPage() {
   const [seaStateAuto, setSeaStateAuto] = useState(true);
   const [hikingAuto, setHikingAuto] = useState(true);
   const [courseConditionsAuto, setCourseConditionsAuto] = useState(true);
-  const [liveWeather, setLiveWeather] = useState<LiveWeatherPayload | null>(null);
-  const [liveWeatherError, setLiveWeatherError] = useState<string | null>(null);
-  const [liveWeatherLoading, setLiveWeatherLoading] = useState(true);
+  const courseData = useMemo(() => getCourseData(courseId), [courseId]);
   const courseConfig = useMemo(() => getRouteBiasInputs(courseId), [courseId]);
-  const courseWindRead = useMemo(
-    () => getCourseWindRead(courseId, liveWeather),
-    [courseId, liveWeather]
-  );
-  const planningWind = useMemo(
-    () => getPlanningWindFromTrend(courseWindRead.windAvgKt, courseWindRead.trend),
-    [courseWindRead.trend, courseWindRead.windAvgKt]
-  );
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadLiveWeather() {
-      try {
-        setLiveWeatherLoading(true);
-        setLiveWeatherError(null);
-        const response = await fetch("/api/weather/noaa-wind", {
-          cache: "no-store",
-        });
-        const data = await readJsonResponse<LiveWeatherPayload>(response);
-
-        if (cancelled) return;
-
-        if (!response.ok || data.error) {
-          setLiveWeather(null);
-          setLiveWeatherError(data.error ?? "Live course conditions unavailable.");
-          return;
-        }
-
-        setLiveWeather(data);
-      } catch (error) {
-        if (!cancelled) {
-          setLiveWeather(null);
-          setLiveWeatherError(
-            error instanceof Error ? error.message : "Live course conditions unavailable."
-          );
-        }
-      } finally {
-        if (!cancelled) setLiveWeatherLoading(false);
-      }
-    }
-
-    loadLiveWeather();
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const coachAssist = usePreRaceCoachAssist({
+    courseId,
+    courseData,
+    tackAngleDeg: 42,
+  });
+  const {
+    courseWindRead,
+    currentImpact,
+    forecastDecision,
+    liveWeatherError,
+    liveWeatherLoading,
+    sailBrief,
+    suggestedLegType,
+    suggestedRiskMode,
+    suggestedSeaState,
+  } = coachAssist;
+  const planningWind = forecastDecision.recommendedWindKt;
 
   function applyCourseConditions() {
-    if (typeof planningWind !== "number") return;
+    if (typeof forecastDecision.recommendedWindKt !== "number") return;
 
-    setForecastWind(planningWind);
+    setForecastWind(forecastDecision.recommendedWindKt);
     if (seaStateAuto) {
-      setSeaState(getSeaStateFromWind(planningWind));
+      setSeaState(suggestedSeaState);
     }
-    setLegType(
-      getLegTypeFromCourseWind(
-        courseConfig.firstLegBearingDeg,
-        courseWindRead.windDirectionDeg
-      )
-    );
+    setLegType(suggestedLegType);
+    setRiskMode(suggestedRiskMode);
   }
 
   function handleCourseChange(nextCourseId: string) {
     setCourseId(nextCourseId);
-    const nextConfig = getRouteBiasInputs(nextCourseId);
-    const nextRead = getCourseWindRead(nextCourseId, liveWeather);
-    setLegType(
-      getLegTypeFromCourseWind(
-        nextConfig.firstLegBearingDeg,
-        nextRead.windDirectionDeg
-      )
-    );
   }
 
-  useEffect(() => {
-    if (!courseConditionsAuto || typeof planningWind !== "number") return;
+  function handleConfirmSailSelection() {
+    if (!result || !finalCall || forecastWind === "") {
+      return;
+    }
 
-    queueMicrotask(() => {
-      setForecastWind(planningWind);
-      if (seaStateAuto) {
-        setSeaState(getSeaStateFromWind(planningWind));
-      }
-      setLegType(
-        getLegTypeFromCourseWind(
-          courseConfig.firstLegBearingDeg,
-          courseWindRead.windDirectionDeg
-        )
-      );
-    });
-  }, [
-    courseConditionsAuto,
-    courseConfig.firstLegBearingDeg,
-    courseWindRead.windDirectionDeg,
-    planningWind,
-    seaStateAuto,
-  ]);
-
-  const result = useMemo(() => {
-    if (forecastWind === "") return null;
-
-    return getRaceSailPlan({
-      forecastWind: Number(forecastWind),
+    setTacticalBoardConfirmedSailSelection({
+      courseId,
+      confirmedAtISO: new Date().toISOString(),
+      forecastWindKt: Number(forecastWind),
       seaState,
       crewCount,
       hikingLevel,
       legType,
       riskMode,
+      confidence: confidence ?? "Medium",
+      finalCall,
+      mainChoice: result.mainChoice,
+      headsailChoice: result.headsailChoice,
+      spinnakerChoice: result.spinnakerChoice,
+      reefCall: result.reefCall,
+      coachSummary: sailBrief.summary,
+      forecastSummary: forecastDecision.summary,
+      currentEffectSummary: currentImpact.summary,
+      currentEffectLevel: currentImpact.level,
     });
-  }, [forecastWind, seaState, crewCount, hikingLevel, legType, riskMode]);
+    router.push("/race/pre-race#course-strategy");
+  }
+
+  useEffect(() => {
+    const coachWind = forecastDecision.recommendedWindKt;
+    if (!courseConditionsAuto || typeof coachWind !== "number") return;
+
+    queueMicrotask(() => {
+      setForecastWind(coachWind);
+      if (seaStateAuto) {
+        setSeaState(suggestedSeaState);
+      }
+      setLegType(suggestedLegType);
+      setRiskMode(suggestedRiskMode);
+    });
+  }, [
+    courseConditionsAuto,
+    forecastDecision.recommendedWindKt,
+    seaStateAuto,
+    suggestedLegType,
+    suggestedRiskMode,
+    suggestedSeaState,
+  ]);
+
+  const result =
+    forecastWind === ""
+      ? null
+      : getRaceSailPlan({
+          forecastWind: Number(forecastWind),
+          seaState,
+          crewCount,
+          hikingLevel,
+          legType,
+          riskMode,
+        });
   const recommendationTone = result ? getRecommendationTone(result) : null;
 
   const confidence = result
@@ -668,7 +517,7 @@ export default function SailSelectionPage() {
             ) : null}
             {courseConditionsAuto ? (
               <p className="mt-3 text-xs text-emerald-200/80">
-                Auto-filling wind, sea state, and upwind/downwind mode from the selected course and closest live source.
+                Auto-filling wind, sea state, leg mode, and risk posture from the coach assist.
               </p>
             ) : (
               <p className="mt-3 text-xs text-white/55">
@@ -676,6 +525,44 @@ export default function SailSelectionPage() {
               </p>
             )}
           </div>
+        </div>
+      </Panel>
+
+      <Panel title="AI Coach Assist">
+        <div className="space-y-4">
+          <AiCoachCard brief={sailBrief} compact />
+
+          <div className="grid gap-3 md:grid-cols-3">
+            <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+              <div className="text-xs uppercase opacity-55">Forecast blend</div>
+              <div className="mt-1 text-sm font-semibold">
+                {forecastDecision.summary}
+              </div>
+            </div>
+            <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+              <div className="text-xs uppercase opacity-55">Current call</div>
+              <div className="mt-1 text-sm font-semibold">{currentImpact.summary}</div>
+            </div>
+            <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+              <div className="text-xs uppercase opacity-55">Coach mode</div>
+              <div className="mt-1 text-sm font-semibold">
+                {suggestedRiskMode === "conservative" ? "Conservative" : "Max performance"} ·{" "}
+                {suggestedLegType === "upwind" ? "Upwind" : "Downwind"}
+              </div>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => {
+              setCourseConditionsAuto(true);
+              applyCourseConditions();
+            }}
+            disabled={typeof forecastDecision.recommendedWindKt !== "number"}
+            className="rounded-xl border border-[color:var(--divider)] bg-white px-4 py-3 text-sm font-black uppercase tracking-wide text-black disabled:opacity-40"
+          >
+            Apply AI Coach Auto-Fill
+          </button>
         </div>
       </Panel>
 
@@ -901,6 +788,28 @@ export default function SailSelectionPage() {
                   <li key={i}>{item}</li>
                 ))}
               </ul>
+            </div>
+
+            <div className="rounded-2xl border border-emerald-400/30 bg-emerald-500/10 p-4">
+              <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <div className="text-xs tracking-widest uppercase text-emerald-200/80">
+                    Step 2 Handoff
+                  </div>
+                  <div className="mt-1 text-sm text-emerald-50">
+                    Confirm this sail package, save it into the pre-race setup, and jump straight
+                    to Step 3 so the course-strategy coach can use the same weather and setup
+                    picture.
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleConfirmSailSelection}
+                  className="rounded-xl bg-emerald-300 px-4 py-3 text-sm font-black uppercase tracking-wide text-black transition active:scale-[0.98]"
+                >
+                  Confirm Sail And Go To Step 3
+                </button>
+              </div>
             </div>
 
             <div className="grid gap-3 md:grid-cols-2">

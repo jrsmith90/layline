@@ -7,6 +7,7 @@ import type {
 } from "@/data/race/getRouteBiasInputs";
 import { getCourseData, getDefaultCourseId, hasCourse } from "@/data/race/getCourseData";
 import { wrap360 } from "@/lib/race/courseTracker";
+import type { ConfirmedSailSelectionSummary } from "@/lib/race/preRaceCoachAssist";
 import {
   getStoredTrackerStateSnapshot,
   setTrackerCourseId,
@@ -31,6 +32,8 @@ export type TacticalBoardRouteBiasState = {
   latestUpdate: PlanValidityResult | null;
 };
 
+export type TacticalBoardConfirmedSailSelection = ConfirmedSailSelectionSummary;
+
 export type TacticalBoardDraft = {
   courseId: string;
   meanWindDirectionDeg: string;
@@ -43,6 +46,7 @@ export type TacticalBoardDraft = {
   downwindTrueWindAngleDeg: string;
   windTrend: WindTrend;
   routeBias: TacticalBoardRouteBiasState;
+  confirmedSailSelection: TacticalBoardConfirmedSailSelection | null;
   courseStrategy: CourseStrategyAnswers | null;
   courseStrategyResult: CourseStrategyResult | null;
 };
@@ -101,6 +105,46 @@ function isEdgeStrength(value: unknown): value is EdgeStrength {
     value === "moderate" ||
     value === "weak" ||
     value === "unclear";
+}
+
+function isSailConfidence(value: unknown): value is TacticalBoardConfirmedSailSelection["confidence"] {
+  return value === "High" || value === "Medium" || value === "Low";
+}
+
+function isCurrentEffectLevel(
+  value: unknown,
+): value is NonNullable<TacticalBoardConfirmedSailSelection["currentEffectLevel"]> {
+  return value === "high" || value === "medium" || value === "low" || value === "unknown";
+}
+
+function isCrewCount(
+  value: unknown,
+): value is TacticalBoardConfirmedSailSelection["crewCount"] {
+  return value === 3 || value === 4 || value === 5 || value === 6;
+}
+
+function isHikingLevel(
+  value: unknown,
+): value is TacticalBoardConfirmedSailSelection["hikingLevel"] {
+  return value === "light" || value === "moderate" || value === "full";
+}
+
+function isLegType(value: unknown): value is TacticalBoardConfirmedSailSelection["legType"] {
+  return value === "upwind" || value === "downwind";
+}
+
+function isRiskMode(value: unknown): value is TacticalBoardConfirmedSailSelection["riskMode"] {
+  return value === "max_performance" || value === "conservative";
+}
+
+function isSeaState(value: unknown): value is TacticalBoardConfirmedSailSelection["seaState"] {
+  return value === "calm_0" ||
+    value === "light_air_1_3" ||
+    value === "light_breeze_4_6" ||
+    value === "gentle_breeze_7_10" ||
+    value === "moderate_breeze_11_16" ||
+    value === "fresh_breeze_17_21" ||
+    value === "strong_breeze_22_27";
 }
 
 function isRouteBiasDecision(value: unknown): value is RouteBiasSnapshot["decision"] {
@@ -326,6 +370,60 @@ function sanitizeCourseStrategyResult(value: unknown): CourseStrategyResult | nu
   };
 }
 
+function sanitizeConfirmedSailSelection(value: unknown): TacticalBoardConfirmedSailSelection | null {
+  if (!value || typeof value !== "object") return null;
+
+  const input = value as Partial<TacticalBoardConfirmedSailSelection>;
+  const courseId = normalizeCourseId(input.courseId);
+  const forecastWindKt =
+    typeof input.forecastWindKt === "number" && Number.isFinite(input.forecastWindKt)
+      ? input.forecastWindKt
+      : null;
+
+  if (
+    forecastWindKt == null ||
+    !isSeaState(input.seaState) ||
+    !isCrewCount(input.crewCount) ||
+    !isHikingLevel(input.hikingLevel) ||
+    !isLegType(input.legType) ||
+    !isRiskMode(input.riskMode) ||
+    !isSailConfidence(input.confidence)
+  ) {
+    return null;
+  }
+
+  const finalCall = sanitizeText(input.finalCall, "").trim();
+  const mainChoice = sanitizeText(input.mainChoice, "").trim();
+  const reefCall = sanitizeText(input.reefCall, "").trim();
+
+  if (!finalCall || !mainChoice || !reefCall) {
+    return null;
+  }
+
+  return {
+    courseId,
+    confirmedAtISO: sanitizeText(input.confirmedAtISO, new Date().toISOString()),
+    forecastWindKt,
+    seaState: input.seaState,
+    crewCount: input.crewCount,
+    hikingLevel: input.hikingLevel,
+    legType: input.legType,
+    riskMode: input.riskMode,
+    confidence: input.confidence,
+    finalCall,
+    mainChoice,
+    headsailChoice: sanitizeText(input.headsailChoice, "").trim() || undefined,
+    spinnakerChoice: sanitizeText(input.spinnakerChoice, "").trim() || undefined,
+    reefCall,
+    coachSummary: sanitizeText(input.coachSummary, "").trim() || undefined,
+    forecastSummary: sanitizeText(input.forecastSummary, "").trim() || undefined,
+    currentEffectSummary: sanitizeText(input.currentEffectSummary, "").trim() || undefined,
+    currentEffectLevel: isCurrentEffectLevel(input.currentEffectLevel)
+      ? input.currentEffectLevel
+      : undefined,
+  };
+}
+
 function courseSeed(courseId: string) {
   const courseData = getCourseData(courseId);
   const firstLegBearingDeg = courseData.firstLeg?.bearingDeg ?? null;
@@ -421,6 +519,7 @@ function sanitizeDraft(input: Partial<TacticalBoardDraft> | null | undefined): T
     ),
     windTrend: isWindTrend(input?.windTrend) ? input.windTrend : defaults.windTrend,
     routeBias: sanitizeRouteBiasState(input?.routeBias),
+    confirmedSailSelection: sanitizeConfirmedSailSelection(input?.confirmedSailSelection),
     courseStrategy: sanitizeCourseStrategyAnswers(input?.courseStrategy),
     courseStrategyResult: sanitizeCourseStrategyResult(input?.courseStrategyResult),
   };
@@ -527,6 +626,7 @@ export function buildTacticalBoardDraftDefaults(courseId: string): TacticalBoard
     downwindTrueWindAngleDeg: "135",
     windTrend: "unknown",
     routeBias: createEmptyRouteBiasState(),
+    confirmedSailSelection: null,
     courseStrategy: null,
     courseStrategyResult: null,
   };
@@ -724,6 +824,26 @@ export function setTacticalBoardCourseStrategy(
     const tracker = getStoredTrackerStateSnapshot();
     if (tracker.courseId !== sanitizedAnswers.courseId) {
       setTrackerCourseId(sanitizedAnswers.courseId);
+    }
+  }
+
+  return nextDraft;
+}
+
+export function setTacticalBoardConfirmedSailSelection(
+  input: TacticalBoardConfirmedSailSelection,
+  options: { syncTracker?: boolean } = {},
+) {
+  const sanitized = sanitizeConfirmedSailSelection(input) ?? input;
+  const nextDraft = updateTacticalBoardDraft((current) => ({
+    ...current,
+    confirmedSailSelection: sanitized,
+  }));
+
+  if (options.syncTracker !== false) {
+    const tracker = getStoredTrackerStateSnapshot();
+    if (tracker.courseId !== sanitized.courseId) {
+      setTrackerCourseId(sanitized.courseId);
     }
   }
 
