@@ -42,6 +42,8 @@ type CleanedSequenceEditorState = {
   markRoundings: Array<RaceCourseMarkRounding | null>;
 };
 
+type SequenceRole = "start" | "finish" | "start_finish" | null;
+
 const activeEvent = getActiveRaceEvent();
 const customCourseMarks = getCustomCourseMarkCatalogForEvent(activeEvent);
 const availableMarkIds = Object.keys(customCourseMarks).sort((a, b) => {
@@ -89,6 +91,41 @@ function cleanEditorSequence(editor: Pick<EditorState, "sequence" | "roundingSid
       markRoundings: [],
     },
   );
+}
+
+function getSequenceRoles(sequence: string[]) {
+  const roles: SequenceRole[] = sequence.map(() => null);
+  const populatedIndexes = sequence.flatMap((markKey, index) =>
+    markKey.trim().length > 0 ? [index] : [],
+  );
+  const firstIndex = populatedIndexes[0];
+  const lastIndex = populatedIndexes[populatedIndexes.length - 1];
+
+  if (firstIndex == null || lastIndex == null) {
+    return roles;
+  }
+
+  if (firstIndex === lastIndex) {
+    roles[firstIndex] = "start_finish";
+    return roles;
+  }
+
+  roles[firstIndex] = "start";
+  roles[lastIndex] = "finish";
+  return roles;
+}
+
+function getSequenceRoleCopy(role: SequenceRole) {
+  switch (role) {
+    case "start":
+      return "Start";
+    case "finish":
+      return "Finish";
+    case "start_finish":
+      return "Start / Finish";
+    default:
+      return "";
+  }
 }
 
 function toEditorState(courseId: string): EditorState {
@@ -185,6 +222,8 @@ export default function CourseManagerPage() {
       ),
     [previewLegDetails],
   );
+
+  const editorSequenceRoles = useMemo(() => getSequenceRoles(editor.sequence), [editor.sequence]);
 
   function resetEditor() {
     setEditingCourseId(null);
@@ -446,6 +485,15 @@ export default function CourseManagerPage() {
                 <div className="space-y-2">
                   {editor.sequence.map((markKey, index) => (
                     <div key={`${index}-${markKey}`} className="flex gap-2">
+                      <div className="flex w-28 shrink-0 items-center">
+                        {editorSequenceRoles[index] ? (
+                          <span className="inline-flex rounded-full bg-sky-500/15 px-2.5 py-1 text-[11px] font-black uppercase tracking-wide text-sky-100">
+                            {getSequenceRoleCopy(editorSequenceRoles[index])}
+                          </span>
+                        ) : (
+                          <span className="text-xs text-[color:var(--muted)]">Turn mark</span>
+                        )}
+                      </div>
                       <select
                         value={markKey}
                         onChange={(event) => updateSequenceItem(index, event.target.value)}
@@ -585,6 +633,12 @@ export default function CourseManagerPage() {
                           </td>
                           <td className="py-2 pr-4">
                             {getMarkShortLabel(leg.toMark, customCourseMarks[leg.toMark])}
+                          </td>
+                          <td className="py-2 pr-4">
+                            {leg.legNumber === 1 ? "Start" : ""}
+                            {leg.legNumber === previewLegDetails.length ? (
+                              leg.legNumber === 1 ? " / Finish" : "Finish"
+                            ) : null}
                           </td>
                           <td className="py-2 pr-4">
                             {previewCourseRecord?.markRoundings?.[leg.legNumber] === "port"
