@@ -13,13 +13,6 @@ import {
 
 const DEFAULT_TACTICAL_BOARD_DRAFT = buildTacticalBoardDraftDefaults("ted-v3");
 
-function parseNumber(value: string) {
-  const trimmed = value.trim();
-  if (!trimmed) return null;
-  const parsed = Number(trimmed);
-  return Number.isNaN(parsed) ? null : parsed;
-}
-
 export default function PreRaceCourseStrategyWorkflow() {
   const draft = useSyncExternalStore(
     subscribeTacticalBoardStore,

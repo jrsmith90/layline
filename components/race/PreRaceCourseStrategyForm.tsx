@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import type { CourseSummary } from "@/data/race/getCourseData";
 import { getCourseData } from "@/data/race/getCourseData";
 import { getCourseStrategyDefaults } from "@/data/race/getCourseStrategyInputs";
 import type {

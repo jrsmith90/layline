@@ -20,7 +20,6 @@ function generateDefaultZones(
   tackAngleDeg: number = 42,
 ): CourseZone[] {
   const firstLegBearing = courseData?.firstLeg?.bearingDeg ?? 0;
-  const firstMarkDistance = courseData?.firstLeg?.distanceNmCalculated ?? 0;
 
   if (!windDirectionDeg) {
     return [
