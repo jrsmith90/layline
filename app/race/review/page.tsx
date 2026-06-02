@@ -342,6 +342,104 @@ function buildSegmentPreviewGeometry(points: GpsTrackPoint[]) {
   };
 }
 
+function SessionTrackOverview({
+  track,
+  hasCourseOverlay,
+}: {
+  track: GpsTrackPoint[];
+  hasCourseOverlay: boolean;
+}) {
+  const points = track.filter(
+    (point) =>
+      Number.isFinite(point.lat) &&
+      Number.isFinite(point.lon) &&
+      typeof point.at === "string" &&
+      point.at.length > 0,
+  );
+  const geometry = buildSegmentPreviewGeometry(points);
+  if (!geometry) return null;
+
+  const startedAtISO = points[0]?.at;
+  const endedAtISO = points[points.length - 1]?.at;
+
+  return (
+    <section className="layline-panel overflow-hidden p-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <div className="layline-kicker">Track View</div>
+          <h2 className="mt-1 text-xl font-black">Session track overview</h2>
+          <p className="mt-1 text-sm text-[color:var(--muted)]">
+            Raw sailed path from the imported or recorded GPS track.
+            {hasCourseOverlay
+              ? " The course overlay is also available below in Replay."
+              : " Attach a course on import if you want the marks and planned shape overlaid too."}
+          </p>
+        </div>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+          <Metric label="Track points" value={String(points.length)} />
+          <Metric
+            label="Duration"
+            value={startedAtISO && endedAtISO ? formatDuration(startedAtISO, endedAtISO) : "--"}
+          />
+          <Metric label="Start" value={formatDateTime(startedAtISO)} />
+        </div>
+      </div>
+
+      <div className="mt-4 overflow-hidden rounded-lg border border-[color:var(--divider)] bg-[#08233a]">
+        <svg
+          viewBox={`0 0 ${geometry.width} ${geometry.height}`}
+          preserveAspectRatio="xMidYMid meet"
+          role="img"
+          aria-label="Session track overview"
+          className="aspect-[1.82] w-full"
+        >
+          <rect width={geometry.width} height={geometry.height} fill="#08233a" />
+          <path
+            d="M 18 28 C 54 16 86 42 122 26 S 194 36 222 18"
+            fill="none"
+            stroke="rgba(127,183,255,0.12)"
+            strokeWidth="16"
+          />
+          <path
+            d="M 10 108 C 52 92 88 122 134 102 S 198 110 232 88"
+            fill="none"
+            stroke="rgba(0,168,168,0.10)"
+            strokeWidth="18"
+          />
+          <line
+            x1={geometry.start.x}
+            y1={geometry.start.y}
+            x2={geometry.end.x}
+            y2={geometry.end.y}
+            stroke="rgba(255,255,255,0.28)"
+            strokeDasharray="5 5"
+            strokeWidth="1.5"
+          />
+          <polyline
+            points={geometry.polyline}
+            fill="none"
+            stroke="#ec4899"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth="3.5"
+          />
+          <circle cx={geometry.start.x} cy={geometry.start.y} r="4" fill="#f8fafc" />
+          <circle cx={geometry.end.x} cy={geometry.end.y} r="4.5" fill="#2dd4bf" />
+        </svg>
+      </div>
+
+      <div className="mt-3 flex flex-wrap gap-2 text-[10px] font-black uppercase tracking-[0.16em] text-[color:var(--muted)]">
+        <div className="rounded-full border border-white/10 bg-black/20 px-3 py-1">Start marker: white</div>
+        <div className="rounded-full border border-white/10 bg-black/20 px-3 py-1">End marker: teal</div>
+        <div className="rounded-full border border-white/10 bg-black/20 px-3 py-1">Track: pink</div>
+        <div className="rounded-full border border-white/10 bg-black/20 px-3 py-1">
+          Direct progress: dashed
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function SegmentPreview({
   decision,
   track,
