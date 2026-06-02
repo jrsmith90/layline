@@ -2,6 +2,7 @@ import hellyHansen2026CourseGeometryRaw from "../../race/course-geometry-2026-hh
 import eweSpiritCup2026CourseGeometryRaw from "../../race/course-geometry-2026-scc-ewe-spirit-cup.json";
 import {
   ANNAPOLIS_LOCAL_EVENT_MARKS,
+  ANNAPOLIS_STANDARD_GOVERNMENT_MARKS,
   pickAnnapolisMarks,
 } from "./annapolisMarkDataset";
 
@@ -443,4 +444,15 @@ export function getActiveRaceEvent(): RaceEventRecord {
 
 export function getActiveCourseGeometry(): RaceEventRecord["courseGeometry"] {
   return getActiveRaceEvent().courseGeometry;
+}
+
+export function getCustomCourseMarkCatalogForEvent(event: RaceEventRecord) {
+  if (!/annapolis/i.test(event.location) && !/annapolis/i.test(event.name)) {
+    return event.courseGeometry.marks;
+  }
+
+  return {
+    ...ANNAPOLIS_STANDARD_GOVERNMENT_MARKS,
+    ...event.courseGeometry.marks,
+  };
 }

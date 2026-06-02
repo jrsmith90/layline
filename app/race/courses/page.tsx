@@ -13,7 +13,10 @@ import {
   getCustomCourseRecord,
   upsertCustomCourseRecord,
 } from "@/data/race/customCourses";
-import { getActiveRaceEvent } from "@/data/race/eventDatabase";
+import {
+  getActiveRaceEvent,
+  getCustomCourseMarkCatalogForEvent,
+} from "@/data/race/eventDatabase";
 import {
   buildCustomCourseRecord,
   buildLegDetailsFromSequence,
@@ -29,9 +32,8 @@ type EditorState = {
 };
 
 const activeEvent = getActiveRaceEvent();
-const availableMarkIds = Object.keys(activeEvent.courseGeometry.marks).sort((a, b) =>
-  a.localeCompare(b),
-);
+const customCourseMarks = getCustomCourseMarkCatalogForEvent(activeEvent);
+const availableMarkIds = Object.keys(customCourseMarks).sort((a, b) => a.localeCompare(b));
 
 function createEmptyEditorState(): EditorState {
   return {
@@ -82,10 +84,10 @@ export default function CourseManagerPage() {
       return null;
     }
 
-    return buildCustomCourseRecord({
+      return buildCustomCourseRecord({
       label,
       sequence,
-      marks: activeEvent.courseGeometry.marks,
+      marks: customCourseMarks,
       notes: editor.notes,
       textSummary: cleanTextLines(editor.textSummaryText),
     });
@@ -110,7 +112,7 @@ export default function CourseManagerPage() {
 
     return buildLegDetailsFromSequence(
       previewCourseRecord.sequence ?? [],
-      activeEvent.courseGeometry.marks,
+      customCourseMarks,
     );
   }, [previewCourseRecord]);
 
@@ -207,7 +209,7 @@ export default function CourseManagerPage() {
       return;
     }
 
-    const hasUnknownMark = sequence.some((markKey) => !activeEvent.courseGeometry.marks[markKey]);
+    const hasUnknownMark = sequence.some((markKey) => !customCourseMarks[markKey]);
     if (hasUnknownMark) {
       setError("Every sequence entry must be a valid mark from the active event.");
       return;
@@ -220,7 +222,7 @@ export default function CourseManagerPage() {
       course: buildCustomCourseRecord({
         label,
         sequence,
-        marks: activeEvent.courseGeometry.marks,
+        marks: customCourseMarks,
         notes: editor.notes,
         textSummary: cleanTextLines(editor.textSummaryText),
       }),
@@ -321,7 +323,7 @@ export default function CourseManagerPage() {
             </p>
             <div className="mt-3 grid gap-2 sm:grid-cols-2">
               {availableMarkIds.map((markKey) => {
-                const mark = activeEvent.courseGeometry.marks[markKey];
+                const mark = customCourseMarks[markKey];
                 return (
                   <div
                     key={markKey}
@@ -372,7 +374,7 @@ export default function CourseManagerPage() {
                         <option value="">Choose mark</option>
                         {availableMarkIds.map((candidate) => (
                           <option key={candidate} value={candidate} className="bg-slate-900">
-                            {formatMarkChoice(candidate, activeEvent.courseGeometry.marks[candidate])}
+                            {formatMarkChoice(candidate, customCourseMarks[candidate])}
                           </option>
                         ))}
                       </select>

@@ -4,6 +4,7 @@ import {
 } from "./customCourses";
 import {
   getActiveRaceEvent,
+  getCustomCourseMarkCatalogForEvent,
   getRaceEvent,
   raceEvents,
   type RaceCourseConstraintRecord,
@@ -11,6 +12,13 @@ import {
 } from "./eventDatabase";
 
 const activeEvent = getActiveRaceEvent();
+
+function getCourseGeometryForCustomCourse(event: typeof activeEvent) {
+  return {
+    ...event.courseGeometry,
+    marks: getCustomCourseMarkCatalogForEvent(event),
+  };
+}
 
 type MarkId = string;
 type CourseId = string;
@@ -127,7 +135,7 @@ function resolveCourse(requestedCourseId: string) {
       event: activeEvent,
       courseId: requestedCourseId,
       displayCourseId: requestedCourseId,
-      courseGeometry: activeEvent.courseGeometry,
+      courseGeometry: getCourseGeometryForCustomCourse(activeEvent),
       course: customCourse.course,
       customCourse,
     };
@@ -281,12 +289,15 @@ export function buildCourseSummaryFromRecord(params: {
   eventId?: string;
 }): CourseSummary {
   const event = params.eventId ? getRaceEvent(params.eventId) : activeEvent;
+  const courseGeometry = params.course.custom
+    ? getCourseGeometryForCustomCourse(event)
+    : event.courseGeometry;
 
   return buildCourseSummaryFromResolved({
     event,
     courseId: params.courseId,
     displayCourseId: params.courseId,
-    courseGeometry: event.courseGeometry,
+    courseGeometry,
     course: params.course,
   });
 }
