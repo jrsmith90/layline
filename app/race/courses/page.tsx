@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { AppPageHeader } from "@/components/layout/AppPageHeader";
 import CourseChart from "@/components/race/CourseChart";
+import { ANNAPOLIS_STANDARD_MARKS_SOURCE } from "@/data/race/annapolisMarkDataset";
 import { buildCourseSummaryFromRecord } from "@/data/race/getCourseData";
 import {
   createCustomCourseId,
@@ -15,6 +16,7 @@ import {
 import { getActiveRaceEvent } from "@/data/race/eventDatabase";
 import {
   buildCustomCourseRecord,
+  buildLegDetailsFromSequence,
   formatMarkChoice,
 } from "@/lib/race/customCourseHelpers";
 import { useCourseCatalogVersion } from "@/lib/race/useCourseCatalogVersion";
@@ -100,6 +102,29 @@ export default function CourseManagerPage() {
       course: previewCourseRecord,
     });
   }, [editingCourseId, previewCourseRecord]);
+
+  const previewLegDetails = useMemo(() => {
+    if (!previewCourseRecord) {
+      return [];
+    }
+
+    return buildLegDetailsFromSequence(
+      previewCourseRecord.sequence ?? [],
+      activeEvent.courseGeometry.marks,
+    );
+  }, [previewCourseRecord]);
+
+  const previewLegCautions = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          previewLegDetails
+            .map((leg) => leg.caution)
+            .filter((caution): caution is string => Boolean(caution)),
+        ),
+      ),
+    [previewLegDetails],
+  );
 
   function resetEditor() {
     setEditingCourseId(null);
@@ -287,6 +312,13 @@ export default function CourseManagerPage() {
 
           <div className="mt-5 border-t border-[color:var(--divider)] pt-4">
             <div className="layline-kicker">Available Marks</div>
+            <p className="mt-2 text-sm leading-6 text-[color:var(--text-soft)]">
+              Annapolis government mark positions in this catalog are sourced from{" "}
+              {ANNAPOLIS_STANDARD_MARKS_SOURCE.publisher}&apos;s 2026{" "}
+              {ANNAPOLIS_STANDARD_MARKS_SOURCE.title} sheet. When a direct leg appears in that
+              distance table, the builder uses the published number before falling back to a
+              geometric estimate.
+            </p>
             <div className="mt-3 grid gap-2 sm:grid-cols-2">
               {availableMarkIds.map((markKey) => {
                 const mark = activeEvent.courseGeometry.marks[markKey];
@@ -311,7 +343,8 @@ export default function CourseManagerPage() {
             </h2>
             <p className="layline-learn-only mt-2 text-sm leading-6 text-[color:var(--text-soft)]">
               Build the course from the active event marks. Leg bearings and distances are
-              calculated automatically from the selected mark sequence.
+              calculated automatically from the selected mark sequence, with published Annapolis
+              sheet distances preferred when available.
             </p>
 
             <div className="mt-4 space-y-4">
@@ -433,22 +466,44 @@ export default function CourseManagerPage() {
                         <th className="pb-2 pr-4 font-medium">From</th>
                         <th className="pb-2 pr-4 font-medium">To</th>
                         <th className="pb-2 pr-4 font-medium">Bearing</th>
-                        <th className="pb-2 font-medium">Distance</th>
+                        <th className="pb-2 pr-4 font-medium">Distance</th>
+                        <th className="pb-2 font-medium">Source</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {previewCourseSummary.course.legs.map((leg) => (
+                      {previewLegDetails.map((leg) => (
                         <tr key={leg.legNumber} className="border-t border-[color:var(--divider)]">
                           <td className="py-2 pr-4">{leg.legNumber}</td>
                           <td className="py-2 pr-4">{leg.fromMark}</td>
                           <td className="py-2 pr-4">{leg.toMark}</td>
                           <td className="py-2 pr-4">{leg.bearingDeg.toFixed(1)} deg</td>
-                          <td className="py-2">{leg.distanceNmCalculated.toFixed(2)} nm</td>
+                          <td className="py-2 pr-4">{leg.distanceNmCalculated.toFixed(2)} nm</td>
+                          <td className="py-2">
+                            <span
+                              className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-black uppercase tracking-wide ${
+                                leg.distanceSource === "published_table"
+                                  ? "bg-emerald-500/15 text-emerald-100"
+                                  : "bg-amber-500/15 text-amber-100"
+                              }`}
+                            >
+                              {leg.distanceSource === "published_table"
+                                ? "Sheet Table"
+                                : "Geo Fallback"}
+                            </span>
+                          </td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 </div>
+
+                {previewLegCautions.length > 0 ? (
+                  <div className="mt-4 space-y-2 rounded-xl border border-amber-400/30 bg-amber-500/10 p-3 text-sm text-amber-100">
+                    {previewLegCautions.map((caution) => (
+                      <p key={caution}>{caution}</p>
+                    ))}
+                  </div>
+                ) : null}
               </section>
             </>
           ) : (

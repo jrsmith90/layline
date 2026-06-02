@@ -1,5 +1,179 @@
 import type { RaceCourseMarkRecord } from "./eventDatabase";
 
+export const ANNAPOLIS_STANDARD_MARKS_SOURCE = {
+  sourceDocument: "Reference Data/Annapolis-area-racing-marks-Revised-2026.pdf",
+  publisher: "Chesapeake Bay Yacht Racing Association",
+  title: "Annapolis Area Standard Racing Marks",
+  updatedThrough: "2026-01-01",
+  notes: [
+    "Approximate positions of all marks are offered as a reference only.",
+    "Government symbols and numbers may change via Notice to Mariners.",
+    "The same sheet includes a published distance-between-marks table for selected direct legs.",
+  ],
+} as const;
+
+const ANNAPOLIS_PUBLISHED_DISTANCE_TABLE_ROWS: Record<string, Record<string, number>> = {
+  A: {
+    D: 1.58,
+    E: 6.32,
+    G: 2.46,
+    H: 4.61,
+    J: 2.22,
+    K: 13.15,
+    L: 9.33,
+    M: 2.29,
+    N: 5.04,
+    P: 10.62,
+    Q: 12.75,
+    R: 11.51,
+    S: 5.94,
+    T: 1.77,
+    X: 6.57,
+  },
+  D: {
+    E: 7.03,
+    G: 3.04,
+    H: 5.75,
+    J: 3.65,
+    K: 14.14,
+    L: 9.91,
+    M: 3.71,
+    N: 6.43,
+    P: 11.47,
+    Q: 13.63,
+    R: 12.0,
+    S: 7.35,
+    T: 3.1,
+    X: 7.76,
+  },
+  E: {
+    G: 4.0,
+    H: 2.48,
+    J: 7.12,
+    K: 7.26,
+    L: 3.06,
+    M: 4.65,
+    N: 3.8,
+    P: 4.47,
+    Q: 6.63,
+    R: 5.28,
+    S: 4.09,
+    T: 4.78,
+    X: 2.68,
+  },
+  G: {
+    H: 2.93,
+    J: 4.0,
+    K: 11.11,
+    L: 6.94,
+    M: 2.05,
+    N: 4.04,
+    P: 8.43,
+    Q: 10.59,
+    R: 9.1,
+    S: 4.92,
+    T: 1.59,
+    X: 4.92,
+  },
+  J: {
+    K: 13.2,
+    L: 10.17,
+    M: 2.47,
+    N: 4.56,
+    P: 10.97,
+    Q: 13.01,
+    R: 12.39,
+    S: 5.32,
+    T: 2.51,
+    X: 6.48,
+  },
+  K: {
+    L: 5.33,
+    M: 11.03,
+    N: 8.67,
+    P: 2.9,
+    Q: 1.25,
+    R: 4.93,
+    S: 8.05,
+    T: 11.41,
+    X: 6.73,
+  },
+  L: {
+    M: 7.71,
+    N: 6.5,
+    P: 6.43,
+    Q: 2.52,
+    R: 4.34,
+    S: 2.23,
+    T: 6.39,
+    X: 7.83,
+    Z: 4.67,
+  },
+  M: {
+    N: 2.75,
+    P: 8.64,
+    Q: 10.73,
+    R: 9.93,
+    S: 3.66,
+    T: 0.64,
+    X: 4.35,
+  },
+  P: {
+    Q: 6.63,
+    R: 8.56,
+    S: 8.58,
+    T: 0.92,
+    X: 3.33,
+    Z: 2.01,
+  },
+  Q: {
+    R: 2.16,
+    S: 3.01,
+    T: 6.25,
+    X: 8.94,
+    Z: 4.62,
+  },
+  R: {
+    S: 3.69,
+    T: 8.05,
+    X: 11.05,
+    Z: 6.56,
+  },
+  S: {
+    T: 8.45,
+    X: 10.05,
+    Z: 6.72,
+  },
+  T: {
+    X: 4.25,
+    Z: 1.73,
+  },
+  X: {
+    Z: 4.8,
+  },
+};
+
+export const ANNAPOLIS_PUBLISHED_DISTANCE_TABLE_MARK_KEYS = [
+  "A",
+  "D",
+  "E",
+  "F",
+  "G",
+  "H",
+  "J",
+  "K",
+  "L",
+  "M",
+  "N",
+  "P",
+  "Q",
+  "R",
+  "S",
+  "T",
+  "X",
+  "Z",
+] as const;
+
 export const ANNAPOLIS_STANDARD_GOVERNMENT_MARKS: Record<string, RaceCourseMarkRecord> = {
   A: {
     id: 'GC "1"',
@@ -154,6 +328,22 @@ export const ANNAPOLIS_LOCAL_EVENT_MARKS: Record<string, RaceCourseMarkRecord> =
       'Green can. Position from U.S. Coast Guard Light List for Annapolis Harbor Channel Buoy 7.',
   },
 };
+
+export function getAnnapolisPublishedDistanceNm(fromMarkKey: string, toMarkKey: string) {
+  if (fromMarkKey === toMarkKey) {
+    return 0;
+  }
+
+  return (
+    ANNAPOLIS_PUBLISHED_DISTANCE_TABLE_ROWS[fromMarkKey]?.[toMarkKey] ??
+    ANNAPOLIS_PUBLISHED_DISTANCE_TABLE_ROWS[toMarkKey]?.[fromMarkKey] ??
+    null
+  );
+}
+
+export function isAnnapolisPublishedDistanceTableMark(markKey: string) {
+  return (ANNAPOLIS_PUBLISHED_DISTANCE_TABLE_MARK_KEYS as readonly string[]).includes(markKey);
+}
 
 export function pickAnnapolisMarks(
   markIds: string[],
