@@ -70,23 +70,7 @@ const CURRENT_STATIONS: CurrentStationConfig[] = [
   },
 ];
 
-const SNAPSHOT_MINUTES = [
-  10 * 60,
-  10 * 60 + 30,
-  11 * 60,
-  11 * 60 + 30,
-  12 * 60,
-  12 * 60 + 30,
-  13 * 60,
-  13 * 60 + 30,
-  14 * 60,
-  14 * 60 + 30,
-  15 * 60,
-  15 * 60 + 30,
-  16 * 60,
-  16 * 60 + 30,
-  17 * 60,
-];
+const SNAPSHOT_MINUTES = Array.from({ length: 25 }, (_, index) => 12 * 60 + index * 30);
 
 function formatApiDate(date: string) {
   return date.replaceAll("-", "");
@@ -111,11 +95,43 @@ function getRaceWindow(eventId?: string | null) {
   };
 }
 
-function parseMinutes(value?: string) {
+function parseDateOnly(value: string) {
+  const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return null;
+
+  return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+}
+
+function addDays(date: string, days: number) {
+  const parsed = parseDateOnly(date);
+  if (!parsed) return date;
+
+  parsed.setDate(parsed.getDate() + days);
+
+  const year = parsed.getFullYear();
+  const month = String(parsed.getMonth() + 1).padStart(2, "0");
+  const day = String(parsed.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function buildSnapshotEndDate(date: string) {
+  const latestMinute = Math.max(...SNAPSHOT_MINUTES);
+  return latestMinute >= 24 * 60 ? addDays(date, 1) : date;
+}
+
+function parseMinutes(value?: string, baseDate?: string) {
   if (!value) return null;
   const match = value.match(/(\d{4}-\d{2}-\d{2})\s+(\d{2}):(\d{2})/);
   if (!match) return null;
-  return Number(match[2]) * 60 + Number(match[3]);
+
+  const base = baseDate ? parseDateOnly(baseDate) : null;
+  const pointDate = parseDateOnly(match[1]);
+  const dayOffset =
+    base && pointDate
+      ? Math.round((pointDate.getTime() - base.getTime()) / (24 * 60 * 60 * 1000))
+      : 0;
+
+  return dayOffset * 24 * 60 + Number(match[2]) * 60 + Number(match[3]);
 }
 
 function formatMinutes(minutes: number) {
@@ -125,8 +141,9 @@ function formatMinutes(minutes: number) {
 }
 
 function displayLocalTime(minutes: number) {
-  const hours24 = Math.floor(minutes / 60);
-  const mins = minutes % 60;
+  const wrappedMinutes = ((minutes % (24 * 60)) + 24 * 60) % (24 * 60);
+  const hours24 = Math.floor(wrappedMinutes / 60);
+  const mins = wrappedMinutes % 60;
   const suffix = hours24 >= 12 ? "PM" : "AM";
   const hours12 = hours24 % 12 || 12;
   return `${hours12}:${String(mins).padStart(2, "0")} ${suffix}`;
@@ -197,10 +214,10 @@ function nearestSlope(
   return next.value - previous.value;
 }
 
-function normalizeCurrentPoints(points: NoaaCurrentPoint[]) {
+function normalizeCurrentPoints(points: NoaaCurrentPoint[], baseDate: string) {
   return points
     .map((point) => {
-      const minute = parseMinutes(point.Time);
+      const minute = parseMinutes(point.Time, baseDate);
       const velocity = toNumber(point.Velocity_Major);
       const floodDir = toNumber(point.meanFloodDir);
       const ebbDir = toNumber(point.meanEbbDir);
@@ -264,11 +281,12 @@ function buildCurrentSnapshot(
 
 async function fetchTide(date: string, targetMinute: number) {
   const apiDate = formatApiDate(date);
+  const endDate = formatApiDate(buildSnapshotEndDate(date));
   const baseParams = new URLSearchParams({
     product: "predictions",
     application: "layline",
     begin_date: apiDate,
-    end_date: apiDate,
+    end_date: endDate,
     datum: "MLLW",
     station: TIDE_STATION.stationId,
     time_zone: "lst_ldt",
@@ -283,7 +301,7 @@ async function fetchTide(date: string, targetMinute: number) {
 
   const series = ((seriesData.predictions ?? []) as NoaaPredictionPoint[])
     .map((point) => {
-      const minute = parseMinutes(point.t);
+      const minute = parseMinutes(point.t, date);
       const height = toNumber(point.v);
       return minute == null || height == null ? null : { minute, heightFt: height };
     })
@@ -291,7 +309,7 @@ async function fetchTide(date: string, targetMinute: number) {
 
   const hilo = ((hiloData.predictions ?? []) as NoaaPredictionPoint[])
     .map((point) => {
-      const minute = parseMinutes(point.t);
+      const minute = parseMinutes(point.t, date);
       const height = toNumber(point.v);
       if (minute == null || height == null || !point.type) return null;
       return {
@@ -344,7 +362,7 @@ async function fetchCurrentStation(station: CurrentStationConfig, date: string) 
     product: "currents_predictions",
     application: "layline",
     begin_date: formatApiDate(date),
-    end_date: formatApiDate(date),
+    end_date: formatApiDate(buildSnapshotEndDate(date)),
     station: station.stationId,
     time_zone: "lst_ldt",
     units: "english",
@@ -352,7 +370,7 @@ async function fetchCurrentStation(station: CurrentStationConfig, date: string) 
     format: "json",
   });
   const data = await fetchJson(`https://api.tidesandcurrents.noaa.gov/api/prod/datagetter?${params}`);
-  const points = normalizeCurrentPoints(data.current_predictions?.cp ?? []);
+  const points = normalizeCurrentPoints(data.current_predictions?.cp ?? [], date);
 
   return {
     station,

@@ -149,6 +149,7 @@ const WIND_MARKERS: WindMarker[] = [
     role: "Bottom-of-course wind reference",
   },
 ];
+const MAP_WINDOW_LABEL = "12:00 PM to 12:00 AM";
 
 function subscribeNever() {
   return () => {};
@@ -434,7 +435,10 @@ export default function RaceConditionsMap() {
 
         if (!cancelled) {
           setPayload(data);
-          setSnapshotIndex(Math.min(4, Math.max(data.snapshots.length - 1, 0)));
+          const noonSnapshotIndex = data.snapshots.findIndex(
+            (nextSnapshot) => nextSnapshot.time === "12:00",
+          );
+          setSnapshotIndex(noonSnapshotIndex >= 0 ? noonSnapshotIndex : 0);
         }
       } catch (nextError) {
         if (!cancelled) {
@@ -744,7 +748,7 @@ export default function RaceConditionsMap() {
                 {snapshot?.displayTime ?? "Loading time"}
               </span>
               <span className="text-xs text-[color:var(--muted)]">
-                First warning {payload?.raceWindow.firstWarning ?? "12:00 PM"} · limit {payload?.raceWindow.timeLimit ?? "4:30 PM"}
+                First warning {payload?.raceWindow.firstWarning ?? "12:00 PM"} · limit {payload?.raceWindow.timeLimit ?? "4:30 PM"} · map window {MAP_WINDOW_LABEL}
               </span>
             </div>
             <input
