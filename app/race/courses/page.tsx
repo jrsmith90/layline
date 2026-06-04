@@ -11,6 +11,7 @@ import {
   deleteCustomCourseRecord,
   getCustomCoursesForEvent,
   getCustomCourseRecord,
+  setCustomCourseLockedState,
   upsertCustomCourseRecord,
 } from "@/data/race/customCourses";
 import {
@@ -237,6 +238,15 @@ export default function CourseManagerPage() {
   );
 
   const editorSequenceRoles = useMemo(() => getSequenceRoles(editor.sequence), [editor.sequence]);
+  const editingCourseRecord = useMemo(
+    () =>
+      editingCourseId
+        ? savedCustomCourses.find((course) => course.id === editingCourseId) ??
+          getCustomCourseRecord(editingCourseId)
+        : null,
+    [editingCourseId, savedCustomCourses],
+  );
+  const isEditingLockedCourse = editingCourseRecord?.isLocked ?? false;
 
   function resetEditor() {
     setEditingCourseId(null);
@@ -316,6 +326,11 @@ export default function CourseManagerPage() {
     if (!saved) {
       return;
     }
+    if (saved.isLocked) {
+      setError(`Unlock "${saved.course.label ?? courseId}" before deleting it.`);
+      setMessage(null);
+      return;
+    }
 
     const confirmed = window.confirm(
       `Delete custom course "${saved.course.label ?? courseId}"? This only removes it from this browser.`,
@@ -332,6 +347,49 @@ export default function CourseManagerPage() {
     setError(null);
   }
 
+  function handleLock(courseId: string) {
+    const saved = getCustomCourseRecord(courseId);
+    if (!saved || saved.isLocked) {
+      return;
+    }
+
+    const nextRecord = setCustomCourseLockedState(courseId, true);
+    if (!nextRecord) {
+      return;
+    }
+
+    if (editingCourseId === courseId) {
+      setEditor(toEditorState(courseId));
+    }
+    setMessage(`Locked ${nextRecord.course.label ?? "custom course"}.`);
+    setError(null);
+  }
+
+  function handleUnlock(courseId: string) {
+    const saved = getCustomCourseRecord(courseId);
+    if (!saved || !saved.isLocked) {
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Unlock "${saved.course.label ?? courseId}" so it can be edited again?`,
+    );
+    if (!confirmed) {
+      return;
+    }
+
+    const nextRecord = setCustomCourseLockedState(courseId, false);
+    if (!nextRecord) {
+      return;
+    }
+
+    if (editingCourseId === courseId) {
+      setEditor(toEditorState(courseId));
+    }
+    setMessage(`Unlocked ${nextRecord.course.label ?? "custom course"}.`);
+    setError(null);
+  }
+
   function handleSave() {
     setMessage(null);
     setError(null);
@@ -341,6 +399,11 @@ export default function CourseManagerPage() {
 
     if (!label) {
       setError("Course name is required.");
+      return;
+    }
+
+    if (editingCourseRecord?.isLocked) {
+      setError(`Unlock "${editingCourseRecord.course.label ?? editingCourseId}" before saving changes.`);
       return;
     }
 
@@ -364,6 +427,7 @@ export default function CourseManagerPage() {
     const nextRecord = upsertCustomCourseRecord({
       id: courseId,
       eventId: activeEvent.id,
+      isLocked: false,
       course: buildCustomCourseRecord({
         label,
         sequence,
@@ -383,9 +447,9 @@ export default function CourseManagerPage() {
     <main className="mx-auto max-w-6xl space-y-5 px-4 pb-8 pt-4">
       <AppPageHeader
         eyebrow="Course Manager"
-        title="Add and edit local courses"
-        description={`Create custom courses for ${activeEvent.name}, adjust their names and route details, and use them anywhere the app asks for a course. These custom courses are saved in this browser.`}
-        badges={["Custom Courses", "Local Storage", activeEvent.location]}
+        title="Add, lock, and manage local courses"
+        description={`Create custom courses for ${activeEvent.name}, then lock in the saved versions you want to keep fixed. Locked courses stay available everywhere the app asks for a course, but they cannot be edited or deleted until you unlock them. Existing saved custom courses now load as locked by default.`}
+        badges={["Custom Courses", "Locked States", "Local Storage", activeEvent.location]}
         actions={
           <Link
             href="/race/pre-race"
@@ -428,6 +492,17 @@ export default function CourseManagerPage() {
                       <div className="text-base font-black text-[color:var(--text)]">
                         {course.course.label ?? course.id}
                       </div>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        <span
+                          className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-black uppercase tracking-wide ${
+                            course.isLocked
+                              ? "bg-emerald-500/15 text-emerald-100"
+                              : "bg-amber-500/15 text-amber-100"
+                          }`}
+                        >
+                          {course.isLocked ? "Locked" : "Editable"}
+                        </span>
+                      </div>
                       <div className="mt-1 text-xs text-[color:var(--muted)]">
                         {formatMarkSequence(
                           course.course.sequence ?? course.course.previewSequence ?? [],
@@ -437,6 +512,11 @@ export default function CourseManagerPage() {
                       <div className="mt-1 text-xs text-[color:var(--muted)]">
                         Updated {new Date(course.updatedAtISO).toLocaleString()}
                       </div>
+                      {course.isLocked && course.lockedAtISO ? (
+                        <div className="mt-1 text-xs text-emerald-200/80">
+                          Locked {new Date(course.lockedAtISO).toLocaleString()}
+                        </div>
+                      ) : null}
                     </div>
 
                     <div className="flex gap-2">
@@ -445,15 +525,34 @@ export default function CourseManagerPage() {
                         onClick={() => handleEdit(course.id)}
                         className="rounded-xl border border-[color:var(--divider)] bg-black/20 px-3 py-2 text-xs font-black uppercase tracking-wide"
                       >
-                        Edit
+                        {course.isLocked ? "View" : "Edit"}
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => handleDelete(course.id)}
-                        className="rounded-xl border border-red-400/30 bg-red-500/10 px-3 py-2 text-xs font-black uppercase tracking-wide text-red-100"
-                      >
-                        Delete
-                      </button>
+                      {course.isLocked ? (
+                        <button
+                          type="button"
+                          onClick={() => handleUnlock(course.id)}
+                          className="rounded-xl border border-amber-400/30 bg-amber-500/10 px-3 py-2 text-xs font-black uppercase tracking-wide text-amber-100"
+                        >
+                          Unlock
+                        </button>
+                      ) : (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => handleLock(course.id)}
+                            className="rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-3 py-2 text-xs font-black uppercase tracking-wide text-emerald-100"
+                          >
+                            Lock
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDelete(course.id)}
+                            className="rounded-xl border border-red-400/30 bg-red-500/10 px-3 py-2 text-xs font-black uppercase tracking-wide text-red-100"
+                          >
+                            Delete
+                          </button>
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -490,13 +589,23 @@ export default function CourseManagerPage() {
           <section className="layline-panel p-5">
             <div className="layline-kicker">Editor</div>
             <h2 className="mt-1 text-2xl font-black">
-              {editingCourseId ? "Edit custom course" : "Create custom course"}
+              {editingCourseId
+                ? isEditingLockedCourse
+                  ? "Locked custom course"
+                  : "Edit custom course"
+                : "Create custom course"}
             </h2>
             <p className="layline-learn-only mt-2 text-sm leading-6 text-[color:var(--text-soft)]">
               Build the course from the active event marks. Leg bearings and distances are
               calculated automatically from the selected mark sequence, with published Annapolis
               sheet distances preferred when available.
             </p>
+            {isEditingLockedCourse ? (
+              <div className="mt-4 rounded-xl border border-emerald-400/30 bg-emerald-500/10 p-3 text-sm text-emerald-100">
+                This course is locked in. Use Unlock from the saved list if you want to change its
+                name, marks, or notes.
+              </div>
+            ) : null}
 
             <div className="mt-4 space-y-4">
               <label className="block">
@@ -505,6 +614,7 @@ export default function CourseManagerPage() {
                   type="text"
                   value={editor.label}
                   onChange={(event) => updateEditor("label", event.target.value)}
+                  disabled={isEditingLockedCourse}
                   className="w-full rounded-xl border border-[color:var(--divider)] bg-black/30 px-3 py-2"
                   placeholder="Tuesday South River Reach"
                 />
@@ -532,6 +642,7 @@ export default function CourseManagerPage() {
                       <select
                         value={markKey}
                         onChange={(event) => updateSequenceItem(index, event.target.value)}
+                        disabled={isEditingLockedCourse}
                         className="w-full rounded-xl border border-[color:var(--divider)] bg-black/30 px-3 py-2"
                       >
                         <option value="">Choose mark</option>
@@ -551,6 +662,7 @@ export default function CourseManagerPage() {
                               : "",
                           )
                         }
+                        disabled={isEditingLockedCourse}
                         className="w-32 rounded-xl border border-[color:var(--divider)] bg-black/30 px-3 py-2"
                       >
                         <option value="">
@@ -567,6 +679,7 @@ export default function CourseManagerPage() {
                         type="button"
                         onClick={() => removeSequenceItem(index)}
                         disabled={
+                          isEditingLockedCourse ||
                           editor.sequence.length <= 2 ||
                           index === 0 ||
                           index === editor.sequence.length - 1
@@ -582,6 +695,7 @@ export default function CourseManagerPage() {
                 <button
                   type="button"
                   onClick={addSequenceItem}
+                  disabled={isEditingLockedCourse}
                   className="mt-3 rounded-xl border border-[color:var(--divider)] bg-black/20 px-3 py-2 text-xs font-black uppercase tracking-wide"
                 >
                   Add Mark
@@ -593,6 +707,7 @@ export default function CourseManagerPage() {
                 <textarea
                   value={editor.textSummaryText}
                   onChange={(event) => updateEditor("textSummaryText", event.target.value)}
+                  disabled={isEditingLockedCourse}
                   className="min-h-28 w-full rounded-xl border border-[color:var(--divider)] bg-black/30 px-3 py-2"
                   placeholder={"Leave blank to auto-generate.\nOne line per instruction."}
                 />
@@ -603,6 +718,7 @@ export default function CourseManagerPage() {
                 <textarea
                   value={editor.notes}
                   onChange={(event) => updateEditor("notes", event.target.value)}
+                  disabled={isEditingLockedCourse}
                   className="min-h-24 w-full rounded-xl border border-[color:var(--divider)] bg-black/30 px-3 py-2"
                   placeholder="Optional extra notes, rounding reminders, or RC-specific details."
                 />
@@ -610,13 +726,15 @@ export default function CourseManagerPage() {
             </div>
 
             <div className="mt-5 flex flex-wrap gap-3">
-              <button
-                type="button"
-                onClick={handleSave}
-                className="rounded-xl border border-[color:var(--divider)] bg-black/20 px-4 py-3 text-sm font-black uppercase tracking-wide"
-              >
-                {editingCourseId ? "Save Changes" : "Save Course"}
-              </button>
+              {!isEditingLockedCourse ? (
+                <button
+                  type="button"
+                  onClick={handleSave}
+                  className="rounded-xl border border-[color:var(--divider)] bg-black/20 px-4 py-3 text-sm font-black uppercase tracking-wide"
+                >
+                  {editingCourseId ? "Save Changes" : "Save Course"}
+                </button>
+              ) : null}
               <button
                 type="button"
                 onClick={resetEditor}

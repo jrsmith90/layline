@@ -9,6 +9,8 @@ export type StoredCustomCourseRecord = {
   id: string;
   eventId: string;
   course: RaceCourseRecord;
+  isLocked: boolean;
+  lockedAtISO?: string;
   createdAtISO: string;
   updatedAtISO: string;
 };
@@ -145,6 +147,14 @@ function sanitizeStoredCustomCourse(value: unknown): StoredCustomCourseRecord | 
     id: input.id,
     eventId: input.eventId,
     course,
+    isLocked:
+      typeof input.isLocked === "boolean"
+        ? input.isLocked
+        : true,
+    lockedAtISO:
+      typeof input.lockedAtISO === "string" && input.lockedAtISO.length > 0
+        ? input.lockedAtISO
+        : undefined,
     createdAtISO:
       typeof input.createdAtISO === "string" && input.createdAtISO.length > 0
         ? input.createdAtISO
@@ -254,11 +264,14 @@ export function getCustomCoursesForEvent(eventId = activeRaceEventId) {
 }
 
 export function upsertCustomCourseRecord(
-  input: Omit<StoredCustomCourseRecord, "createdAtISO" | "updatedAtISO"> & {
+  input: Omit<StoredCustomCourseRecord, "createdAtISO" | "updatedAtISO" | "lockedAtISO" | "isLocked"> & {
     createdAtISO?: string;
+    isLocked?: boolean;
+    lockedAtISO?: string;
   },
 ) {
   const existing = getCustomCourseRecord(input.id);
+  const isLocked = input.isLocked ?? existing?.isLocked ?? false;
   const nextRecord: StoredCustomCourseRecord = {
     id: input.id,
     eventId: input.eventId,
@@ -266,6 +279,10 @@ export function upsertCustomCourseRecord(
       ...input.course,
       custom: true,
     },
+    isLocked,
+    lockedAtISO: isLocked
+      ? existing?.lockedAtISO ?? input.lockedAtISO ?? new Date().toISOString()
+      : undefined,
     createdAtISO: existing?.createdAtISO ?? input.createdAtISO ?? new Date().toISOString(),
     updatedAtISO: new Date().toISOString(),
   };
@@ -279,4 +296,23 @@ export function upsertCustomCourseRecord(
 export function deleteCustomCourseRecord(courseId: string) {
   const nextCourses = loadStoredCustomCourses().filter((course) => course.id !== courseId);
   persistCustomCourses(nextCourses);
+}
+
+export function setCustomCourseLockedState(courseId: string, isLocked: boolean) {
+  const existing = getCustomCourseRecord(courseId);
+  if (!existing) {
+    return null;
+  }
+
+  const nextRecord: StoredCustomCourseRecord = {
+    ...existing,
+    isLocked,
+    lockedAtISO: isLocked ? existing.lockedAtISO ?? new Date().toISOString() : undefined,
+    updatedAtISO: new Date().toISOString(),
+  };
+
+  const otherCourses = loadStoredCustomCourses().filter((course) => course.id !== courseId);
+  persistCustomCourses([...otherCourses, nextRecord]);
+
+  return nextRecord;
 }
