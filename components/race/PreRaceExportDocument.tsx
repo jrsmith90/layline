@@ -34,7 +34,6 @@ import {
   getConstraintHeadline,
   getConstraintSecondaryDetail,
 } from "@/lib/race/instructionConstraints";
-import { useDisplayMode } from "@/components/display/DisplayModeProvider";
 
 const DEFAULT_TACTICAL_BOARD_DRAFT = buildTacticalBoardDraftDefaults(getDefaultCourseId());
 
@@ -177,7 +176,6 @@ function DetailList({ items }: { items: string[] }) {
 }
 
 export function PreRaceExportDocument() {
-  const { effectiveMode } = useDisplayMode();
   const draft = useSyncExternalStore(
     subscribeTacticalBoardStore,
     getStoredTacticalBoardDraft,
@@ -211,31 +209,6 @@ export function PreRaceExportDocument() {
   const confirmedSailSelection = draft.confirmedSailSelection;
   const courseStrategyAnswers = draft.courseStrategy;
   const courseStrategyResult = draft.courseStrategyResult;
-
-  if (effectiveMode !== "desktop") {
-    return (
-      <main className="mx-auto w-full max-w-2xl px-4 pb-10 pt-4">
-        <section className="layline-panel p-5">
-          <div className="layline-kicker">Desktop Only</div>
-          <h1 className="mt-2 text-2xl font-black tracking-tight text-[color:var(--text)]">
-            PDF export is formatted for desktop mode.
-          </h1>
-          <p className="mt-3 text-sm leading-6 text-[color:var(--text-soft)]">
-            Switch the display control to <strong>Desktop</strong> or open this page on a wider
-            screen, then come back to export the pre-race document.
-          </p>
-          <div className="mt-4">
-            <Link
-              href="/race/pre-race"
-              className="inline-flex rounded-xl border border-[color:var(--divider)] bg-black/20 px-4 py-3 text-sm font-black uppercase tracking-wide text-[color:var(--text)]"
-            >
-              Return To Pre-Race
-            </Link>
-          </div>
-        </section>
-      </main>
-    );
-  }
 
   return (
     <main className="pdf-export-page mx-auto w-full max-w-[8.8in] px-4 pb-10 pt-4">

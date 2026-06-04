@@ -77,16 +77,14 @@ export default function Page() {
         badges={["Course", "Sail Choice", "Course Strategy", "Opening Bias", "Tactical Board"]}
         actions={
           <div className="flex flex-wrap gap-3">
-            {isDesktopLayout ? (
-              <Link
-                href="/race/pre-race/export"
-                target="_blank"
-                rel="noreferrer"
-                className="rounded-xl border border-[color:var(--divider)] bg-[color:var(--favorable)]/15 px-4 py-3 text-sm font-black uppercase tracking-wide text-[color:var(--text)]"
-              >
-                Export PDF
-              </Link>
-            ) : null}
+            <Link
+              href="/race/pre-race/export"
+              target="_blank"
+              rel="noreferrer"
+              className="rounded-xl border border-[color:var(--divider)] bg-[color:var(--favorable)]/15 px-4 py-3 text-sm font-black uppercase tracking-wide text-[color:var(--text)]"
+            >
+              Export PDF
+            </Link>
             <Link
               href="/race/live"
               className="rounded-xl border border-[color:var(--divider)] bg-black/20 px-4 py-3 text-sm font-black uppercase tracking-wide"
