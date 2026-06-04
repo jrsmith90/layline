@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useDisplayMode } from "@/components/display/DisplayModeProvider";
 
 export type WorkflowStageTone = "neutral" | "focus" | "warning" | "positive";
 
@@ -29,8 +30,14 @@ export function WorkflowStageStrip(props: {
   title: string;
   items: WorkflowStage[];
 }) {
+  const { effectiveMode } = useDisplayMode();
+  const isDesktopLayout = effectiveMode === "desktop";
   const gridClass =
-    props.items.length >= 4 ? "md:grid-cols-2 xl:grid-cols-4" : "md:grid-cols-3";
+    props.items.length >= 4
+      ? isDesktopLayout
+        ? "md:grid-cols-2"
+        : "md:grid-cols-2 xl:grid-cols-4"
+      : "md:grid-cols-3";
 
   return (
     <section className="space-y-3">
@@ -64,6 +71,9 @@ export function WorkflowStageStrip(props: {
 
           const className = [
             "layline-action transition active:scale-[0.99]",
+            isDesktopLayout
+              ? "min-h-[9.5rem] flex-col items-start justify-start rounded-[2rem] px-5 py-4 text-left"
+              : "",
             toneClasses(item.tone ?? "neutral"),
           ].join(" ");
 
