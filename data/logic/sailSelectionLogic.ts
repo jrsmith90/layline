@@ -293,7 +293,7 @@ export function buildUpwindNotes(
     notes.push("Using the 2018 North Sails 150% as the alternate full-power upwind choice.");
   }
   if (headsailChoice === "north_140") {
-    notes.push("Selected smaller headsail for control and groove stability.");
+    notes.push("Selected the 2024 North Sails 140% for control and groove stability.");
   }
   if (reefCall !== "no_reef") {
     notes.push("Reef decision is influenced by sea state and crew power, not wind alone.");

@@ -60,7 +60,7 @@ export function formatHeadsailChoice(value: HeadsailChoice | string): string {
     case "north_150":
       return "2018 North Sails 150%";
     case "north_140":
-      return "#2 / 140% North Jib";
+      return "2024 North Sails 140%";
     default:
       return value;
   }
