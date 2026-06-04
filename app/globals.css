@@ -131,3 +131,49 @@ button {
 html[data-layline-app-mode="race"] .layline-learn-only {
   display: none !important;
 }
+
+.print-avoid-break {
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+@page {
+  size: auto;
+  margin: 0.55in;
+}
+
+@media print {
+  html,
+  body {
+    background: #ffffff !important;
+    color: #0f172a !important;
+  }
+
+  body {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  nav[data-app-nav="true"] {
+    display: none !important;
+  }
+
+  .pdf-export-toolbar {
+    display: none !important;
+  }
+
+  .pdf-export-page {
+    max-width: none !important;
+    padding: 0 !important;
+  }
+
+  .pdf-export-sheet {
+    width: auto !important;
+    max-width: none !important;
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+}

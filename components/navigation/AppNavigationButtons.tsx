@@ -43,7 +43,10 @@ export function AppNavigationButtons() {
   }
 
   return (
-    <nav className="sticky top-0 z-40 border-b border-[color:var(--divider)] bg-[color:var(--bg)]/90 px-4 py-3 backdrop-blur">
+    <nav
+      data-app-nav="true"
+      className="sticky top-0 z-40 border-b border-[color:var(--divider)] bg-[color:var(--bg)]/90 px-4 py-3 backdrop-blur print:hidden"
+    >
       <div
         className={[
           "mx-auto flex items-center justify-between gap-3",

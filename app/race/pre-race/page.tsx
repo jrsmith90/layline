@@ -76,12 +76,24 @@ export default function Page() {
         description="Run the updated dockside plan in one pass: confirm the course, make the sail call, analyze zones with strategy, lock the opening bias, and seed the tactical board before switching to Race Live."
         badges={["Course", "Sail Choice", "Course Strategy", "Opening Bias", "Tactical Board"]}
         actions={
-          <Link
-            href="/race/live"
-            className="rounded-xl border border-[color:var(--divider)] bg-black/20 px-4 py-3 text-sm font-black uppercase tracking-wide"
-          >
-            Race Live
-          </Link>
+          <div className="flex flex-wrap gap-3">
+            {isDesktopLayout ? (
+              <Link
+                href="/race/pre-race/export"
+                target="_blank"
+                rel="noreferrer"
+                className="rounded-xl border border-[color:var(--divider)] bg-[color:var(--favorable)]/15 px-4 py-3 text-sm font-black uppercase tracking-wide text-[color:var(--text)]"
+              >
+                Export PDF
+              </Link>
+            ) : null}
+            <Link
+              href="/race/live"
+              className="rounded-xl border border-[color:var(--divider)] bg-black/20 px-4 py-3 text-sm font-black uppercase tracking-wide"
+            >
+              Race Live
+            </Link>
+          </div>
         }
       />
 

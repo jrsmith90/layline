@@ -14,6 +14,11 @@ import {
 } from "./eventDatabase";
 
 const activeEvent = getActiveRaceEvent();
+const HIDDEN_ACTIVE_EVENT_COURSE_IDS = new Set<string>(
+  activeEvent.id === "2026-ted-osius-memorial-twilight-regatta-annapolis-md"
+    ? ["1", "2", "3"]
+    : [],
+);
 
 function getCourseGeometryForCustomCourse(event: typeof activeEvent) {
   return {
@@ -337,11 +342,15 @@ export function getAllCourseIds(): CourseId[] {
   ];
 
   const builtInCourseIds = sortedEvents.flatMap((event) =>
-    Object.keys(event.courseGeometry.courses).map((courseId) =>
-      event.id === activeEvent.id
-        ? courseId
-        : buildQualifiedCourseId(event.id, courseId)
-    )
+    Object.keys(event.courseGeometry.courses)
+      .filter((courseId) =>
+        event.id === activeEvent.id ? !HIDDEN_ACTIVE_EVENT_COURSE_IDS.has(courseId) : true,
+      )
+      .map((courseId) =>
+        event.id === activeEvent.id
+          ? courseId
+          : buildQualifiedCourseId(event.id, courseId)
+      )
   );
 
   const customCourseIds = getCustomCoursesForEvent(activeEvent.id).map((course) => course.id);
