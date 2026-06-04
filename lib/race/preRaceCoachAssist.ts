@@ -489,7 +489,7 @@ export function buildForecastDecision(params: {
 
   return {
     available: true,
-    sourceLabel: "Live wind + Tempest first-leg forecast",
+    sourceLabel: "Live wind + NOAA/NWS hourly first-leg forecast",
     recommendedWindKt: recommendedWind,
     recommendedWindDirectionDeg: prevailingDirection ?? params.courseWindRead.windDirectionDeg ?? null,
     nextThreeHourAvgWindKt: avgWind == null ? null : Number(avgWind.toFixed(1)),

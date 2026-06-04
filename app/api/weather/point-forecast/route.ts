@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getTempestForecastByLatLon } from "@/lib/weather/tempestClient";
+import { getNwsForecastByLatLon } from "@/lib/weather/nwsPointForecast";
 
 function parseCoordinate(value: string | null) {
   if (value == null) return null;
@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const forecast = await getTempestForecastByLatLon({ lat, lon });
+    const forecast = await getNwsForecastByLatLon({ lat, lon });
 
     return NextResponse.json({
       available: true,
@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
       available: false,
       lat,
       lon,
-      error: error instanceof Error ? error.message : "Forecast assist unavailable.",
+      error: error instanceof Error ? error.message : "NOAA/NWS forecast assist unavailable.",
     });
   }
 }

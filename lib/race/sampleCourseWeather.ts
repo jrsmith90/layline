@@ -1,5 +1,5 @@
 import { getActiveCourseGeometry } from "@/data/race/eventDatabase";
-import { getTempestForecastByLatLon, type TempestPointForecast } from "@/lib/weather/tempestClient";
+import { getNwsForecastByLatLon, type NwsPointForecast } from "@/lib/weather/nwsPointForecast";
 
 const courseGeometry = getActiveCourseGeometry();
 
@@ -11,7 +11,7 @@ export type SampledPoint = {
   kind: "mark" | "midpoint";
   lat: number;
   lon: number;
-  forecast: TempestPointForecast;
+  forecast: NwsPointForecast;
 };
 
 export type SampledLeg = {
@@ -55,7 +55,7 @@ export async function sampleCourseWeather(courseId: string): Promise<SampledCour
   const sampledMarksEntries = await Promise.all(
     uniqueMarkIds.map(async (markId) => {
       const mark = courseGeometry.marks[markId];
-      const forecast = await getTempestForecastByLatLon({
+      const forecast = await getNwsForecastByLatLon({
         lat: mark.lat,
         lon: mark.lon
       });
@@ -81,7 +81,7 @@ export async function sampleCourseWeather(courseId: string): Promise<SampledCour
       const to = courseGeometry.marks[leg.toMark as MarkId];
       const mid = midpoint(from.lat, from.lon, to.lat, to.lon);
 
-      const midpointForecast = await getTempestForecastByLatLon({
+      const midpointForecast = await getNwsForecastByLatLon({
         lat: mid.lat,
         lon: mid.lon
       });
