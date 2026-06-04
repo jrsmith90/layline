@@ -173,12 +173,20 @@ function SailChoiceLaunchCard() {
         reef risk, or the likely sea-state crossover.
       </div>
 
-      <Link
-        href="/race/pre-race/sail-selection"
-        className="mt-4 inline-flex w-fit rounded-xl border border-[color:var(--divider)] bg-black/20 px-4 py-3 text-sm font-black uppercase tracking-wide text-[color:var(--text)]"
-      >
-        Open Sail Selection
-      </Link>
+      <div className="mt-4 flex flex-wrap gap-3">
+        <Link
+          href="/race/pre-race/sail-selection"
+          className="inline-flex w-fit rounded-xl border border-[color:var(--divider)] bg-black/20 px-4 py-3 text-sm font-black uppercase tracking-wide text-[color:var(--text)]"
+        >
+          Open Sail Selection
+        </Link>
+        <Link
+          href="/race/inventory"
+          className="inline-flex w-fit rounded-xl border border-[color:var(--divider)] bg-black/10 px-4 py-3 text-sm font-black uppercase tracking-wide text-[color:var(--text)]"
+        >
+          Manage Inventory
+        </Link>
+      </div>
     </section>
   );
 }

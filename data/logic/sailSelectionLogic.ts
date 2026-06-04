@@ -19,6 +19,9 @@ export type MainChoice = "quantum_main" | "north_main_backup";
 
 export type HeadsailChoice = "ullman_150" | "north_150" | "north_140";
 
+export type Headsail150Choice = Extract<HeadsailChoice, "ullman_150" | "north_150">;
+export type Headsail140Choice = Extract<HeadsailChoice, "north_140">;
+
 export type SpinChoice =
   | "north_spin_yellow_black"
   | "north_spin_teal_black_white"
@@ -27,7 +30,29 @@ export type SpinChoice =
   | "small_red_white_blue_heavy_air"
   | "no_spinnaker";
 
+export type FullSizeSpinChoice = Extract<
+  SpinChoice,
+  | "north_spin_yellow_black"
+  | "north_spin_teal_black_white"
+  | "old_spin_red_white_best_old"
+  | "old_spin_red_white_horizon"
+>;
+export type HeavyAirSpinChoice = Extract<
+  SpinChoice,
+  | "small_red_white_blue_heavy_air"
+  | "north_spin_yellow_black"
+  | "north_spin_teal_black_white"
+>;
+
 export type ReefCall = "no_reef" | "consider_reef" | "reef_now";
+
+export type SailInventoryDefaults = {
+  mainChoice: MainChoice;
+  headsail150Choice: Headsail150Choice;
+  headsail140Choice: Headsail140Choice;
+  fullSizeSpinnakerChoice: FullSizeSpinChoice;
+  heavyAirSpinnakerChoice: HeavyAirSpinChoice;
+};
 
 export type SailSelectionInput = {
   forecastWind: number;
@@ -36,6 +61,7 @@ export type SailSelectionInput = {
   hikingLevel: HikingLevel;
   legType: LegType;
   riskMode: RiskMode;
+  inventoryDefaults?: SailInventoryDefaults;
 };
 
 export type SailSelectionOutput = {
@@ -70,21 +96,32 @@ export const seaStateScore: Record<SeaState, number> = {
   strong_breeze_22_27: 4,
 };
 
-export const mainRanking: MainChoice[] = ["quantum_main", "north_main_backup"];
-
-export const headsailRanking = {
-  sail150: ["ullman_150", "north_150"] as HeadsailChoice[],
-  sail140: ["north_140"] as HeadsailChoice[],
+export const DEFAULT_SAIL_INVENTORY_DEFAULTS: SailInventoryDefaults = {
+  mainChoice: "quantum_main",
+  headsail150Choice: "ullman_150",
+  headsail140Choice: "north_140",
+  fullSizeSpinnakerChoice: "north_spin_yellow_black",
+  heavyAirSpinnakerChoice: "small_red_white_blue_heavy_air",
 };
 
-export const fullSizeSpinRanking: SpinChoice[] = [
+export const mainRanking: MainChoice[] = [
+  DEFAULT_SAIL_INVENTORY_DEFAULTS.mainChoice,
+  "north_main_backup",
+];
+
+export const headsailRanking = {
+  sail150: ["ullman_150", "north_150"] as Headsail150Choice[],
+  sail140: ["north_140"] as Headsail140Choice[],
+};
+
+export const fullSizeSpinRanking: FullSizeSpinChoice[] = [
   "north_spin_yellow_black",
   "north_spin_teal_black_white",
   "old_spin_red_white_best_old",
   "old_spin_red_white_horizon",
 ];
 
-export const heavyAirSpinRanking: SpinChoice[] = [
+export const heavyAirSpinRanking: HeavyAirSpinChoice[] = [
   "small_red_white_blue_heavy_air",
   "north_spin_yellow_black",
   "north_spin_teal_black_white",
@@ -142,25 +179,28 @@ export function shouldForce140InCrossover(
   return false;
 }
 
-export function getUpwindMainChoice(): MainChoice {
-  return mainRanking[0];
+export function getUpwindMainChoice(
+  inventoryDefaults: SailInventoryDefaults = DEFAULT_SAIL_INVENTORY_DEFAULTS
+): MainChoice {
+  return inventoryDefaults.mainChoice;
 }
 
 export function getUpwindHeadsailChoice(
   effectiveWind: number,
   seaState: SeaState,
   crewPowerScore: number,
-  riskMode: RiskMode
+  riskMode: RiskMode,
+  inventoryDefaults: SailInventoryDefaults = DEFAULT_SAIL_INVENTORY_DEFAULTS
 ): HeadsailChoice {
   const baseClass = selectUpwindHeadsailClass(effectiveWind);
 
   if (shouldForce140InCrossover(effectiveWind, seaState, crewPowerScore, riskMode)) {
-    return headsailRanking.sail140[0];
+    return inventoryDefaults.headsail140Choice;
   }
 
   return baseClass === "sail150"
-    ? headsailRanking.sail150[0]
-    : headsailRanking.sail140[0];
+    ? inventoryDefaults.headsail150Choice
+    : inventoryDefaults.headsail140Choice;
 }
 
 export function getReefCall(
@@ -204,13 +244,14 @@ export function getSpinnakerChoice(
   effectiveWind: number,
   seaState: SeaState,
   crewPowerScore: number,
-  riskMode: RiskMode
+  riskMode: RiskMode,
+  inventoryDefaults: SailInventoryDefaults = DEFAULT_SAIL_INVENTORY_DEFAULTS
 ): SpinChoice {
   const spinClass = getSpinClass(effectiveWind, seaState, crewPowerScore, riskMode);
 
   if (spinClass === "none") return "no_spinnaker";
-  if (spinClass === "heavy_air") return heavyAirSpinRanking[0];
-  return fullSizeSpinRanking[0];
+  if (spinClass === "heavy_air") return inventoryDefaults.heavyAirSpinnakerChoice;
+  return inventoryDefaults.fullSizeSpinnakerChoice;
 }
 
 export function getDownwindReefCall(
@@ -295,6 +336,7 @@ export function formatSeaState(seaState: SeaState): string {
 }
 
 export function getRaceSailPlan(input: SailSelectionInput): SailSelectionOutput {
+  const inventoryDefaults = input.inventoryDefaults ?? DEFAULT_SAIL_INVENTORY_DEFAULTS;
   const crewPowerScore = getCrewPowerScore(input.crewCount, input.hikingLevel);
   const effectiveWind = getEffectiveWind(
     input.forecastWind,
@@ -304,12 +346,13 @@ export function getRaceSailPlan(input: SailSelectionInput): SailSelectionOutput 
   );
 
   if (input.legType === "upwind") {
-    const mainChoice = getUpwindMainChoice();
+    const mainChoice = getUpwindMainChoice(inventoryDefaults);
     const headsailChoice = getUpwindHeadsailChoice(
       effectiveWind,
       input.seaState,
       crewPowerScore,
-      input.riskMode
+      input.riskMode,
+      inventoryDefaults,
     );
     const reefCall = getReefCall(effectiveWind, input.seaState, crewPowerScore);
 
@@ -325,12 +368,13 @@ export function getRaceSailPlan(input: SailSelectionInput): SailSelectionOutput 
     };
   }
 
-  const mainChoice = getUpwindMainChoice();
+  const mainChoice = getUpwindMainChoice(inventoryDefaults);
   const spinnakerChoice = getSpinnakerChoice(
     effectiveWind,
     input.seaState,
     crewPowerScore,
-    input.riskMode
+    input.riskMode,
+    inventoryDefaults,
   );
   const reefCall = getDownwindReefCall(effectiveWind, spinnakerChoice);
 

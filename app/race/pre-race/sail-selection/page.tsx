@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { useDisplayMode } from "@/components/display/DisplayModeProvider";
 import { PlannedRaceStartFields } from "@/components/race/PlannedRaceStartFields";
 import {
+  DEFAULT_SAIL_INVENTORY_DEFAULTS,
   getRaceSailPlan,
   getDownwindReefCall,
   SEA_STATE_OPTIONS,
@@ -18,10 +19,26 @@ import {
   type HeadsailChoice,
   type SpinChoice,
 } from "@/data/logic/sailSelectionLogic";
+import {
+  getStoredSailInventoryState,
+  subscribeSailInventory,
+} from "@/data/race/sailInventory";
 import { getRouteBiasInputs } from "@/data/race/getRouteBiasInputs";
 import { formatCourseLabel, getCourseData, getDefaultCourseId } from "@/data/race/getCourseData";
 import { AiCoachCard } from "@/components/ai/AiCoachCard";
 import { Panel } from "@/components/ui/Panel";
+import {
+  ALL_HEADSAIL_OPTIONS,
+  ALL_SPIN_OPTIONS,
+  formatHeadsailChoice,
+  formatMainChoice,
+  formatSpinChoice,
+  FULL_SIZE_SPIN_OPTIONS,
+  HEAVY_AIR_SPIN_OPTIONS,
+  HEADSAIL_150_OPTIONS,
+  MAIN_INVENTORY_OPTIONS,
+  orderChoicesWithPreferred,
+} from "@/lib/race/sailInventoryCatalog";
 import {
   formatCourseWindRead,
   getSeaStateFromWind,
@@ -42,49 +59,6 @@ function getDefaultHikingLevel(crewCount: CrewCount): HikingLevel {
   return "full";
 }
 
-function formatMainChoice(value: string): string {
-  switch (value) {
-    case "quantum_main":
-      return "Quantum Main";
-    case "north_main_backup":
-      return "North Main (Backup)";
-    default:
-      return value;
-  }
-}
-
-function formatHeadsailChoice(value: string): string {
-  switch (value) {
-    case "ullman_150":
-      return "150% Ullman Genoa";
-    case "north_150":
-      return "150% North Genoa";
-    case "north_140":
-      return "#2 / 140% North Jib";
-    default:
-      return value;
-  }
-}
-
-function formatSpinChoice(value: string): string {
-  switch (value) {
-    case "north_spin_yellow_black":
-      return "North Spinnaker — Black / Yellow";
-    case "north_spin_teal_black_white":
-      return "North Spinnaker — White / Teal";
-    case "old_spin_red_white_best_old":
-      return "Older Spinnaker — Red / White (Best Older)";
-    case "old_spin_red_white_horizon":
-      return "Older Spinnaker — Red / White (Horizon)";
-    case "small_red_white_blue_heavy_air":
-      return "Heavy-Air Spinnaker — Small Red / White / Blue";
-    case "no_spinnaker":
-      return "No Spinnaker";
-    default:
-      return value;
-  }
-}
-
 function formatReefCall(value: string): string {
   switch (value) {
     case "no_reef":
@@ -97,17 +71,6 @@ function formatReefCall(value: string): string {
       return value;
   }
 }
-
-const MAIN_INVENTORY: MainChoice[] = ["quantum_main", "north_main_backup"];
-const HEADSAIL_INVENTORY: HeadsailChoice[] = ["ullman_150", "north_150", "north_140"];
-const SPINNAKER_INVENTORY: SpinChoice[] = [
-  "north_spin_yellow_black",
-  "north_spin_teal_black_white",
-  "old_spin_red_white_best_old",
-  "old_spin_red_white_horizon",
-  "small_red_white_blue_heavy_air",
-  "no_spinnaker",
-];
 
 function getRecommendationTone(result: {
   reefCall: string;
@@ -308,6 +271,15 @@ export default function SailSelectionPage() {
     getStoredTacticalBoardDraft,
     () => buildTacticalBoardDraftDefaults(defaultCourseId),
   );
+  const sailInventoryState = useSyncExternalStore(
+    subscribeSailInventory,
+    getStoredSailInventoryState,
+    () => ({
+      defaults: DEFAULT_SAIL_INVENTORY_DEFAULTS,
+      updatedAtISO: "",
+    }),
+  );
+  const sailInventoryDefaults = sailInventoryState.defaults;
   const routeConfig = useMemo(() => getRouteBiasInputs(defaultCourseId), [defaultCourseId]);
   const [courseId, setCourseId] = useState(defaultCourseId);
   const [forecastWind, setForecastWind] = useState<number | "">("");
@@ -322,6 +294,46 @@ export default function SailSelectionPage() {
   const [selectedMainChoice, setSelectedMainChoice] = useState<MainChoice | "">("");
   const [selectedHeadsailChoice, setSelectedHeadsailChoice] = useState<HeadsailChoice | "">("");
   const [selectedSpinnakerChoice, setSelectedSpinnakerChoice] = useState<SpinChoice | "">("");
+  const mainInventoryOptions = useMemo(
+    () => orderChoicesWithPreferred(MAIN_INVENTORY_OPTIONS, sailInventoryDefaults.mainChoice),
+    [sailInventoryDefaults.mainChoice],
+  );
+  const headsailInventoryOptions = useMemo(
+    () => {
+      const class150 = orderChoicesWithPreferred(
+        HEADSAIL_150_OPTIONS,
+        sailInventoryDefaults.headsail150Choice,
+      );
+      const class150Set = new Set<string>(class150);
+
+      return [...class150, ...ALL_HEADSAIL_OPTIONS.filter((choice) => !class150Set.has(choice))];
+    },
+    [sailInventoryDefaults.headsail150Choice],
+  );
+  const spinnakerInventoryOptions = useMemo(() => {
+    const fullSize = orderChoicesWithPreferred(
+      FULL_SIZE_SPIN_OPTIONS,
+      sailInventoryDefaults.fullSizeSpinnakerChoice,
+    );
+    const heavyAir = orderChoicesWithPreferred(
+      HEAVY_AIR_SPIN_OPTIONS,
+      sailInventoryDefaults.heavyAirSpinnakerChoice,
+    );
+    const fullSizeSet = new Set<string>(fullSize);
+    const heavyAirSet = new Set<string>(heavyAir);
+
+    return [
+      ...fullSize,
+      ...heavyAir.filter((choice) => !fullSizeSet.has(choice)),
+      ...ALL_SPIN_OPTIONS.filter(
+        (choice) =>
+          choice === "no_spinnaker" || (!fullSizeSet.has(choice) && !heavyAirSet.has(choice)),
+      ),
+    ] as SpinChoice[];
+  }, [
+    sailInventoryDefaults.fullSizeSpinnakerChoice,
+    sailInventoryDefaults.heavyAirSpinnakerChoice,
+  ]);
   const courseData = useMemo(() => getCourseData(courseId), [courseId]);
   const courseConfig = useMemo(() => getRouteBiasInputs(courseId), [courseId]);
   const coachAssist = usePreRaceCoachAssist({
@@ -424,6 +436,7 @@ export default function SailSelectionPage() {
           hikingLevel,
           legType,
           riskMode,
+          inventoryDefaults: sailInventoryDefaults,
         });
 
   const effectiveSelection = result
@@ -500,10 +513,21 @@ export default function SailSelectionPage() {
       ].join(" ")}
     >
       <header className="space-y-1">
-        <h1 className="text-2xl font-bold tracking-tight">Sail Selection</h1>
-        <p className="text-sm opacity-70">
-          Pick the course, pull the closest live wind read, and choose the race setup.
-        </p>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight">Sail Selection</h1>
+            <p className="text-sm opacity-70">
+              Pick the course, pull the closest live wind read, and choose the race setup.
+            </p>
+          </div>
+
+          <Link
+            href="/race/inventory"
+            className="inline-flex w-fit rounded-xl border border-[color:var(--divider)] bg-black/20 px-4 py-3 text-sm font-black uppercase tracking-wide"
+          >
+            Manage Inventory
+          </Link>
+        </div>
       </header>
 
       <Panel title="Planned Race Start">
@@ -903,7 +927,7 @@ export default function SailSelectionPage() {
                     value={effectiveSelection?.mainChoice ?? result.mainChoice}
                     onChange={(event) => setSelectedMainChoice(event.target.value as MainChoice)}
                   >
-                    {MAIN_INVENTORY.map((choice) => (
+                    {mainInventoryOptions.map((choice) => (
                       <option key={choice} value={choice} className="bg-slate-900">
                         {formatMainChoice(choice)}
                       </option>
@@ -921,12 +945,16 @@ export default function SailSelectionPage() {
                     </span>
                     <select
                       className="mt-2 w-full rounded-xl border border-white/15 bg-black/30 p-3 text-sm"
-                      value={effectiveSelection?.headsailChoice ?? result.headsailChoice ?? HEADSAIL_INVENTORY[0]}
+                      value={
+                        effectiveSelection?.headsailChoice ??
+                        result.headsailChoice ??
+                        headsailInventoryOptions[0]
+                      }
                       onChange={(event) =>
                         setSelectedHeadsailChoice(event.target.value as HeadsailChoice)
                       }
                     >
-                      {HEADSAIL_INVENTORY.map((choice) => (
+                      {headsailInventoryOptions.map((choice) => (
                         <option key={choice} value={choice} className="bg-slate-900">
                           {formatHeadsailChoice(choice)}
                         </option>
@@ -953,12 +981,16 @@ export default function SailSelectionPage() {
                     </span>
                     <select
                       className="mt-2 w-full rounded-xl border border-white/15 bg-black/30 p-3 text-sm"
-                      value={effectiveSelection?.spinnakerChoice ?? result.spinnakerChoice ?? SPINNAKER_INVENTORY[0]}
+                      value={
+                        effectiveSelection?.spinnakerChoice ??
+                        result.spinnakerChoice ??
+                        spinnakerInventoryOptions[0]
+                      }
                       onChange={(event) =>
                         setSelectedSpinnakerChoice(event.target.value as SpinChoice)
                       }
                     >
-                      {SPINNAKER_INVENTORY.map((choice) => (
+                      {spinnakerInventoryOptions.map((choice) => (
                         <option key={choice} value={choice} className="bg-slate-900">
                           {formatSpinChoice(choice)}
                         </option>
