@@ -10,6 +10,7 @@ import { WorkflowQuickLinks } from "@/components/navigation/WorkflowQuickLinks";
 import CoursePreviewCard from "@/components/race/CoursePreviewCard";
 import { PreRaceCommandDeck } from "@/components/race/PreRaceCommandDeck";
 import PreRaceCourseStrategyWorkflow from "@/components/race/PreRaceCourseStrategyWorkflow";
+import { PreRaceLegHeadingChart } from "@/components/race/PreRaceLegHeadingChart";
 import PreRaceRouteBiasWorkflow from "@/components/race/PreRaceRouteBiasWorkflow";
 import { TacticalBoardContent } from "@/components/race/TacticalBoard";
 import {
@@ -139,6 +140,15 @@ export default function Page() {
         detail="Carry the saved course and opening picture into the launch board so Race Live starts from the same plan."
       >
         <TacticalBoardContent embedded />
+      </WorkflowDisclosure>
+
+      <WorkflowDisclosure
+        id="leg-headings"
+        badge="Reference"
+        title="Mark-to-mark heading chart"
+        detail="Use the course bearing and saved tack angle to carry a quick port and starboard heading reference for every leg."
+      >
+        <PreRaceLegHeadingChart />
       </WorkflowDisclosure>
     </main>
   );
