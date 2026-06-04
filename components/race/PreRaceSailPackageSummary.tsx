@@ -1,6 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import {
+  formatHeadsailChoice,
+  formatMainChoice,
+  formatSpinChoice,
+} from "@/lib/race/sailInventoryCatalog";
 import type { TacticalBoardConfirmedSailSelection } from "@/lib/race/tacticalBoard/store";
 
 function formatTitleCase(value: string | null | undefined) {
@@ -62,12 +67,26 @@ export function PreRaceSailPackageSummary({
   }
 
   return (
-    <section className="space-y-4">
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
-        <Metric label="Final Call" value={selection.finalCall} />
-        <Metric label="Main" value={selection.mainChoice} />
-        <Metric label="Headsail" value={selection.headsailChoice ?? "None selected"} />
-        <Metric label="Spinnaker" value={selection.spinnakerChoice ?? "None staged"} />
+      <section className="space-y-4">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
+          <Metric label="Final Call" value={selection.finalCall} />
+        <Metric label="Main" value={formatMainChoice(selection.mainChoice)} />
+        <Metric
+          label="Headsail"
+          value={
+            selection.headsailChoice
+              ? formatHeadsailChoice(selection.headsailChoice)
+              : "None selected"
+          }
+        />
+        <Metric
+          label="Spinnaker"
+          value={
+            selection.spinnakerChoice
+              ? formatSpinChoice(selection.spinnakerChoice)
+              : "None staged"
+          }
+        />
         <Metric label="Reef" value={selection.reefCall} />
         <Metric label="Confidence" value={selection.confidence} />
       </div>
