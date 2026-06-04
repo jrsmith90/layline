@@ -16,7 +16,11 @@ import {
 
 const DEFAULT_TACTICAL_BOARD_DRAFT = buildTacticalBoardDraftDefaults("ted-v3");
 
-export default function PreRaceCourseStrategyWorkflow() {
+export default function PreRaceCourseStrategyWorkflow({
+  showPlannedRaceStartPanel = true,
+}: {
+  showPlannedRaceStartPanel?: boolean;
+}) {
   const draft = useSyncExternalStore(
     subscribeTacticalBoardStore,
     getStoredTacticalBoardDraft,
@@ -37,15 +41,17 @@ export default function PreRaceCourseStrategyWorkflow() {
 
   return (
     <div className="space-y-6">
-      <Panel title="Planned Race Start">
-        <PlannedRaceStartFields
-          raceDate={draft.raceStartDate}
-          raceTime={draft.raceStartTime}
-          onRaceDateChange={(value) => setTacticalBoardDraftField("raceStartDate", value)}
-          onRaceTimeChange={(value) => setTacticalBoardDraftField("raceStartTime", value)}
-          helperText="Step 3 uses this same target to plan the opening-leg wind picture and current effect ahead of the gun."
-        />
-      </Panel>
+      {showPlannedRaceStartPanel ? (
+        <Panel title="Planned Race Start">
+          <PlannedRaceStartFields
+            raceDate={draft.raceStartDate}
+            raceTime={draft.raceStartTime}
+            onRaceDateChange={(value) => setTacticalBoardDraftField("raceStartDate", value)}
+            onRaceTimeChange={(value) => setTacticalBoardDraftField("raceStartTime", value)}
+            helperText="Step 3 uses this same target to plan the opening-leg wind picture and current effect ahead of the gun."
+          />
+        </Panel>
+      ) : null}
 
       <PreRaceCourseStrategyForm
         key={draft.courseId}

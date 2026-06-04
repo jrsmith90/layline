@@ -16,7 +16,11 @@ import {
 
 const DEFAULT_TACTICAL_BOARD_DRAFT = buildTacticalBoardDraftDefaults(getDefaultCourseId());
 
-export default function CoursePreviewCard() {
+export default function CoursePreviewCard({
+  showControls = true,
+}: {
+  showControls?: boolean;
+}) {
   const courseIds = useCourseIds();
   const draft = useSyncExternalStore(
     subscribeTacticalBoardStore,
@@ -34,44 +38,48 @@ export default function CoursePreviewCard() {
   return (
     <div className="space-y-3">
       <section className="layline-panel p-4">
-        <div className="grid gap-3 md:grid-cols-[1fr_14rem] md:items-end">
+        <div className={showControls ? "grid gap-3 md:grid-cols-[1fr_14rem] md:items-end" : "space-y-3"}>
           <div>
             <div className="layline-kicker">Pre-race course</div>
             <h2 className="mt-1 text-xl font-black">Course preview</h2>
             <p className="layline-learn-only mt-1 text-sm text-[color:var(--muted)]">
-              Pick the announced course and check the mark order before leaving the dock.
+              {showControls
+                ? "Pick the announced course and check the mark order before leaving the dock."
+                : "Selections live above. Use this section to brief the mark order and routing context."}
             </p>
           </div>
-          <div className="space-y-2">
-            <label className="space-y-1">
-              <div className="text-xs font-black uppercase tracking-[0.16em] text-[color:var(--muted)]">
-                Course
-              </div>
-              <select
-                className="w-full rounded-xl border border-[color:var(--divider)] bg-black/30 p-3"
-                value={courseId}
-                onChange={(event) => setTacticalBoardCourseId(event.target.value)}
+          {showControls ? (
+            <div className="space-y-2">
+              <label className="space-y-1">
+                <div className="text-xs font-black uppercase tracking-[0.16em] text-[color:var(--muted)]">
+                  Course
+                </div>
+                <select
+                  className="w-full rounded-xl border border-[color:var(--divider)] bg-black/30 p-3"
+                  value={courseId}
+                  onChange={(event) => setTacticalBoardCourseId(event.target.value)}
+                >
+                  {courseIds.map((id) => (
+                    <option key={id} value={id} className="bg-slate-900">
+                      {formatCourseLabel(id)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <Link
+                href="/race/courses"
+                className="inline-flex rounded-xl border border-[color:var(--divider)] bg-black/20 px-3 py-2 text-xs font-black uppercase tracking-wide text-[color:var(--text)]"
               >
-                {courseIds.map((id) => (
-                  <option key={id} value={id} className="bg-slate-900">
-                    {formatCourseLabel(id)}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <Link
-              href="/race/courses"
-              className="inline-flex rounded-xl border border-[color:var(--divider)] bg-black/20 px-3 py-2 text-xs font-black uppercase tracking-wide text-[color:var(--text)]"
-            >
-              Manage Courses
-            </Link>
-            <Link
-              href="/race/constraints"
-              className="inline-flex rounded-xl border border-[color:var(--divider)] bg-black/20 px-3 py-2 text-xs font-black uppercase tracking-wide text-[color:var(--text)]"
-            >
-              Manage Constraints
-            </Link>
-          </div>
+                Manage Courses
+              </Link>
+              <Link
+                href="/race/constraints"
+                className="inline-flex rounded-xl border border-[color:var(--divider)] bg-black/20 px-3 py-2 text-xs font-black uppercase tracking-wide text-[color:var(--text)]"
+              >
+                Manage Constraints
+              </Link>
+            </div>
+          ) : null}
         </div>
       </section>
 

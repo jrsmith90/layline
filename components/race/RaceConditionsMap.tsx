@@ -313,7 +313,11 @@ function FitMapToBounds({ bounds }: { bounds: MapBounds["bounds"] }) {
   return null;
 }
 
-export default function RaceConditionsMap() {
+export default function RaceConditionsMap({
+  showCourseSelector = true,
+}: {
+  showCourseSelector?: boolean;
+}) {
   const courseIds = useCourseIds();
   const draft = useSyncExternalStore(
     subscribeTacticalBoardStore,
@@ -551,22 +555,24 @@ export default function RaceConditionsMap() {
                 Official NOAA nautical charts with tide and current predictions layered for pre-race planning.
               </p>
             </div>
-            <label className="w-44 space-y-1">
-              <span className="block text-xs font-black uppercase tracking-[0.16em] text-[color:var(--muted)]">
-                Course
-              </span>
-              <select
-                className="w-full rounded-lg border border-[color:var(--divider)] bg-black/30 p-2 text-sm"
-                value={courseId}
-                onChange={(event) => setTacticalBoardCourseId(event.target.value)}
-              >
-                {courseIds.map((id) => (
-                  <option key={id} value={id} className="bg-slate-900">
-                    {formatCourseLabel(id)}
-                  </option>
-                ))}
-              </select>
-            </label>
+            {showCourseSelector ? (
+              <label className="w-44 space-y-1">
+                <span className="block text-xs font-black uppercase tracking-[0.16em] text-[color:var(--muted)]">
+                  Course
+                </span>
+                <select
+                  className="w-full rounded-lg border border-[color:var(--divider)] bg-black/30 p-2 text-sm"
+                  value={courseId}
+                  onChange={(event) => setTacticalBoardCourseId(event.target.value)}
+                >
+                  {courseIds.map((id) => (
+                    <option key={id} value={id} className="bg-slate-900">
+                      {formatCourseLabel(id)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
           </div>
 
           <div className="mt-4 overflow-hidden rounded-lg border border-[color:var(--divider)]">

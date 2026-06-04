@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { ArrowLeft, Printer } from "lucide-react";
 import { useMemo, useSyncExternalStore } from "react";
+import { PreRaceLegLookoutSheet } from "@/components/race/PreRaceLegLookoutSheet";
 import {
   formatCourseLabel,
   getCourseData,
@@ -795,6 +796,13 @@ export function PreRaceExportDocument() {
                 No leg geometry is loaded for this course yet.
               </div>
             )}
+          </SectionCard>
+
+          <SectionCard
+            title="Crew Leg Lookout Sheet"
+            detail="Use this final page section as the quick crew brief for what to watch on each leg when the live call has to be made."
+          >
+            <PreRaceLegLookoutSheet courseData={courseData} draft={draft} tone="print" />
           </SectionCard>
         </div>
       </article>
