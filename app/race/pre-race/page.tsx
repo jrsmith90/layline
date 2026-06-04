@@ -147,6 +147,7 @@ export default function Page() {
         badge="Reference"
         title="Mark-to-mark heading chart"
         detail="Use the course bearing and saved tack angle to carry a quick port and starboard heading reference for every leg."
+        defaultOpen
       >
         <PreRaceLegHeadingChart />
       </WorkflowDisclosure>
