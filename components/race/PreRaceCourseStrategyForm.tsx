@@ -184,7 +184,7 @@ export default function PreRaceCourseStrategyForm({
           disabled={coachAssist.isLoading}
           className="rounded-xl border border-[color:var(--divider)] bg-white px-4 py-3 text-sm font-black uppercase tracking-wide text-black disabled:opacity-40"
         >
-          {coachAssist.isLoading ? "Loading Coach Assist..." : "AI Coach Auto-Fill Step 3"}
+          {coachAssist.isLoading ? "Loading Coach Assist..." : "AI Coach Auto-Fill Strategy"}
         </button>
       </div>
 

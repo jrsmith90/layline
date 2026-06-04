@@ -59,7 +59,7 @@ export function PreRaceOpeningBiasSummary({ draft }: { draft: TacticalBoardDraft
   if (!plan || !draft.routeBias.originalAnswers) {
     return (
       <div className="rounded-2xl border border-dashed border-[color:var(--divider)] bg-black/10 p-5 text-sm leading-6 text-[color:var(--text-soft)]">
-        No opening-bias plan is saved yet. Use the Step 4 input block at the top of the page, then
+        No opening-bias plan is saved yet. Use the opening-bias input block at the top of the page, then
         come back here for the read-only opening call and its reasoning.
       </div>
     );

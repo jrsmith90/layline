@@ -44,8 +44,8 @@ export function PreRaceSailPackageSummary({
     return (
       <section className="space-y-4">
         <div className="rounded-2xl border border-dashed border-[color:var(--divider)] bg-black/10 p-5 text-sm leading-6 text-[color:var(--text-soft)]">
-          No confirmed sail package is saved yet. Open Step 2 to lock the sails, reef call, and
-          coach summary before the crew arrives.
+          No confirmed sail package is saved yet. Open Sail Selection to lock the sails, reef
+          call, and coach summary before the crew arrives.
         </div>
 
         <div className="flex flex-wrap gap-3">
@@ -67,9 +67,9 @@ export function PreRaceSailPackageSummary({
   }
 
   return (
-      <section className="space-y-4">
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
-          <Metric label="Final Call" value={selection.finalCall} />
+    <section className="space-y-4">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
+        <Metric label="Final Call" value={selection.finalCall} />
         <Metric label="Main" value={formatMainChoice(selection.mainChoice)} />
         <Metric
           label="Headsail"

@@ -242,6 +242,7 @@ export function TacticalBoardContent({
     board.course.firstMark,
     board.course.summary.marks,
   );
+  const showEmbeddedReadOnly = embedded && !showManualInputs;
 
   function handleCourseChange(nextCourseId: string) {
     setTacticalBoardCourseId(nextCourseId);
@@ -259,11 +260,24 @@ export function TacticalBoardContent({
     <>
       {!embedded && <LiveInstrumentsPanel context="route" />}
 
-      <section className={["layline-panel overflow-hidden p-5", getShiftPanelClasses(board.shift.memoryColor)].join(" ")}>
+      <section
+        className={[
+          "layline-panel overflow-hidden",
+          showEmbeddedReadOnly ? "p-4" : "p-5",
+          getShiftPanelClasses(board.shift.memoryColor),
+        ].join(" ")}
+      >
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <div className="layline-kicker text-current/70">Layline Tactical Board</div>
-            <h1 className="mt-1 text-3xl font-black uppercase tracking-tight">
+            <div className="layline-kicker text-current/70">
+              {showEmbeddedReadOnly ? "Tactical Snapshot" : "Layline Tactical Board"}
+            </div>
+            <h1
+              className={[
+                "mt-1 font-black uppercase tracking-tight",
+                showEmbeddedReadOnly ? "text-2xl" : "text-3xl",
+              ].join(" ")}
+            >
               {formatCourseLabel(draft.courseId)}
             </h1>
             <p className="mt-3 max-w-2xl text-sm leading-6 opacity-90">
@@ -276,7 +290,11 @@ export function TacticalBoardContent({
           </div>
         </div>
 
-        <div className="mt-5 grid gap-3 md:grid-cols-4">
+        <div
+          className={[
+            showEmbeddedReadOnly ? "mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4" : "mt-5 grid gap-3 md:grid-cols-4",
+          ].join(" ")}
+        >
           <HeroMetric
             label="Baseline Wind"
             value={formatDeg(board.shift.referenceFromDeg)}
@@ -300,8 +318,8 @@ export function TacticalBoardContent({
         </div>
       </section>
 
-      <div className="grid gap-5 lg:grid-cols-[1.05fr_0.95fr]">
-        {showManualInputs ? (
+      {showManualInputs ? (
+        <div className="grid gap-5 lg:grid-cols-[1.05fr_0.95fr]">
           <section className="layline-panel p-4">
             <div className="flex items-start justify-between gap-3">
               <div>
@@ -457,9 +475,210 @@ export function TacticalBoardContent({
               />
             </div>
           </section>
-        ) : null}
 
-        <section className="space-y-5">
+          <section className="space-y-5">
+            <section className="layline-panel p-4">
+              <div className="flex items-start gap-3">
+                <Wind className="mt-1 text-[color:var(--muted)]" size={18} />
+                <div>
+                  <div className="layline-kicker">Primary Read</div>
+                  <div className="mt-1 flex items-center gap-2">
+                    <h2 className="text-2xl font-black tracking-tight">
+                      {isRaceMode ? "Fast Calls" : "Coach Calls"}
+                    </h2>
+                    <InlineExplain
+                      label="Explain coach calls"
+                      title="How to use this"
+                      widthClassName="w-80"
+                    >
+                      Think of these as the plain-English takeaways from the board. If you do not
+                      have time to read every metric, start here and use these lines as the short
+                      race-crew version of the current setup.
+                    </InlineExplain>
+                  </div>
+                </div>
+              </div>
+              <div className="mt-4 space-y-3">
+                {tacticalCalls.map((call) => (
+                  <div
+                    key={call}
+                    className="rounded-xl border border-[color:var(--divider)] bg-black/20 px-4 py-3 text-sm leading-6 text-[color:var(--text-soft)]"
+                  >
+                    {call}
+                  </div>
+                ))}
+              </div>
+              {!isRaceMode && (
+                <p className="mt-4 text-sm leading-6 text-[color:var(--muted)]">
+                  This board now sets the baseline for the live tactical overlay. Use it to
+                  lock in mean wind, line bearings, and mark geometry, then let the live
+                  cockpit and tracker layer current wind and active-leg context on top.
+                </p>
+              )}
+            </section>
+
+            <section className="layline-panel p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-start gap-3">
+                  <Route className="mt-1 text-[color:var(--muted)]" size={18} />
+                  <div>
+                    <div className="layline-kicker">Opening Bias</div>
+                    <div className="mt-1 flex items-center gap-2">
+                      <h2 className="text-2xl font-black tracking-tight">Route Plan</h2>
+                      <InlineExplain
+                        label="Explain route plan"
+                        title="How to use this"
+                        widthClassName="w-80"
+                      >
+                        This is your first-leg side plan. Use it to answer: where do we expect the
+                        better pressure or geometry early, and has anything changed enough that we
+                        should adjust that call before the start?
+                      </InlineExplain>
+                    </div>
+                  </div>
+                </div>
+                <Link
+                  href="/race/pre-race"
+                  className="rounded-lg border border-[color:var(--divider)] bg-black/20 px-3 py-2 text-xs font-bold uppercase tracking-[0.16em]"
+                >
+                  Edit Plan
+                </Link>
+              </div>
+
+              {openingBiasPlan ? (
+                <>
+                  <div className="mt-4 grid gap-3 md:grid-cols-3">
+                    <MetricCard
+                      label="Baseline Call"
+                      value={formatRouteBiasDecision(openingBiasPlan.decision)}
+                    />
+                    <MetricCard
+                      label="Current Check"
+                      value={
+                        currentBiasPlan
+                          ? formatRouteBiasDecision(currentBiasPlan.decision)
+                          : "No check yet"
+                      }
+                    />
+                    <MetricCard
+                      label="Update Action"
+                      value={
+                        openingBiasUpdate
+                          ? formatUpdateAction(openingBiasUpdate.action)
+                          : "Hold baseline"
+                      }
+                    />
+                  </div>
+
+                  <div className="mt-3 grid gap-3 md:grid-cols-3">
+                    <MetricCard
+                      label="Baseline Confidence"
+                      value={formatRouteBiasConfidence(openingBiasPlan.confidence)}
+                    />
+                    <MetricCard
+                      label="Current Confidence"
+                      value={
+                        currentBiasPlan
+                          ? formatRouteBiasConfidence(currentBiasPlan.confidence)
+                          : "--"
+                      }
+                    />
+                    <MetricCard
+                      label="Latest Sample"
+                      value={describeRouteBiasSample(openingBiasSample)}
+                    />
+                  </div>
+
+                  <div className="mt-4 space-y-2 text-sm leading-6 text-[color:var(--text-soft)]">
+                    {(openingBiasUpdate?.reasons.length
+                      ? openingBiasUpdate.reasons
+                      : currentBiasPlan?.reasons ?? []
+                    )
+                      .slice(0, 3)
+                      .map((reason) => (
+                        <div key={reason}>{reason}</div>
+                      ))}
+                    {(openingBiasUpdate?.warnings.length
+                      ? openingBiasUpdate.warnings
+                      : currentBiasPlan?.warnings ?? []
+                    )
+                      .slice(0, 2)
+                      .map((warning) => (
+                        <div key={warning} className="text-amber-200/90">
+                          {warning}
+                        </div>
+                      ))}
+                  </div>
+
+                  {!isRaceMode && (
+                    <p className="mt-4 text-sm leading-6 text-[color:var(--muted)]">
+                      The pre-race route-bias workflow now seeds this board&apos;s opening-leg
+                      bias, so the saved call, live check, and cockpit overlay all stay aligned.
+                    </p>
+                  )}
+                </>
+              ) : (
+                <div className="mt-4 rounded-xl border border-[color:var(--divider)] bg-black/20 p-4 text-sm leading-6 text-[color:var(--text-soft)]">
+                  Lock an opening-leg route-bias plan in Pre-race to carry the first-leg side
+                  call into this board and the live overlay.
+                </div>
+              )}
+            </section>
+
+            <section className="layline-panel p-4">
+              <div className="flex items-start gap-3">
+                <Route className="mt-1 text-[color:var(--muted)]" size={18} />
+                <div>
+                  <div className="layline-kicker">Course Context</div>
+                  <div className="mt-1 flex items-center gap-2">
+                    <h2 className="text-2xl font-black tracking-tight">Course Notes</h2>
+                    <InlineExplain
+                      label="Explain course notes"
+                      title="How to use this"
+                      widthClassName="w-80"
+                    >
+                      This is the rules-and-geometry reminder section. Use it to confirm the first
+                      mark, overall length, and any instruction limits that could change how you
+                      round or pass marks once the race starts.
+                    </InlineExplain>
+                  </div>
+                </div>
+              </div>
+              <div className="mt-4 grid gap-3 md:grid-cols-2">
+                <MetricCard label="First Mark" value={board.course.firstMark ?? "--"} />
+                <MetricCard
+                  label="Course Length"
+                  value={formatDistance(board.course.totalDistanceNm)}
+                />
+              </div>
+              {board.course.summary.specialRoutingConstraints.length > 0 && (
+                <div className="mt-4">
+                  <div className="text-xs font-black uppercase tracking-[0.18em] text-[color:var(--muted)]">
+                    Instruction Limits
+                  </div>
+                  <div className="mt-3">
+                    <RoutingConstraintsList
+                      constraints={board.course.summary.specialRoutingConstraints}
+                    />
+                  </div>
+                </div>
+              )}
+              <div className="mt-4 space-y-2 text-sm leading-6 text-[color:var(--text-soft)]">
+                {board.course.summary.course.notes ? (
+                  <div>{board.course.summary.course.notes}</div>
+                ) : null}
+                {routeBiasInputModel.notes.map((note) => (
+                  <div key={note}>{note}</div>
+                ))}
+                {board.course.summary.specialRoutingNotes.map((note) => (
+                  <div key={note}>{note}</div>
+                ))}
+              </div>
+            </section>
+          </section>
+        </div>
+      ) : (
+        <div className="space-y-5">
           <section className="layline-panel p-4">
             <div className="flex items-start gap-3">
               <Wind className="mt-1 text-[color:var(--muted)]" size={18} />
@@ -650,16 +869,16 @@ export function TacticalBoardContent({
               {board.course.summary.course.notes ? (
                 <div>{board.course.summary.course.notes}</div>
               ) : null}
-              {routeBiasInputModel.notes.map((note) => (
-                <div key={note}>{note}</div>
-              ))}
-              {board.course.summary.specialRoutingNotes.map((note) => (
-                <div key={note}>{note}</div>
-              ))}
-            </div>
-          </section>
-        </section>
-      </div>
+                {routeBiasInputModel.notes.map((note) => (
+                  <div key={note}>{note}</div>
+                ))}
+                {board.course.summary.specialRoutingNotes.map((note) => (
+                  <div key={note}>{note}</div>
+                ))}
+              </div>
+            </section>
+        </div>
+      )}
 
       <section className="layline-panel p-5">
         <div className="flex flex-wrap items-start justify-between gap-4">

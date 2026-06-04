@@ -144,7 +144,7 @@ export function PreRaceSetupPanel() {
             }
           />
           <SetupMetric
-            label="Step 2 Status"
+            label="Sail Package"
             value={
               draft.confirmedSailSelection?.courseId === draft.courseId
                 ? "Sail package confirmed"

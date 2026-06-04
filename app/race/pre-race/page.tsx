@@ -14,7 +14,7 @@ import { PreRaceOpeningBiasSummary } from "@/components/race/PreRaceOpeningBiasS
 import { PreRacePlanningInputsPanel } from "@/components/race/PreRacePlanningInputsPanel";
 import { PreRaceSailPackageSummary } from "@/components/race/PreRaceSailPackageSummary";
 import { PreRaceSetupPanel } from "@/components/race/PreRaceSetupPanel";
-import { TacticalBoardContent } from "@/components/race/TacticalBoard";
+import { PreRaceTacticalSnapshot } from "@/components/race/PreRaceTacticalSnapshot";
 import { getDefaultCourseId } from "@/data/race/getCourseData";
 import {
   buildTacticalBoardDraftDefaults,
@@ -78,7 +78,7 @@ export default function Page() {
 
       <PageSection
         id="course-read"
-        badge="Step 1"
+        badge="Course Read"
         title="Read the course and chart"
         detail="Start with the map and course brief, then carry that same picture into the sail call and the rest of the crew plan."
       >
@@ -93,18 +93,18 @@ export default function Page() {
 
       <PageSection
         id="sail-package"
-        badge="Step 2"
+        badge="Sail Package"
         title="Confirm the sail package"
-        detail="Keep the confirmed sails, reef call, and forecast read visible in the main brief instead of hiding Step 2 on a separate screen."
+        detail="Keep the confirmed sails, reef call, and forecast read visible in the main brief instead of hiding the sail call on a separate screen."
       >
         <PreRaceSailPackageSummary selection={draft.confirmedSailSelection} />
       </PageSection>
 
       <PageSection
         id="course-strategy"
-        badge="Step 3"
+        badge="Strategy Intel"
         title="Opening-leg strategy intel"
-        detail="This is the saved Step 3 readout after the inputs above have been scored."
+        detail="This is the saved opening-leg readout after the strategy inputs above have been scored."
       >
         {draft.courseStrategyResult ? (
           <CourseStrategyResultCard
@@ -114,7 +114,7 @@ export default function Page() {
           />
         ) : (
           <div className="rounded-2xl border border-dashed border-[color:var(--divider)] bg-black/10 p-5 text-sm leading-6 text-[color:var(--text-soft)]">
-            No course strategy is saved yet. Fill the Step 3 input block at the top of the page,
+            No course strategy is saved yet. Fill the strategy input block at the top of the page,
             then this section becomes the read-only strategy brief.
           </div>
         )}
@@ -122,7 +122,7 @@ export default function Page() {
 
       <PageSection
         id="route-plan"
-        badge="Step 4"
+        badge="Opening Bias"
         title="Opening-bias intel"
         detail="This section keeps the saved opening side call, reasoning, and latest check visible without putting more inputs in the middle of the page."
       >
@@ -131,16 +131,16 @@ export default function Page() {
 
       <PageSection
         id="tactical-board"
-        badge="Step 5"
-        title="Seed the tactical board"
-        detail="Carry the saved course and opening picture into the launch board so Race Live starts from the same plan."
+        badge="Tactical Snapshot"
+        title="Carry the launch picture forward"
+        detail="Keep the key launch calls visible here, then jump into the full tactical board only when you need the deeper steering and line setup tools."
       >
-        <TacticalBoardContent embedded showManualInputs={false} />
+        <PreRaceTacticalSnapshot />
       </PageSection>
 
       <PageSection
         id="leg-headings"
-        badge="Reference"
+        badge="Heading Reference"
         title="Mark-to-mark heading chart"
         detail="Use the course bearing and saved tack angle to carry a quick port and starboard heading reference for every leg."
       >

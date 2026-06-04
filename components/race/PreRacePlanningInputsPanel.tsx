@@ -77,7 +77,7 @@ export function PreRacePlanningInputsPanel() {
 
       <div className="mt-5 grid gap-5">
         <InputSection
-          badge="Step 3 Inputs"
+          badge="Strategy Inputs"
           title="Opening-leg strategy inputs"
           detail="Use the AI coach fill if the forecast and current picture is solid, then only tweak zones or notes when you need a custom call."
         >
@@ -95,7 +95,7 @@ export function PreRacePlanningInputsPanel() {
         </InputSection>
 
         <InputSection
-          badge="Step 4 Inputs"
+          badge="Bias Inputs"
           title="Opening-bias inputs"
           detail="Save the first-leg side here after the AI wind read and your own local check agree on the opening picture."
         >
