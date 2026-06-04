@@ -49,6 +49,10 @@ export function PreRaceLegLookoutSheet({
     tone === "print"
       ? "mb-4 text-sm leading-6 text-slate-600"
       : "mb-4 text-sm leading-6 text-[color:var(--text-soft)]";
+  const sectionLabelClass =
+    tone === "print"
+      ? "text-[11px] font-black uppercase tracking-[0.16em] text-slate-500"
+      : "text-[11px] font-black uppercase tracking-[0.16em] text-[color:var(--muted)]";
 
   if (lookouts.length === 0) {
     return (
@@ -61,8 +65,8 @@ export function PreRaceLegLookoutSheet({
   return (
     <section className="space-y-4">
       <p className={introClass}>
-        Carry these as quick crew cues so each leg starts with the same mental picture before the
-        next call has to be made.
+        Use these as the crew’s tactical cue cards: target headings, the current call to favor,
+        what would change the call, and the reference lens behind it.
       </p>
 
       <div className="grid gap-4 xl:grid-cols-2">
@@ -80,14 +84,45 @@ export function PreRaceLegLookoutSheet({
               </div>
             </div>
 
-            <ul className="mt-3 space-y-2">
-              {lookout.watchFors.map((item) => (
-                <li key={item} className={`flex gap-3 ${bulletClass}`}>
-                  <span className={tone === "print" ? "mt-[0.45rem] h-1.5 w-1.5 shrink-0 rounded-full bg-slate-400" : "mt-[0.45rem] h-1.5 w-1.5 shrink-0 rounded-full bg-cyan-200/70"} />
-                  <span>{item}</span>
-                </li>
-              ))}
-            </ul>
+            {lookout.headingSummary ? (
+              <div className="mt-3">
+                <div className={sectionLabelClass}>Target Headings</div>
+                <div className={`mt-1 ${bulletClass}`}>{lookout.headingSummary}</div>
+              </div>
+            ) : null}
+
+            <div className="mt-3">
+              <div className={sectionLabelClass}>Primary Call</div>
+              <div className={`mt-1 ${bulletClass}`}>{lookout.primaryCall}</div>
+            </div>
+
+            {lookout.triggerPoints.length > 0 ? (
+              <div className="mt-3">
+                <div className={sectionLabelClass}>What Changes The Call</div>
+                <ul className="mt-2 space-y-2">
+                  {lookout.triggerPoints.map((item) => (
+                    <li key={item} className={`flex gap-3 ${bulletClass}`}>
+                      <span className={tone === "print" ? "mt-[0.45rem] h-1.5 w-1.5 shrink-0 rounded-full bg-slate-400" : "mt-[0.45rem] h-1.5 w-1.5 shrink-0 rounded-full bg-cyan-200/70"} />
+                      <span>{item}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+
+            {lookout.referenceInsight.length > 0 ? (
+              <div className="mt-3">
+                <div className={sectionLabelClass}>Reference Lens</div>
+                <ul className="mt-2 space-y-2">
+                  {lookout.referenceInsight.map((item) => (
+                    <li key={item} className={`flex gap-3 ${bulletClass}`}>
+                      <span className={tone === "print" ? "mt-[0.45rem] h-1.5 w-1.5 shrink-0 rounded-full bg-slate-400" : "mt-[0.45rem] h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-200/80"} />
+                      <span>{item}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
           </div>
         ))}
       </div>

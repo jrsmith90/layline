@@ -36,6 +36,7 @@ type PreRaceRouteBiasFormProps = {
   defaultCourseId?: string;
   initialAnswers?: RouteBiasAnswers | null;
   initialResult?: RouteBiasResult | null;
+  showCourseField?: boolean;
   onPlanReady?: (payload: {
     result: RouteBiasResult;
     answers: RouteBiasAnswers;
@@ -97,6 +98,7 @@ export default function PreRaceRouteBiasForm({
   defaultCourseId = getDefaultCourseId(),
   initialAnswers,
   initialResult,
+  showCourseField = true,
   onPlanReady,
 }: PreRaceRouteBiasFormProps) {
   const [values, setValues] = useState<FormValues>(() =>
@@ -294,22 +296,24 @@ export default function PreRaceRouteBiasForm({
 
       <form onSubmit={handleSubmit} className="space-y-5">
         <div className="grid gap-4 md:grid-cols-2">
-          <label className="block">
-            <span className="mb-1 block text-sm font-medium">
-              {config.prompts.announcedCourse.label}
-            </span>
-            <select
-              className="w-full rounded-md border border-white/15 bg-black/30 px-3 py-2"
-              value={values.courseId}
-              onChange={(e) => handleCourseChange(e.target.value)}
-            >
-              {config.prompts.announcedCourse.options?.map((option) => (
-                <option key={option.value} value={option.value} className="bg-slate-900">
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </label>
+          {showCourseField ? (
+            <label className="block">
+              <span className="mb-1 block text-sm font-medium">
+                {config.prompts.announcedCourse.label}
+              </span>
+              <select
+                className="w-full rounded-md border border-white/15 bg-black/30 px-3 py-2"
+                value={values.courseId}
+                onChange={(e) => handleCourseChange(e.target.value)}
+              >
+                {config.prompts.announcedCourse.options?.map((option) => (
+                  <option key={option.value} value={option.value} className="bg-slate-900">
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null}
 
           <label className="block">
             <span className="mb-1 block text-sm font-medium">

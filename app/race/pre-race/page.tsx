@@ -7,10 +7,11 @@ import { useSyncExternalStore } from "react";
 import { useDisplayMode } from "@/components/display/DisplayModeProvider";
 import { AppPageHeader } from "@/components/layout/AppPageHeader";
 import CoursePreviewCard from "@/components/race/CoursePreviewCard";
-import PreRaceCourseStrategyWorkflow from "@/components/race/PreRaceCourseStrategyWorkflow";
+import { CourseStrategyResultCard } from "@/components/race/CourseStrategyResultCard";
 import { PreRaceLegHeadingChart } from "@/components/race/PreRaceLegHeadingChart";
 import { PreRaceLegLookoutSheet } from "@/components/race/PreRaceLegLookoutSheet";
-import PreRaceRouteBiasWorkflow from "@/components/race/PreRaceRouteBiasWorkflow";
+import { PreRaceOpeningBiasSummary } from "@/components/race/PreRaceOpeningBiasSummary";
+import { PreRacePlanningInputsPanel } from "@/components/race/PreRacePlanningInputsPanel";
 import { PreRaceSailPackageSummary } from "@/components/race/PreRaceSailPackageSummary";
 import { PreRaceSetupPanel } from "@/components/race/PreRaceSetupPanel";
 import { TacticalBoardContent } from "@/components/race/TacticalBoard";
@@ -73,6 +74,8 @@ export default function Page() {
 
       <PreRaceSetupPanel />
 
+      <PreRacePlanningInputsPanel />
+
       <PageSection
         id="course-read"
         badge="Step 1"
@@ -100,19 +103,30 @@ export default function Page() {
       <PageSection
         id="course-strategy"
         badge="Step 3"
-        title="Break down the opening leg strategy"
-        detail="Analyze each zone with expected headings, wind shifts, current patterns, and laylines."
+        title="Opening-leg strategy intel"
+        detail="This is the saved Step 3 readout after the inputs above have been scored."
       >
-        <PreRaceCourseStrategyWorkflow showPlannedRaceStartPanel={false} />
+        {draft.courseStrategyResult ? (
+          <CourseStrategyResultCard
+            result={draft.courseStrategyResult}
+            strategyNotes={draft.courseStrategy?.strategyNotes}
+            title="Saved course strategy"
+          />
+        ) : (
+          <div className="rounded-2xl border border-dashed border-[color:var(--divider)] bg-black/10 p-5 text-sm leading-6 text-[color:var(--text-soft)]">
+            No course strategy is saved yet. Fill the Step 3 input block at the top of the page,
+            then this section becomes the read-only strategy brief.
+          </div>
+        )}
       </PageSection>
 
       <PageSection
         id="route-plan"
         badge="Step 4"
-        title="Lock and re-check opening bias"
-        detail="Save the opening side first, then use the live re-check only if conditions have changed."
+        title="Opening-bias intel"
+        detail="This section keeps the saved opening side call, reasoning, and latest check visible without putting more inputs in the middle of the page."
       >
-        <PreRaceRouteBiasWorkflow />
+        <PreRaceOpeningBiasSummary draft={draft} />
       </PageSection>
 
       <PageSection
@@ -121,7 +135,7 @@ export default function Page() {
         title="Seed the tactical board"
         detail="Carry the saved course and opening picture into the launch board so Race Live starts from the same plan."
       >
-        <TacticalBoardContent embedded />
+        <TacticalBoardContent embedded showManualInputs={false} />
       </PageSection>
 
       <PageSection

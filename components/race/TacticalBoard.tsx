@@ -195,7 +195,13 @@ export default function TacticalBoard() {
   return <TacticalBoardContent />;
 }
 
-export function TacticalBoardContent({ embedded = false }: { embedded?: boolean }) {
+export function TacticalBoardContent({
+  embedded = false,
+  showManualInputs = true,
+}: {
+  embedded?: boolean;
+  showManualInputs?: boolean;
+}) {
   const { isRaceMode } = useAppMode();
   const { effectiveMode } = useDisplayMode();
   const isDesktopLayout = effectiveMode === "desktop";
@@ -295,161 +301,163 @@ export function TacticalBoardContent({ embedded = false }: { embedded?: boolean 
       </section>
 
       <div className="grid gap-5 lg:grid-cols-[1.05fr_0.95fr]">
-        <section className="layline-panel p-4">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <div className="layline-kicker">Setup</div>
-              <div className="mt-1 flex items-center gap-2">
-                <h2 className="text-2xl font-black tracking-tight">Manual Inputs</h2>
-                <InlineExplain
-                  label="Explain manual inputs"
-                  title="How to use this"
-                  widthClassName="w-80"
-                >
-                  This is where you feed the board the key geometry for the day. If these values
-                  are close, the steering numbers and bias calls below become useful. If they are
-                  wrong, the board can still look polished while pointing you at the wrong answer.
-                </InlineExplain>
+        {showManualInputs ? (
+          <section className="layline-panel p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <div className="layline-kicker">Setup</div>
+                <div className="mt-1 flex items-center gap-2">
+                  <h2 className="text-2xl font-black tracking-tight">Manual Inputs</h2>
+                  <InlineExplain
+                    label="Explain manual inputs"
+                    title="How to use this"
+                    widthClassName="w-80"
+                  >
+                    This is where you feed the board the key geometry for the day. If these values
+                    are close, the steering numbers and bias calls below become useful. If they are
+                    wrong, the board can still look polished while pointing you at the wrong answer.
+                  </InlineExplain>
+                </div>
               </div>
-            </div>
-            <button
-              type="button"
-              onClick={seedMarkBearingsFromCourse}
-              className="rounded-lg border border-[color:var(--divider)] bg-black/20 px-3 py-2 text-xs font-bold uppercase tracking-wide"
-            >
-              Seed Marks From Course
-            </button>
-          </div>
-
-          <div className="mt-4 grid gap-4 md:grid-cols-2">
-            <label className="block">
-              <span className="mb-1 flex items-center gap-2 text-sm font-medium">
-                <span>Course</span>
-                <InlineExplain
-                  label="Explain course input"
-                  title="Course"
-                  widthClassName="w-80"
-                >
-                  Choose the route you expect to sail. This decides which first mark and course
-                  geometry the board uses for headings, route bias, and course notes.
-                </InlineExplain>
-              </span>
-              <select
-                className="w-full rounded-xl border border-[color:var(--divider)] bg-black/30 px-3 py-2.5"
-                value={draft.courseId}
-                onChange={(event) => handleCourseChange(event.target.value)}
-              >
-                {courseIds.map((courseId) => (
-                  <option key={courseId} value={courseId} className="bg-slate-900">
-                    {formatCourseLabel(courseId)}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label className="block">
-              <span className="mb-1 flex items-center gap-2 text-sm font-medium">
-                <span>Wind trend</span>
-                <InlineExplain
-                  label="Explain wind trend input"
-                  title="Wind trend"
-                  widthClassName="w-80"
-                >
-                  This describes how stable the breeze feels overall. It helps frame whether you
-                  should trust the current number, expect more movement, or stay more flexible
-                  with the first-leg plan.
-                </InlineExplain>
-              </span>
-              <select
-                className="w-full rounded-xl border border-[color:var(--divider)] bg-black/30 px-3 py-2.5"
-                value={draft.windTrend}
-                onChange={(event) =>
-                  setTacticalBoardDraftField("windTrend", event.target.value as WindTrend)
-                }
-              >
-                <option value="unknown" className="bg-slate-900">Unclear</option>
-                <option value="steady" className="bg-slate-900">Steady</option>
-                <option value="building" className="bg-slate-900">Building</option>
-                <option value="fading" className="bg-slate-900">Fading</option>
-                <option value="oscillating" className="bg-slate-900">Oscillating</option>
-                <option value="unstable" className="bg-slate-900">Unstable</option>
-              </select>
-            </label>
-
-            <AngleInput
-              label="Mean wind from"
-              value={draft.meanWindDirectionDeg}
-              help="Your all-day average wind direction. Use the best stable number you have from before the start so the board knows what normal looks like."
-              onChange={(value) => setTacticalBoardDraftField("meanWindDirectionDeg", value)}
-            />
-            <div className="space-y-1">
-              <AngleInput
-                label="Current wind from"
-                value={draft.currentWindDirectionDeg}
-                help="The latest wind direction you would steer off right now. Update this when the breeze changes and the target headings will follow it."
-                onChange={(value) =>
-                  setTacticalBoardDraftField("currentWindDirectionDeg", value)
-                }
-              />
               <button
                 type="button"
-                onClick={useMeanWindAsCurrent}
-                className="text-xs font-bold uppercase tracking-wide text-[color:var(--muted)]"
+                onClick={seedMarkBearingsFromCourse}
+                className="rounded-lg border border-[color:var(--divider)] bg-black/20 px-3 py-2 text-xs font-bold uppercase tracking-wide"
               >
-                Copy mean wind
+                Seed Marks From Course
               </button>
             </div>
 
-            <NumberInput
-              label="Tack angle"
-              unit="deg"
-              value={draft.tackAngleDeg}
-              help="The angle your boat typically sails away from the wind upwind. Use your real target angle here so the port and starboard heading numbers match your boat."
-              onChange={(value) => setTacticalBoardDraftField("tackAngleDeg", value)}
-            />
-            <NumberInput
-              label="Run TWA"
-              unit="deg"
-              value={draft.downwindTrueWindAngleDeg}
-              help="The downwind true wind angle your boat likes to sail. This drives the gybe headings and the downwind geometry block."
-              onChange={(value) =>
-                setTacticalBoardDraftField("downwindTrueWindAngleDeg", value)
-              }
-            />
+            <div className="mt-4 grid gap-4 md:grid-cols-2">
+              <label className="block">
+                <span className="mb-1 flex items-center gap-2 text-sm font-medium">
+                  <span>Course</span>
+                  <InlineExplain
+                    label="Explain course input"
+                    title="Course"
+                    widthClassName="w-80"
+                  >
+                    Choose the route you expect to sail. This decides which first mark and course
+                    geometry the board uses for headings, route bias, and course notes.
+                  </InlineExplain>
+                </span>
+                <select
+                  className="w-full rounded-xl border border-[color:var(--divider)] bg-black/30 px-3 py-2.5"
+                  value={draft.courseId}
+                  onChange={(event) => handleCourseChange(event.target.value)}
+                >
+                  {courseIds.map((courseId) => (
+                    <option key={courseId} value={courseId} className="bg-slate-900">
+                      {formatCourseLabel(courseId)}
+                    </option>
+                  ))}
+                </select>
+              </label>
 
-            <AngleInput
-              label="Windward mark bearing"
-              value={draft.windwardMarkBearingDeg}
-              help="The compass bearing from your current area toward the first upwind mark. This is what lets the board compare your tack headings to the actual mark location."
-              onChange={(value) =>
-                setTacticalBoardDraftField("windwardMarkBearingDeg", value)
-              }
-            />
-            <AngleInput
-              label="Downwind mark bearing"
-              value={draft.downwindMarkBearingDeg}
-              help="The compass bearing to the downwind mark. Use this if you want the run geometry to reflect the real course instead of a simple opposite-of-upwind assumption."
-              onChange={(value) =>
-                setTacticalBoardDraftField("downwindMarkBearingDeg", value)
-              }
-            />
+              <label className="block">
+                <span className="mb-1 flex items-center gap-2 text-sm font-medium">
+                  <span>Wind trend</span>
+                  <InlineExplain
+                    label="Explain wind trend input"
+                    title="Wind trend"
+                    widthClassName="w-80"
+                  >
+                    This describes how stable the breeze feels overall. It helps frame whether you
+                    should trust the current number, expect more movement, or stay more flexible
+                    with the first-leg plan.
+                  </InlineExplain>
+                </span>
+                <select
+                  className="w-full rounded-xl border border-[color:var(--divider)] bg-black/30 px-3 py-2.5"
+                  value={draft.windTrend}
+                  onChange={(event) =>
+                    setTacticalBoardDraftField("windTrend", event.target.value as WindTrend)
+                  }
+                >
+                  <option value="unknown" className="bg-slate-900">Unclear</option>
+                  <option value="steady" className="bg-slate-900">Steady</option>
+                  <option value="building" className="bg-slate-900">Building</option>
+                  <option value="fading" className="bg-slate-900">Fading</option>
+                  <option value="oscillating" className="bg-slate-900">Oscillating</option>
+                  <option value="unstable" className="bg-slate-900">Unstable</option>
+                </select>
+              </label>
 
-            <AngleInput
-              label="Port-end line bearing"
-              value={draft.linePortEndBearingDeg}
-              help="The bearing from your position toward the port end of the starting line. Together with the starboard-end bearing, this gives the board its line bias read."
-              onChange={(value) => setTacticalBoardDraftField("linePortEndBearingDeg", value)}
-            />
-            <AngleInput
-              label="Starboard-end line bearing"
-              value={draft.lineStarboardEndBearingDeg}
-              help="The bearing from your position toward the committee-boat end. Once both line ends are filled in, the board can estimate which end is favored."
-              onChange={(value) =>
-                setTacticalBoardDraftField("lineStarboardEndBearingDeg", value)
-              }
-            />
-          </div>
-        </section>
+              <AngleInput
+                label="Mean wind from"
+                value={draft.meanWindDirectionDeg}
+                help="Your all-day average wind direction. Use the best stable number you have from before the start so the board knows what normal looks like."
+                onChange={(value) => setTacticalBoardDraftField("meanWindDirectionDeg", value)}
+              />
+              <div className="space-y-1">
+                <AngleInput
+                  label="Current wind from"
+                  value={draft.currentWindDirectionDeg}
+                  help="The latest wind direction you would steer off right now. Update this when the breeze changes and the target headings will follow it."
+                  onChange={(value) =>
+                    setTacticalBoardDraftField("currentWindDirectionDeg", value)
+                  }
+                />
+                <button
+                  type="button"
+                  onClick={useMeanWindAsCurrent}
+                  className="text-xs font-bold uppercase tracking-wide text-[color:var(--muted)]"
+                >
+                  Copy mean wind
+                </button>
+              </div>
+
+              <NumberInput
+                label="Tack angle"
+                unit="deg"
+                value={draft.tackAngleDeg}
+                help="The angle your boat typically sails away from the wind upwind. Use your real target angle here so the port and starboard heading numbers match your boat."
+                onChange={(value) => setTacticalBoardDraftField("tackAngleDeg", value)}
+              />
+              <NumberInput
+                label="Run TWA"
+                unit="deg"
+                value={draft.downwindTrueWindAngleDeg}
+                help="The downwind true wind angle your boat likes to sail. This drives the gybe headings and the downwind geometry block."
+                onChange={(value) =>
+                  setTacticalBoardDraftField("downwindTrueWindAngleDeg", value)
+                }
+              />
+
+              <AngleInput
+                label="Windward mark bearing"
+                value={draft.windwardMarkBearingDeg}
+                help="The compass bearing from your current area toward the first upwind mark. This is what lets the board compare your tack headings to the actual mark location."
+                onChange={(value) =>
+                  setTacticalBoardDraftField("windwardMarkBearingDeg", value)
+                }
+              />
+              <AngleInput
+                label="Downwind mark bearing"
+                value={draft.downwindMarkBearingDeg}
+                help="The compass bearing to the downwind mark. Use this if you want the run geometry to reflect the real course instead of a simple opposite-of-upwind assumption."
+                onChange={(value) =>
+                  setTacticalBoardDraftField("downwindMarkBearingDeg", value)
+                }
+              />
+
+              <AngleInput
+                label="Port-end line bearing"
+                value={draft.linePortEndBearingDeg}
+                help="The bearing from your position toward the port end of the starting line. Together with the starboard-end bearing, this gives the board its line bias read."
+                onChange={(value) => setTacticalBoardDraftField("linePortEndBearingDeg", value)}
+              />
+              <AngleInput
+                label="Starboard-end line bearing"
+                value={draft.lineStarboardEndBearingDeg}
+                help="The bearing from your position toward the committee-boat end. Once both line ends are filled in, the board can estimate which end is favored."
+                onChange={(value) =>
+                  setTacticalBoardDraftField("lineStarboardEndBearingDeg", value)
+                }
+              />
+            </div>
+          </section>
+        ) : null}
 
         <section className="space-y-5">
           <section className="layline-panel p-4">
