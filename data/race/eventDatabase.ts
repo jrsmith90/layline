@@ -296,6 +296,51 @@ const tedSouthRiverSprintCourse: RaceCourseRecord = {
   notes: 'Route: X -> H -> B.',
 };
 
+const tedDeadTedCourse: RaceCourseRecord = {
+  label: "The Dead Ted",
+  sequence: ["X", "G", "E", "M", "B"],
+  textSummary: [
+    "Start at Severn River Entrance (X).",
+    'Round Chesapeake Channel Buoy G "87" (G).',
+    'Round Chesapeake Channel Buoy R "86" (E).',
+    "Round Severn River - Light 1AH (M).",
+    'Finish at Horn Point Buoy G "9" (B).',
+  ],
+  distanceNmSI: null,
+  distanceNmCalculated: 13.26,
+  legs: [
+    {
+      legNumber: 1,
+      fromMark: "X",
+      toMark: "G",
+      bearingDeg: 109.4,
+      distanceNmCalculated: 1.59,
+    },
+    {
+      legNumber: 2,
+      fromMark: "G",
+      toMark: "E",
+      bearingDeg: 180.0,
+      distanceNmCalculated: 4.0,
+    },
+    {
+      legNumber: 3,
+      fromMark: "E",
+      toMark: "M",
+      bearingDeg: 339.8,
+      distanceNmCalculated: 4.62,
+    },
+    {
+      legNumber: 4,
+      fromMark: "M",
+      toMark: "B",
+      bearingDeg: 322.0,
+      distanceNmCalculated: 3.05,
+    },
+  ],
+  notes: 'Route: X -> G -> E -> M -> B.',
+};
+
 const tedOsiusTwilight2026CourseGeometry: RaceCourseGeometry = {
   event: {
     name: "Ted Osius Memorial Twilight Regatta",
@@ -349,10 +394,11 @@ const tedOsiusTwilight2026CourseGeometry: RaceCourseGeometry = {
     "1": tedSouthRiverTriangleCourse,
     "2": tedSouthRiverChannelTourCourse,
     "3": tedSouthRiverSprintCourse,
+    "4": tedDeadTedCourse,
   },
   specialRoutingNotes: [
-    "These named South River options are the Ted Osius course set currently configured in the app.",
-    'The finish mark for all three options is mark B, defined for this event as Horn Point Buoy G "9".',
+    "These named South River options are the Ted Osius course set currently configured in the app, including The Dead Ted.",
+    'The finish mark for all four options is mark B, defined for this event as Horn Point Buoy G "9".',
     "Letters shown in red are left to port. Letters shown in green are left to starboard.",
   ],
   specialRoutingConstraints: [
