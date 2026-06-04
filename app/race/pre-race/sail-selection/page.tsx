@@ -449,7 +449,7 @@ export default function SailSelectionPage() {
         spinnakerChoice:
           legType === "downwind"
             ? selectedSpinnakerChoice || result.spinnakerChoice
-            : undefined,
+            : selectedSpinnakerChoice || undefined,
         reefCall:
           legType === "downwind"
             ? getDownwindReefCall(
@@ -974,40 +974,42 @@ export default function SailSelectionPage() {
                   </div>
                 )}
 
-                {legType === "downwind" ? (
-                  <label className="block">
-                    <span className="text-xs uppercase tracking-[0.16em] opacity-70">
-                      Spinnaker
-                    </span>
-                    <select
-                      className="mt-2 w-full rounded-xl border border-white/15 bg-black/30 p-3 text-sm"
-                      value={
-                        effectiveSelection?.spinnakerChoice ??
-                        result.spinnakerChoice ??
-                        spinnakerInventoryOptions[0]
-                      }
-                      onChange={(event) =>
-                        setSelectedSpinnakerChoice(event.target.value as SpinChoice)
-                      }
-                    >
-                      {spinnakerInventoryOptions.map((choice) => (
-                        <option key={choice} value={choice} className="bg-slate-900">
-                          {formatSpinChoice(choice)}
-                        </option>
-                      ))}
-                    </select>
-                    <div className="mt-2 text-xs opacity-65">
-                      Coach pick:{" "}
-                      {result.spinnakerChoice
-                        ? formatSpinChoice(result.spinnakerChoice)
-                        : "No Spinnaker"}
-                    </div>
-                  </label>
-                ) : (
-                  <div className="rounded-2xl border border-white/10 bg-black/20 p-4 text-sm opacity-80">
-                    Spinnaker choice becomes active when the opening leg mode is downwind.
+                <label className="block">
+                  <span className="text-xs uppercase tracking-[0.16em] opacity-70">
+                    Spinnaker
+                  </span>
+                  <select
+                    className="mt-2 w-full rounded-xl border border-white/15 bg-black/30 p-3 text-sm"
+                    value={
+                      legType === "downwind"
+                        ? (effectiveSelection?.spinnakerChoice ??
+                            result.spinnakerChoice ??
+                            spinnakerInventoryOptions[0])
+                        : selectedSpinnakerChoice
+                    }
+                    onChange={(event) =>
+                      setSelectedSpinnakerChoice(event.target.value as SpinChoice | "")
+                    }
+                  >
+                    <option value="" className="bg-slate-900">
+                      Select spinnaker to stage
+                    </option>
+                    {spinnakerInventoryOptions.map((choice) => (
+                      <option key={choice} value={choice} className="bg-slate-900">
+                        {formatSpinChoice(choice)}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="mt-2 text-xs opacity-65">
+                    {legType === "downwind"
+                      ? `Coach pick: ${
+                          result.spinnakerChoice
+                            ? formatSpinChoice(result.spinnakerChoice)
+                            : "No Spinnaker"
+                        }`
+                      : "Optional staging pick for later legs even if the opening leg starts upwind."}
                   </div>
-                )}
+                </label>
               </div>
             </div>
 
