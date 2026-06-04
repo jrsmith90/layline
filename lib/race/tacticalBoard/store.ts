@@ -9,9 +9,10 @@ import { getCourseData, getDefaultCourseId, hasCourse } from "@/data/race/getCou
 import { roundUpLaylineHeadingDeg } from "@/lib/race/courseStrategy/laylineHeading";
 import { wrap360 } from "@/lib/race/courseTracker";
 import {
-  DEFAULT_RACE_START_TIME,
+  getDefaultRaceStartTimeForEvent,
   sanitizeRaceStartDate,
   sanitizeRaceStartTime,
+  shouldUpgradeLegacyRaceStartTime,
 } from "@/lib/race/plannedRaceStart";
 import type { ConfirmedSailSelectionSummary } from "@/lib/race/preRaceCoachAssist";
 import {
@@ -497,12 +498,19 @@ function syncDraftCoreFromRouteBiasAnswers(
 function sanitizeDraft(input: Partial<TacticalBoardDraft> | null | undefined): TacticalBoardDraft {
   const storedCourseId = normalizeCourseId(input?.courseId);
   const defaults = buildTacticalBoardDraftDefaults(storedCourseId);
+  const courseData = getCourseData(storedCourseId);
+  const raceStartTime = shouldUpgradeLegacyRaceStartTime(
+    courseData.eventId,
+    input?.raceStartTime,
+  )
+    ? defaults.raceStartTime
+    : sanitizeRaceStartTime(input?.raceStartTime, defaults.raceStartTime);
 
   return {
     ...defaults,
     courseId: storedCourseId,
     raceStartDate: sanitizeRaceStartDate(input?.raceStartDate, defaults.raceStartDate),
-    raceStartTime: sanitizeRaceStartTime(input?.raceStartTime, defaults.raceStartTime),
+    raceStartTime,
     meanWindDirectionDeg: sanitizeText(input?.meanWindDirectionDeg, defaults.meanWindDirectionDeg),
     currentWindDirectionDeg: sanitizeText(
       input?.currentWindDirectionDeg,
@@ -626,11 +634,12 @@ export function buildTacticalBoardDraftDefaults(courseId: string): TacticalBoard
   const normalizedCourseId = normalizeCourseId(courseId);
   const seeded = courseSeed(normalizedCourseId);
   const courseData = getCourseData(normalizedCourseId);
+  const defaultRaceStartTime = getDefaultRaceStartTimeForEvent(courseData.eventId);
 
   return {
     courseId: normalizedCourseId,
     raceStartDate: courseData.raceDate,
-    raceStartTime: DEFAULT_RACE_START_TIME,
+    raceStartTime: defaultRaceStartTime,
     meanWindDirectionDeg: "",
     currentWindDirectionDeg: "",
     tackAngleDeg: "42",

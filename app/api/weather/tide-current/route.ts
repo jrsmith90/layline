@@ -89,6 +89,13 @@ function getRaceWindow(eventId?: string | null) {
     };
   }
 
+  if (eventId === "2026-ted-osius-memorial-twilight-regatta-annapolis-md") {
+    return {
+      firstWarning: "5:00 PM",
+      timeLimit: "See SIs",
+    };
+  }
+
   return {
     firstWarning: "Race window",
     timeLimit: "See SIs",
