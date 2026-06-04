@@ -56,9 +56,9 @@ export function formatMainChoice(value: MainChoice | string): string {
 export function formatHeadsailChoice(value: HeadsailChoice | string): string {
   switch (value) {
     case "ullman_150":
-      return "150% Ullman Genoa";
+      return "2021 North Sails 150%";
     case "north_150":
-      return "150% North Genoa";
+      return "2018 North Sails 150%";
     case "north_140":
       return "#2 / 140% North Jib";
     default:

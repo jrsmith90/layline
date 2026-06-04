@@ -287,10 +287,10 @@ export function buildUpwindNotes(
   const notes: string[] = [];
 
   if (headsailChoice === "ullman_150") {
-    notes.push("Default best-condition 150 for racing.");
+    notes.push("Selected the newer 2021 North Sails 150% as the primary full-power upwind choice.");
   }
   if (headsailChoice === "north_150") {
-    notes.push("Using second-choice 150 because the best 150 is unavailable.");
+    notes.push("Using the 2018 North Sails 150% as the alternate full-power upwind choice.");
   }
   if (headsailChoice === "north_140") {
     notes.push("Selected smaller headsail for control and groove stability.");
