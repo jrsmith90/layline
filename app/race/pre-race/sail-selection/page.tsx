@@ -7,12 +7,16 @@ import { useDisplayMode } from "@/components/display/DisplayModeProvider";
 import { PlannedRaceStartFields } from "@/components/race/PlannedRaceStartFields";
 import {
   getRaceSailPlan,
+  getDownwindReefCall,
   SEA_STATE_OPTIONS,
   type SeaState,
   type CrewCount,
   type HikingLevel,
   type RiskMode,
   type LegType,
+  type MainChoice,
+  type HeadsailChoice,
+  type SpinChoice,
 } from "@/data/logic/sailSelectionLogic";
 import { getRouteBiasInputs } from "@/data/race/getRouteBiasInputs";
 import { formatCourseLabel, getCourseData, getDefaultCourseId } from "@/data/race/getCourseData";
@@ -65,9 +69,9 @@ function formatHeadsailChoice(value: string): string {
 function formatSpinChoice(value: string): string {
   switch (value) {
     case "north_spin_yellow_black":
-      return "North Spinnaker — Yellow / Black";
+      return "North Spinnaker — Black / Yellow";
     case "north_spin_teal_black_white":
-      return "North Spinnaker — Teal / Black / White";
+      return "North Spinnaker — White / Teal";
     case "old_spin_red_white_best_old":
       return "Older Spinnaker — Red / White (Best Older)";
     case "old_spin_red_white_horizon":
@@ -93,6 +97,17 @@ function formatReefCall(value: string): string {
       return value;
   }
 }
+
+const MAIN_INVENTORY: MainChoice[] = ["quantum_main", "north_main_backup"];
+const HEADSAIL_INVENTORY: HeadsailChoice[] = ["ullman_150", "north_150", "north_140"];
+const SPINNAKER_INVENTORY: SpinChoice[] = [
+  "north_spin_yellow_black",
+  "north_spin_teal_black_white",
+  "old_spin_red_white_best_old",
+  "old_spin_red_white_horizon",
+  "small_red_white_blue_heavy_air",
+  "no_spinnaker",
+];
 
 function getRecommendationTone(result: {
   reefCall: string;
@@ -304,6 +319,9 @@ export default function SailSelectionPage() {
   const [seaStateAuto, setSeaStateAuto] = useState(true);
   const [hikingAuto, setHikingAuto] = useState(true);
   const [courseConditionsAuto, setCourseConditionsAuto] = useState(true);
+  const [selectedMainChoice, setSelectedMainChoice] = useState<MainChoice | "">("");
+  const [selectedHeadsailChoice, setSelectedHeadsailChoice] = useState<HeadsailChoice | "">("");
+  const [selectedSpinnakerChoice, setSelectedSpinnakerChoice] = useState<SpinChoice | "">("");
   const courseData = useMemo(() => getCourseData(courseId), [courseId]);
   const courseConfig = useMemo(() => getRouteBiasInputs(courseId), [courseId]);
   const coachAssist = usePreRaceCoachAssist({
@@ -341,8 +359,14 @@ export default function SailSelectionPage() {
     setCourseId(nextCourseId);
   }
 
+  function resetInventoryOverrides() {
+    setSelectedMainChoice("");
+    setSelectedHeadsailChoice("");
+    setSelectedSpinnakerChoice("");
+  }
+
   function handleConfirmSailSelection() {
-    if (!result || !finalCall || forecastWind === "") {
+    if (!result || !effectiveSelection || !finalCall || forecastWind === "") {
       return;
     }
 
@@ -357,10 +381,10 @@ export default function SailSelectionPage() {
       riskMode,
       confidence: confidence ?? "Medium",
       finalCall,
-      mainChoice: result.mainChoice,
-      headsailChoice: result.headsailChoice,
-      spinnakerChoice: result.spinnakerChoice,
-      reefCall: result.reefCall,
+      mainChoice: effectiveSelection.mainChoice,
+      headsailChoice: effectiveSelection.headsailChoice,
+      spinnakerChoice: effectiveSelection.spinnakerChoice,
+      reefCall: effectiveSelection.reefCall,
       coachSummary: sailBrief.summary,
       forecastSummary: forecastDecision.summary,
       currentEffectSummary: currentImpact.summary,
@@ -401,7 +425,41 @@ export default function SailSelectionPage() {
           legType,
           riskMode,
         });
-  const recommendationTone = result ? getRecommendationTone(result) : null;
+
+  const effectiveSelection = result
+    ? {
+        mainChoice: selectedMainChoice || result.mainChoice,
+        headsailChoice:
+          legType === "upwind"
+            ? selectedHeadsailChoice || result.headsailChoice
+            : undefined,
+        spinnakerChoice:
+          legType === "downwind"
+            ? selectedSpinnakerChoice || result.spinnakerChoice
+            : undefined,
+        reefCall:
+          legType === "downwind"
+            ? getDownwindReefCall(
+                result.effectiveWind,
+                (selectedSpinnakerChoice || result.spinnakerChoice || "no_spinnaker") as SpinChoice
+              )
+            : result.reefCall,
+      }
+    : null;
+
+  const hasInventoryOverride =
+    Boolean(selectedMainChoice) ||
+    Boolean(selectedHeadsailChoice) ||
+    Boolean(selectedSpinnakerChoice);
+
+  const recommendationTone =
+    result && effectiveSelection
+      ? getRecommendationTone({
+          headsailChoice: effectiveSelection.headsailChoice,
+          spinnakerChoice: effectiveSelection.spinnakerChoice,
+          reefCall: effectiveSelection.reefCall,
+        })
+      : null;
 
   const confidence = result
     ? getConfidenceLevel(result.effectiveWind, result.legType)
@@ -418,19 +476,19 @@ export default function SailSelectionPage() {
         seaState,
         crewCount,
         hikingLevel,
-        reefCall: result.reefCall,
-        headsailChoice: result.headsailChoice,
-        spinnakerChoice: result.spinnakerChoice,
+        reefCall: effectiveSelection?.reefCall ?? result.reefCall,
+        headsailChoice: effectiveSelection?.headsailChoice ?? result.headsailChoice,
+        spinnakerChoice: effectiveSelection?.spinnakerChoice ?? result.spinnakerChoice,
       })
     : [];
 
-  const finalCall = result
+  const finalCall = result && effectiveSelection
     ? buildFinalCall({
         legType,
-        main: result.mainChoice,
-        headsail: result.headsailChoice,
-        spin: result.spinnakerChoice,
-        reef: result.reefCall,
+        main: effectiveSelection.mainChoice,
+        headsail: effectiveSelection.headsailChoice,
+        spin: effectiveSelection.spinnakerChoice,
+        reef: effectiveSelection.reefCall,
       })
     : null;
 
@@ -736,9 +794,17 @@ export default function SailSelectionPage() {
                   </div>
                   <div className="mt-1 text-lg font-semibold">
                     {legType === "upwind"
-                      ? `${formatMainChoice(result.mainChoice)} + ${result.headsailChoice ? formatHeadsailChoice(result.headsailChoice) : "Headsail TBD"}`
-                      : `${formatMainChoice(result.mainChoice)} + ${result.spinnakerChoice ? formatSpinChoice(result.spinnakerChoice) : "No Spinnaker Set"}`}
+                      ? `${formatMainChoice(effectiveSelection?.mainChoice ?? result.mainChoice)} + ${effectiveSelection?.headsailChoice ? formatHeadsailChoice(effectiveSelection.headsailChoice) : "Headsail TBD"}`
+                      : `${formatMainChoice(effectiveSelection?.mainChoice ?? result.mainChoice)} + ${effectiveSelection?.spinnakerChoice ? formatSpinChoice(effectiveSelection.spinnakerChoice) : "No Spinnaker Set"}`}
                   </div>
+                  {hasInventoryOverride ? (
+                    <div className="mt-2 text-xs opacity-70">
+                      Coach pick:{" "}
+                      {legType === "upwind"
+                        ? `${formatMainChoice(result.mainChoice)} + ${result.headsailChoice ? formatHeadsailChoice(result.headsailChoice) : "Headsail TBD"}`
+                        : `${formatMainChoice(result.mainChoice)} + ${result.spinnakerChoice ? formatSpinChoice(result.spinnakerChoice) : "No Spinnaker Set"}`}
+                    </div>
+                  ) : null}
                 </div>
                 <div className={`rounded-full px-3 py-1 text-xs font-medium whitespace-nowrap ${recommendationTone.badgeClass}`}>
                   {recommendationTone.badgeText}
@@ -774,29 +840,143 @@ export default function SailSelectionPage() {
               </div>
               <div className="rounded-2xl border border-[color:var(--divider)] bg-black/20 p-4">
                 <div className="text-xs tracking-widest uppercase opacity-60">Reef Call</div>
-                <div className="mt-2 text-lg font-semibold">{formatReefCall(result.reefCall)}</div>
+                <div className="mt-2 text-lg font-semibold">
+                  {formatReefCall(effectiveSelection?.reefCall ?? result.reefCall)}
+                </div>
               </div>
             </div>
 
             <div className="grid gap-3 md:grid-cols-3">
               <div className="rounded-2xl border border-[color:var(--divider)] bg-black/20 p-4">
                 <div className="text-xs tracking-widest uppercase opacity-60">Main</div>
-                <div className="mt-2 text-base font-semibold">{formatMainChoice(result.mainChoice)}</div>
+                <div className="mt-2 text-base font-semibold">
+                  {formatMainChoice(effectiveSelection?.mainChoice ?? result.mainChoice)}
+                </div>
               </div>
 
-              {result.headsailChoice && (
+              {effectiveSelection?.headsailChoice && (
                 <div className="rounded-2xl border border-[color:var(--divider)] bg-black/20 p-4">
                   <div className="text-xs tracking-widest uppercase opacity-60">Headsail</div>
-                  <div className="mt-2 text-base font-semibold">{formatHeadsailChoice(result.headsailChoice)}</div>
+                  <div className="mt-2 text-base font-semibold">
+                    {formatHeadsailChoice(effectiveSelection.headsailChoice)}
+                  </div>
                 </div>
               )}
 
-              {result.spinnakerChoice && (
+              {effectiveSelection?.spinnakerChoice && (
                 <div className="rounded-2xl border border-[color:var(--divider)] bg-black/20 p-4">
                   <div className="text-xs tracking-widest uppercase opacity-60">Spinnaker</div>
-                  <div className="mt-2 text-base font-semibold">{formatSpinChoice(result.spinnakerChoice)}</div>
+                  <div className="mt-2 text-base font-semibold">
+                    {formatSpinChoice(effectiveSelection.spinnakerChoice)}
+                  </div>
                 </div>
               )}
+            </div>
+
+            <div className="rounded-2xl border border-cyan-400/20 bg-cyan-400/10 p-4">
+              <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                <div>
+                  <div className="text-xs tracking-widest uppercase text-cyan-100/75">
+                    Sail Inventory
+                  </div>
+                  <div className="mt-1 text-sm text-cyan-50/90">
+                    Keep the coach recommendation as a baseline, then pick the actual sails you
+                    want to use from your inventory.
+                  </div>
+                </div>
+                {hasInventoryOverride ? (
+                  <button
+                    type="button"
+                    onClick={resetInventoryOverrides}
+                    className="rounded-xl border border-cyan-200/30 bg-black/20 px-3 py-2 text-xs font-black uppercase tracking-wide text-cyan-50"
+                  >
+                    Use Coach Picks
+                  </button>
+                ) : null}
+              </div>
+
+              <div className="mt-4 grid gap-3 md:grid-cols-3">
+                <label className="block">
+                  <span className="text-xs uppercase tracking-[0.16em] opacity-70">Main</span>
+                  <select
+                    className="mt-2 w-full rounded-xl border border-white/15 bg-black/30 p-3 text-sm"
+                    value={effectiveSelection?.mainChoice ?? result.mainChoice}
+                    onChange={(event) => setSelectedMainChoice(event.target.value as MainChoice)}
+                  >
+                    {MAIN_INVENTORY.map((choice) => (
+                      <option key={choice} value={choice} className="bg-slate-900">
+                        {formatMainChoice(choice)}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="mt-2 text-xs opacity-65">
+                    Coach pick: {formatMainChoice(result.mainChoice)}
+                  </div>
+                </label>
+
+                {legType === "upwind" ? (
+                  <label className="block">
+                    <span className="text-xs uppercase tracking-[0.16em] opacity-70">
+                      Headsail
+                    </span>
+                    <select
+                      className="mt-2 w-full rounded-xl border border-white/15 bg-black/30 p-3 text-sm"
+                      value={effectiveSelection?.headsailChoice ?? result.headsailChoice ?? HEADSAIL_INVENTORY[0]}
+                      onChange={(event) =>
+                        setSelectedHeadsailChoice(event.target.value as HeadsailChoice)
+                      }
+                    >
+                      {HEADSAIL_INVENTORY.map((choice) => (
+                        <option key={choice} value={choice} className="bg-slate-900">
+                          {formatHeadsailChoice(choice)}
+                        </option>
+                      ))}
+                    </select>
+                    <div className="mt-2 text-xs opacity-65">
+                      Coach pick:{" "}
+                      {result.headsailChoice
+                        ? formatHeadsailChoice(result.headsailChoice)
+                        : "Headsail TBD"}
+                    </div>
+                  </label>
+                ) : (
+                  <div className="rounded-2xl border border-white/10 bg-black/20 p-4 text-sm opacity-80">
+                    Headsail choice stays in the background while this opening leg is treated as
+                    downwind.
+                  </div>
+                )}
+
+                {legType === "downwind" ? (
+                  <label className="block">
+                    <span className="text-xs uppercase tracking-[0.16em] opacity-70">
+                      Spinnaker
+                    </span>
+                    <select
+                      className="mt-2 w-full rounded-xl border border-white/15 bg-black/30 p-3 text-sm"
+                      value={effectiveSelection?.spinnakerChoice ?? result.spinnakerChoice ?? SPINNAKER_INVENTORY[0]}
+                      onChange={(event) =>
+                        setSelectedSpinnakerChoice(event.target.value as SpinChoice)
+                      }
+                    >
+                      {SPINNAKER_INVENTORY.map((choice) => (
+                        <option key={choice} value={choice} className="bg-slate-900">
+                          {formatSpinChoice(choice)}
+                        </option>
+                      ))}
+                    </select>
+                    <div className="mt-2 text-xs opacity-65">
+                      Coach pick:{" "}
+                      {result.spinnakerChoice
+                        ? formatSpinChoice(result.spinnakerChoice)
+                        : "No Spinnaker"}
+                    </div>
+                  </label>
+                ) : (
+                  <div className="rounded-2xl border border-white/10 bg-black/20 p-4 text-sm opacity-80">
+                    Spinnaker choice becomes active when the opening leg mode is downwind.
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="rounded-2xl border border-[color:var(--divider)] bg-black/20 p-4">
@@ -846,35 +1026,36 @@ export default function SailSelectionPage() {
 
             <div className="grid gap-3 md:grid-cols-2">
               <Link
-                href="/trim/main"
-                className="block rounded-lg bg-red-500 text-white p-4 font-semibold shadow active:scale-[0.98] transition"
+                  href="/trim/main"
+                  className="block rounded-lg bg-red-500 text-white p-4 font-semibold shadow active:scale-[0.98] transition"
               >
                 Go to Mainsail Trim
                 <div className="text-sm font-normal opacity-90">
-                  Apply the {formatMainChoice(result.mainChoice)} call
+                  Apply the {formatMainChoice(effectiveSelection?.mainChoice ?? result.mainChoice)} call
                 </div>
               </Link>
 
-              {result.headsailChoice && (
+              {effectiveSelection?.headsailChoice && (
                 <Link
                   href="/trim/jib"
                   className="block rounded-lg bg-orange-500 text-white p-4 font-semibold shadow active:scale-[0.98] transition"
                 >
                   Go to Headsail Trim
                   <div className="text-sm font-normal opacity-90">
-                    Trim the {formatHeadsailChoice(result.headsailChoice)}
+                    Trim the {formatHeadsailChoice(effectiveSelection.headsailChoice)}
                   </div>
                 </Link>
               )}
 
-              {result.spinnakerChoice && result.spinnakerChoice !== "no_spinnaker" && (
+              {effectiveSelection?.spinnakerChoice &&
+                effectiveSelection.spinnakerChoice !== "no_spinnaker" && (
                 <Link
                   href="/trim/spin"
                   className="block rounded-lg bg-blue-600 text-white p-4 font-semibold shadow active:scale-[0.98] transition md:col-span-2"
                 >
                   Go to Spinnaker Trim
                   <div className="text-sm font-normal opacity-90">
-                    Trim the {formatSpinChoice(result.spinnakerChoice)}
+                    Trim the {formatSpinChoice(effectiveSelection.spinnakerChoice)}
                   </div>
                 </Link>
               )}
