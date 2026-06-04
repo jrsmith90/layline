@@ -214,7 +214,7 @@ export function getRouteBiasInputs(courseId: string): RouteBiasInputModel {
       },
       windDirectionDeg: {
         id: "windDirectionDeg",
-        label: "Expected wind direction",
+        label: "Expected wind direction at the start",
         type: "number",
         required: true,
         placeholder: "Enter direction",
@@ -222,7 +222,7 @@ export function getRouteBiasInputs(courseId: string): RouteBiasInputModel {
       },
       windSpeedKt: {
         id: "windSpeedKt",
-        label: "Expected wind speed",
+        label: "Expected wind speed at the start",
         type: "number",
         required: true,
         placeholder: "Enter speed",
@@ -244,7 +244,7 @@ export function getRouteBiasInputs(courseId: string): RouteBiasInputModel {
       },
       pressureSide: {
         id: "pressureSide",
-        label: "Where does pressure look better for the first leg?",
+        label: "Manual pressure-side override",
         type: "select",
         required: true,
         options: [
@@ -256,7 +256,7 @@ export function getRouteBiasInputs(courseId: string): RouteBiasInputModel {
       },
       currentSide: {
         id: "currentSide",
-        label: "Where is the better current setup for the first leg?",
+        label: "Manual current-side override",
         type: "select",
         required: true,
         options: [
@@ -270,7 +270,7 @@ export function getRouteBiasInputs(courseId: string): RouteBiasInputModel {
       },
       edgeStrength: {
         id: "edgeStrength",
-        label: "How strong is the edge?",
+        label: "Manual edge-strength override",
         type: "select",
         required: true,
         options: [

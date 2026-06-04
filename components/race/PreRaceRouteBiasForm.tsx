@@ -4,13 +4,14 @@ import { useMemo, useState, useSyncExternalStore, type FormEvent } from "react";
 import { getCustomCourseRecord } from "@/data/race/customCourses";
 import {
   getRouteBiasInputs,
+  type RouteBiasPrompt,
   type CurrentSide,
   type EdgeStrength,
   type OpeningLegType,
   type PressureSide,
   type WindTrend
 } from "@/data/race/getRouteBiasInputs";
-import { getDefaultCourseId } from "@/data/race/getCourseData";
+import { getCourseData, getDefaultCourseId } from "@/data/race/getCourseData";
 import {
   formatOpeningBiasConfidence,
   formatOpeningBiasLabel,
@@ -24,9 +25,11 @@ import {
   getStoredTacticalBoardDraft,
   subscribeTacticalBoardStore,
 } from "@/lib/race/tacticalBoard/store";
+import { usePreRaceCoachAssist } from "@/lib/race/usePreRaceCoachAssist";
 import { useCourseCatalogVersion } from "@/lib/race/useCourseCatalogVersion";
 import { RoutingConstraintsList } from "@/components/race/RoutingConstraintsList";
 import { readJsonResponse } from "@/lib/readJsonResponse";
+import { buildRouteBiasCoachAutofill } from "@/lib/race/routeBiasCoachAssist";
 import type { RouteBiasAnswers, RouteBiasResult } from "@/lib/race/scoreRouteBias";
 
 type PreRaceRouteBiasFormProps = {
@@ -83,6 +86,13 @@ function toFormValues(
   };
 }
 
+function findPromptOptionLabel<T extends string>(
+  prompt: RouteBiasPrompt<T>,
+  value: T,
+) {
+  return prompt.options?.find((option) => option.value === value)?.label ?? value;
+}
+
 export default function PreRaceRouteBiasForm({
   defaultCourseId = getDefaultCourseId(),
   initialAnswers,
@@ -96,6 +106,7 @@ export default function PreRaceRouteBiasForm({
   const [result, setResult] = useState<RouteBiasResult | null>(() => initialResult ?? null);
   const [error, setError] = useState<string | null>(null);
   const [openingLegManualOverride, setOpeningLegManualOverride] = useState(false);
+  const [showManualBiasOverrides, setShowManualBiasOverrides] = useState(false);
   useCourseCatalogVersion();
   const tacticalBoardDraft = useSyncExternalStore(
     subscribeTacticalBoardStore,
@@ -104,10 +115,18 @@ export default function PreRaceRouteBiasForm({
   );
 
   const config = getRouteBiasInputs(values.courseId);
+  const courseData = useMemo(() => getCourseData(values.courseId), [values.courseId]);
   const tackAngleDeg = useMemo(() => {
     const parsed = Number(tacticalBoardDraft.tackAngleDeg);
     return Number.isFinite(parsed) && parsed > 0 ? parsed : 42;
   }, [tacticalBoardDraft.tackAngleDeg]);
+  const coachAssist = usePreRaceCoachAssist({
+    courseId: values.courseId,
+    courseData,
+    tackAngleDeg,
+    plannedRaceStartDate: tacticalBoardDraft.raceStartDate,
+    plannedRaceStartTime: tacticalBoardDraft.raceStartTime,
+  });
   const openingLegAutoRead = useMemo(
     () =>
       detectOpeningLegType({
@@ -123,6 +142,27 @@ export default function PreRaceRouteBiasForm({
   const effectiveOpeningLegType = openingLegManualOverride
     ? values.openingLegType
     : openingLegAutoRead.openingLegType;
+  const coachBiasRead = useMemo(
+    () =>
+      buildRouteBiasCoachAutofill({
+        courseData,
+        courseWindRead: coachAssist.courseWindRead,
+        forecastDecision: coachAssist.forecastDecision,
+        currentImpact: coachAssist.currentImpact,
+      }),
+    [coachAssist.courseWindRead, coachAssist.currentImpact, coachAssist.forecastDecision, courseData],
+  );
+  const effectiveWindTrend =
+    values.windTrend !== "unknown" ? values.windTrend : coachBiasRead.windTrend;
+  const effectivePressureSide = showManualBiasOverrides
+    ? values.pressureSide
+    : coachBiasRead.pressureSide;
+  const effectiveCurrentSide = showManualBiasOverrides
+    ? values.currentSide
+    : coachBiasRead.currentSide;
+  const effectiveEdgeStrength = showManualBiasOverrides
+    ? values.edgeStrength
+    : coachBiasRead.edgeStrength;
 
   function updateField<K extends keyof FormValues>(key: K, value: FormValues[K]) {
     setValues((prev) => ({
@@ -150,6 +190,23 @@ export default function PreRaceRouteBiasForm({
     updateField("openingLegType", openingLegAutoRead.openingLegType);
   }
 
+  function applyAiCoachWindRead() {
+    setError(null);
+    setValues((prev) => ({
+      ...prev,
+      windDirectionDeg:
+        coachBiasRead.windDirectionDeg == null
+          ? prev.windDirectionDeg
+          : String(Math.round(coachBiasRead.windDirectionDeg)),
+      windSpeedKt:
+        coachBiasRead.windSpeedKt == null
+          ? prev.windSpeedKt
+          : coachBiasRead.windSpeedKt.toFixed(1),
+      windTrend: coachBiasRead.windTrend,
+    }));
+    setShowManualBiasOverrides(false);
+  }
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setIsSubmitting(true);
@@ -157,25 +214,28 @@ export default function PreRaceRouteBiasForm({
     setResult(null);
 
     try {
-      const windDirectionDeg = values.windDirectionDeg.trim();
-      const windSpeedKt = values.windSpeedKt.trim();
+      const windDirectionDeg =
+        values.windDirectionDeg.trim().length > 0
+          ? Number(values.windDirectionDeg.trim())
+          : coachBiasRead.windDirectionDeg;
+      const windSpeedKt =
+        values.windSpeedKt.trim().length > 0
+          ? Number(values.windSpeedKt.trim())
+          : coachBiasRead.windSpeedKt;
 
-      if (!windDirectionDeg || !windSpeedKt) {
-        throw new Error("Wind direction and wind speed are required.");
+      if (windDirectionDeg == null || windSpeedKt == null) {
+        throw new Error("Wind direction and wind speed are required. Use the AI coach fill or enter them manually.");
       }
 
-      const parsedWindDirectionDeg = Number(windDirectionDeg);
-      const parsedWindSpeedKt = Number(windSpeedKt);
-
       if (
-        Number.isNaN(parsedWindDirectionDeg) ||
-        parsedWindDirectionDeg < 0 ||
-        parsedWindDirectionDeg > 360
+        Number.isNaN(windDirectionDeg) ||
+        windDirectionDeg < 0 ||
+        windDirectionDeg > 360
       ) {
         throw new Error("Wind direction must be between 0 and 360.");
       }
 
-      if (Number.isNaN(parsedWindSpeedKt) || parsedWindSpeedKt < 0) {
+      if (Number.isNaN(windSpeedKt) || windSpeedKt < 0) {
         throw new Error("Wind speed must be 0 or greater.");
       }
 
@@ -189,12 +249,12 @@ export default function PreRaceRouteBiasForm({
           customCourse: getCustomCourseRecord(values.courseId),
           routingConstraints: config.routingConstraints,
           openingLegType: effectiveOpeningLegType,
-          windDirectionDeg: parsedWindDirectionDeg,
-          windSpeedKt: parsedWindSpeedKt,
-          windTrend: values.windTrend,
-          pressureSide: values.pressureSide,
-          currentSide: values.currentSide,
-          edgeStrength: values.edgeStrength
+          windDirectionDeg,
+          windSpeedKt,
+          windTrend: effectiveWindTrend,
+          pressureSide: effectivePressureSide,
+          currentSide: effectiveCurrentSide,
+          edgeStrength: effectiveEdgeStrength
         })
       });
 
@@ -211,12 +271,12 @@ export default function PreRaceRouteBiasForm({
         answers: {
           courseId: values.courseId,
           openingLegType: effectiveOpeningLegType,
-          windDirectionDeg: parsedWindDirectionDeg,
-          windSpeedKt: parsedWindSpeedKt,
-          windTrend: values.windTrend,
-          pressureSide: values.pressureSide,
-          currentSide: values.currentSide,
-          edgeStrength: values.edgeStrength
+          windDirectionDeg,
+          windSpeedKt,
+          windTrend: effectiveWindTrend,
+          pressureSide: effectivePressureSide,
+          currentSide: effectiveCurrentSide,
+          edgeStrength: effectiveEdgeStrength
         }
       });
     } catch (err) {
@@ -307,6 +367,11 @@ export default function PreRaceRouteBiasForm({
               />
               <span className="text-sm text-white/60">{config.prompts.windDirectionDeg.unit}</span>
             </div>
+            <div className="mt-2 text-xs leading-5 text-white/65">
+              {coachBiasRead.windDirectionDeg != null
+                ? `AI coach projects about ${Math.round(coachBiasRead.windDirectionDeg)} deg at the start.`
+                : "AI coach is still waiting on enough wind data to project direction."}
+            </div>
           </label>
 
           <label className="block">
@@ -321,6 +386,11 @@ export default function PreRaceRouteBiasForm({
                 onChange={(e) => updateField("windSpeedKt", e.target.value)}
               />
               <span className="text-sm text-white/60">{config.prompts.windSpeedKt.unit}</span>
+            </div>
+            <div className="mt-2 text-xs leading-5 text-white/65">
+              {coachBiasRead.windSpeedKt != null
+                ? `AI coach projects about ${coachBiasRead.windSpeedKt.toFixed(1)} kt for the start window.`
+                : "AI coach is still waiting on enough forecast data to project speed."}
             </div>
           </label>
 
@@ -337,53 +407,129 @@ export default function PreRaceRouteBiasForm({
                 </option>
               ))}
             </select>
-          </label>
-
-          <label className="block">
-            <span className="mb-1 block text-sm font-medium">{config.prompts.pressureSide.label}</span>
-            <select
-              className="w-full rounded-md border border-white/15 bg-black/30 px-3 py-2"
-              value={values.pressureSide}
-              onChange={(e) => updateField("pressureSide", e.target.value as PressureSide)}
-            >
-              {config.prompts.pressureSide.options?.map((option) => (
-                <option key={option.value} value={option.value} className="bg-slate-900">
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label className="block md:col-span-2">
-            <span className="mb-1 block text-sm font-medium">{config.prompts.currentSide.label}</span>
-            <select
-              className="w-full rounded-md border border-white/15 bg-black/30 px-3 py-2"
-              value={values.currentSide}
-              onChange={(e) => updateField("currentSide", e.target.value as CurrentSide)}
-            >
-              {config.prompts.currentSide.options?.map((option) => (
-                <option key={option.value} value={option.value} className="bg-slate-900">
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label className="block">
-            <span className="mb-1 block text-sm font-medium">{config.prompts.edgeStrength.label}</span>
-            <select
-              className="w-full rounded-md border border-white/15 bg-black/30 px-3 py-2"
-              value={values.edgeStrength}
-              onChange={(e) => updateField("edgeStrength", e.target.value as EdgeStrength)}
-            >
-              {config.prompts.edgeStrength.options?.map((option) => (
-                <option key={option.value} value={option.value} className="bg-slate-900">
-                  {option.label}
-                </option>
-              ))}
-            </select>
+            <div className="mt-2 text-xs leading-5 text-white/65">
+              {values.windTrend === "unknown"
+                ? `If you leave this on Unclear, the opening-bias coach will use ${findPromptOptionLabel(
+                    config.prompts.windTrend,
+                    coachBiasRead.windTrend,
+                  )}.`
+                : "Manual wind-trend override is active for this save."}
+            </div>
           </label>
         </div>
+
+        <div className="rounded-lg border border-cyan-400/20 bg-cyan-400/10 p-4 text-sm">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <div className="text-xs font-semibold uppercase tracking-[0.16em] text-cyan-100/75">
+                AI Coach Bias Read
+              </div>
+              <div className="mt-1 text-sm font-semibold text-cyan-50">
+                {coachBiasRead.summary}
+              </div>
+              <div className="mt-2 text-xs leading-5 text-cyan-50/80">
+                {coachAssist.currentImpact.summary}
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={applyAiCoachWindRead}
+              disabled={coachBiasRead.windDirectionDeg == null || coachBiasRead.windSpeedKt == null}
+              className="rounded-xl border border-cyan-200/30 bg-black/20 px-3 py-2 text-xs font-black uppercase tracking-wide text-cyan-50 disabled:opacity-40"
+            >
+              Use AI Wind
+            </button>
+          </div>
+
+          <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <ContextMetric
+              label="Wind Direction"
+              value={
+                coachBiasRead.windDirectionDeg != null
+                  ? `${Math.round(coachBiasRead.windDirectionDeg)} deg`
+                  : "Waiting"
+              }
+            />
+            <ContextMetric
+              label="Pressure Side"
+              value={findPromptOptionLabel(config.prompts.pressureSide, effectivePressureSide)}
+            />
+            <ContextMetric
+              label="Current Setup"
+              value={findPromptOptionLabel(config.prompts.currentSide, effectiveCurrentSide)}
+            />
+            <ContextMetric
+              label="Edge Strength"
+              value={findPromptOptionLabel(config.prompts.edgeStrength, effectiveEdgeStrength)}
+            />
+          </div>
+
+          <div className="mt-3 space-y-2 text-xs leading-5 text-cyan-50/80">
+            {coachBiasRead.reasoning.map((item) => (
+              <p key={item}>{item}</p>
+            ))}
+          </div>
+
+          <div className="mt-4 border-t border-cyan-200/15 pt-4">
+            <button
+              type="button"
+              onClick={() => setShowManualBiasOverrides((prev) => !prev)}
+              className="rounded-xl border border-cyan-200/25 bg-black/20 px-3 py-2 text-xs font-black uppercase tracking-wide text-cyan-50"
+            >
+              {showManualBiasOverrides ? "Hide Manual Bias Overrides" : "Show Manual Bias Overrides"}
+            </button>
+          </div>
+        </div>
+
+        {showManualBiasOverrides ? (
+          <div className="grid gap-4 md:grid-cols-2">
+            <label className="block">
+              <span className="mb-1 block text-sm font-medium">{config.prompts.pressureSide.label}</span>
+              <select
+                className="w-full rounded-md border border-white/15 bg-black/30 px-3 py-2"
+                value={values.pressureSide}
+                onChange={(e) => updateField("pressureSide", e.target.value as PressureSide)}
+              >
+                {config.prompts.pressureSide.options?.map((option) => (
+                  <option key={option.value} value={option.value} className="bg-slate-900">
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="block md:col-span-2">
+              <span className="mb-1 block text-sm font-medium">{config.prompts.currentSide.label}</span>
+              <select
+                className="w-full rounded-md border border-white/15 bg-black/30 px-3 py-2"
+                value={values.currentSide}
+                onChange={(e) => updateField("currentSide", e.target.value as CurrentSide)}
+              >
+                {config.prompts.currentSide.options?.map((option) => (
+                  <option key={option.value} value={option.value} className="bg-slate-900">
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="block">
+              <span className="mb-1 block text-sm font-medium">{config.prompts.edgeStrength.label}</span>
+              <select
+                className="w-full rounded-md border border-white/15 bg-black/30 px-3 py-2"
+                value={values.edgeStrength}
+                onChange={(e) => updateField("edgeStrength", e.target.value as EdgeStrength)}
+              >
+                {config.prompts.edgeStrength.options?.map((option) => (
+                  <option key={option.value} value={option.value} className="bg-slate-900">
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+        ) : null}
 
         <div className="rounded-lg border border-white/10 bg-white/5 p-4 text-sm">
           <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
