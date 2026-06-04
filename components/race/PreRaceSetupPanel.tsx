@@ -83,6 +83,12 @@ export function PreRaceSetupPanel() {
           >
             Manage Constraints
           </Link>
+          <Link
+            href="/race/inventory"
+            className="inline-flex rounded-xl border border-[color:var(--divider)] bg-black/10 px-4 py-3 text-sm font-black uppercase tracking-wide text-[color:var(--text)]"
+          >
+            Manage Inventory
+          </Link>
         </div>
       </div>
 
