@@ -1,5 +1,6 @@
 import type { CourseSummary } from "@/data/race/getCourseData";
 import type { CourseZone, CourseStrategyAnswers } from "@/lib/race/courseStrategy/types";
+import { roundUpLaylineHeadingDeg } from "@/lib/race/courseStrategy/laylineHeading";
 
 function normalizeAngle(deg: number): number {
   let normalized = deg % 360;
@@ -65,7 +66,7 @@ function generateDefaultZones(
       windShiftRisk: "unknown",
       windShiftLocation: "monitor near shore",
       currentEffect: "unknown",
-      laylineHeadingDeg: normalizeAngle(firstLegBearing),
+      laylineHeadingDeg: roundUpLaylineHeadingDeg(firstLegBearing),
       notes: "",
     };
 
@@ -77,7 +78,7 @@ function generateDefaultZones(
       windShiftRisk: "unknown",
       windShiftLocation: "monitor middle / offshore",
       currentEffect: "unknown",
-      laylineHeadingDeg: normalizeAngle(firstLegBearing),
+      laylineHeadingDeg: roundUpLaylineHeadingDeg(firstLegBearing),
       notes: "",
     };
   } else {
@@ -92,7 +93,7 @@ function generateDefaultZones(
       windShiftRisk: "unknown",
       windShiftLocation: "monitor near mark",
       currentEffect: "unknown",
-      laylineHeadingDeg: normalizeAngle(firstLegBearing),
+      laylineHeadingDeg: roundUpLaylineHeadingDeg(firstLegBearing),
       notes: "",
     };
 
@@ -104,7 +105,7 @@ function generateDefaultZones(
       windShiftRisk: "unknown",
       windShiftLocation: "monitor near mark",
       currentEffect: "unknown",
-      laylineHeadingDeg: normalizeAngle(firstLegBearing),
+      laylineHeadingDeg: roundUpLaylineHeadingDeg(firstLegBearing),
       notes: "",
     };
   }

@@ -48,7 +48,7 @@ export function AppNavigationButtons() {
         className={[
           "mx-auto flex items-center justify-between gap-3",
           effectiveMode === "desktop"
-            ? "max-w-7xl"
+            ? "max-w-[96rem]"
             : effectiveMode === "ipad"
               ? "max-w-5xl"
               : "max-w-md",

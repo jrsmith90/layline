@@ -3,6 +3,7 @@ import type {
   CourseStrategyAnswers,
   CourseStrategyResult,
 } from "@/lib/race/courseStrategy/types";
+import { normalizeCourseStrategyLaylines } from "@/lib/race/courseStrategy/laylineHeading";
 import { getCourseStrategyReferencePolicy } from "@/lib/reference/decisionBasis";
 
 function pushUnique(items: string[], value: string) {
@@ -161,8 +162,10 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    const normalizedAnswers = normalizeCourseStrategyLaylines(answers);
+
     // Score the strategy
-    const result = scoreStrategy(answers);
+    const result = scoreStrategy(normalizedAnswers);
 
     return NextResponse.json({ result }, { status: 200 });
   } catch (error) {

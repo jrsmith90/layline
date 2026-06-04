@@ -227,6 +227,13 @@ export function buildReviewCoachBrief(review: RaceSessionReview | null): AiCoach
     review.decisionScorePct == null
       ? "Decision score still needs outcome data."
       : `Decision score is ${review.decisionScorePct}% with a ${review.decisionGrade.replace(/_/g, " ")} read.`;
+  const openingBiasCopy = review.plannedOpeningBias
+    ? `Saved opening bias was ${review.plannedOpeningBias.label.toLowerCase()}.`
+    : null;
+  const courseStrategyCopy =
+    review.plannedCourseStrategy?.recommendations[0] ??
+    review.plannedCourseStrategy?.strategyNotes.split("\n").find((line) => line.trim().length > 0) ??
+    null;
 
   return {
     eyebrow: "AI Coach Lane",
@@ -238,13 +245,18 @@ export function buildReviewCoachBrief(review: RaceSessionReview | null): AiCoach
           : review.decisionGrade === "mixed"
             ? "Good day to reduce decision churn"
             : "Debrief should focus on the biggest misses",
-    summary: `${scoreCopy} ${firstSignal}`,
-    bullets:
-      nextItems.length > 0
-        ? nextItems
-        : ["Keep logging and rating decisions so the next review has cleaner evidence."],
+    summary: `${scoreCopy} ${openingBiasCopy ?? ""} ${firstSignal}`.trim(),
+    bullets: [
+      ...(courseStrategyCopy ? [`Saved course strategy: ${courseStrategyCopy}`] : []),
+      ...nextItems,
+    ].slice(0, 3).length
+      ? [
+          ...(courseStrategyCopy ? [`Saved course strategy: ${courseStrategyCopy}`] : []),
+          ...nextItems,
+        ].slice(0, 3)
+      : ["Keep logging and rating decisions so the next review has cleaner evidence."],
     footer:
-      "This is the review-side AI lane. A future model can use the same structured review data to generate a cleaner post-race debrief without changing the screen layout.",
+      "This review lane now carries the saved pre-race bias and course-strategy context so the debrief can compare the actual race against the original plan.",
     tone:
       review.decisionGrade === "sharp" || review.decisionGrade === "solid"
         ? "positive"
@@ -252,9 +264,13 @@ export function buildReviewCoachBrief(review: RaceSessionReview | null): AiCoach
           ? "focus"
           : "warning",
     readiness: review.decisionCount > 0 ? "ready" : "watch",
-    referenceBasis: getCoachReferenceBasis({
-      mode: "review",
-      confidenceFragile: review.decisionGrade === "mixed" || review.decisionGrade === "needs_work",
-    }),
+    referenceBasis:
+      review.reviewReferenceBasis.length > 0
+        ? review.reviewReferenceBasis.slice(0, 4)
+        : getCoachReferenceBasis({
+            mode: "review",
+            confidenceFragile:
+              review.decisionGrade === "mixed" || review.decisionGrade === "needs_work",
+          }),
   };
 }

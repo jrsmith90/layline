@@ -24,6 +24,7 @@ import {
   recoverTodayRaceSession,
   startRaceSession,
   subscribeRaceSessionStore,
+  updateRaceSessionCourseStrategy,
   updateRaceSessionOpeningBias,
   type RaceSessionRepositoryRecoveryResult,
   type RaceDecisionSourceMeta,
@@ -31,6 +32,7 @@ import {
   type TacticalBoardSnapshotCaptureInput,
   type RaceWeatherSample,
 } from "@/lib/raceSessionStore";
+import { buildCourseStrategyRecord } from "@/lib/race/courseStrategy/sessionRecord";
 import { buildOpeningBiasRecord } from "@/lib/race/openingBias";
 import { getLogs } from "@/lib/logStore";
 import { readTackCalibrations } from "@/lib/race/tackCalibration";
@@ -253,6 +255,20 @@ export function RaceRecorderPanel({
   }, [effectiveSessionId, session?.status, tacticalBoardDraft]);
 
   useEffect(() => {
+    if (!effectiveSessionId || session?.status !== "active") return;
+
+    const courseStrategy =
+      tacticalBoardDraft.courseStrategy && tacticalBoardDraft.courseStrategyResult
+        ? buildCourseStrategyRecord({
+            answers: tacticalBoardDraft.courseStrategy,
+            result: tacticalBoardDraft.courseStrategyResult,
+          })
+        : null;
+
+    updateRaceSessionCourseStrategy(effectiveSessionId, courseStrategy);
+  }, [effectiveSessionId, session?.status, tacticalBoardDraft]);
+
+  useEffect(() => {
     if (!effectiveSessionId || session?.status !== "active" || !currentDecision) return;
 
     const sourceMeta = decisionSourceMeta;
@@ -370,8 +386,15 @@ export function RaceRecorderPanel({
             latestUpdate: tacticalBoardDraft.routeBias.latestUpdate,
           })
         : null;
+    const courseStrategy =
+      tacticalBoardDraft.courseStrategy && tacticalBoardDraft.courseStrategyResult
+        ? buildCourseStrategyRecord({
+            answers: tacticalBoardDraft.courseStrategy,
+            result: tacticalBoardDraft.courseStrategyResult,
+          })
+        : null;
 
-    const next = startRaceSession({ courseId, openingBias });
+    const next = startRaceSession({ courseId, openingBias, courseStrategy });
     appendRaceGpsSamples(next.id, gpsTrack, tackContext);
     setSessionId(next.id);
     setStatus("Race recording started.");

@@ -6,6 +6,7 @@ import type {
   WindTrend,
 } from "@/data/race/getRouteBiasInputs";
 import { getCourseData, getDefaultCourseId, hasCourse } from "@/data/race/getCourseData";
+import { roundUpLaylineHeadingDeg } from "@/lib/race/courseStrategy/laylineHeading";
 import { wrap360 } from "@/lib/race/courseTracker";
 import type { ConfirmedSailSelectionSummary } from "@/lib/race/preRaceCoachAssist";
 import {
@@ -335,7 +336,7 @@ function sanitizeCourseStrategyAnswers(value: unknown): CourseStrategyAnswers | 
             : "unknown",
         laylineHeadingDeg:
           typeof zone?.laylineHeadingDeg === "number" && Number.isFinite(zone.laylineHeadingDeg)
-            ? wrap360(zone.laylineHeadingDeg)
+            ? roundUpLaylineHeadingDeg(zone.laylineHeadingDeg)
             : null,
         notes: sanitizeText(zone?.notes, ""),
       }))

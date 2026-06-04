@@ -18,6 +18,9 @@ export type OpeningBiasRecord = {
   label: string;
   confidence: RouteBiasSnapshot["confidence"];
   reason: string | null;
+  reasons: string[];
+  warnings: string[];
+  referenceBasis: string[];
   windDirectionDeg: number | null;
   windSpeedKt: number | null;
   windTrend: WindTrend | null;
@@ -25,6 +28,8 @@ export type OpeningBiasRecord = {
   latestAction: TacticalUpdateAction | null;
   latestActionLabel: string | null;
   latestReason: string | null;
+  latestReasons: string[];
+  latestWarnings: string[];
 };
 
 export function formatOpeningBiasLabel(
@@ -119,6 +124,9 @@ export function buildOpeningBiasRecord(params: {
     label: formatOpeningBiasLabel(params.plan.decision),
     confidence: params.plan.confidence,
     reason: params.plan.reasons[0] ?? null,
+    reasons: params.plan.reasons,
+    warnings: params.plan.warnings,
+    referenceBasis: params.plan.referenceBasis,
     windDirectionDeg: params.answers.windDirectionDeg,
     windSpeedKt: params.answers.windSpeedKt,
     windTrend: params.answers.windTrend,
@@ -126,5 +134,7 @@ export function buildOpeningBiasRecord(params: {
     latestAction: params.latestUpdate?.action ?? null,
     latestActionLabel: formatOpeningBiasAction(params.latestUpdate?.action),
     latestReason: params.latestUpdate?.reasons[0] ?? null,
+    latestReasons: params.latestUpdate?.reasons ?? [],
+    latestWarnings: params.latestUpdate?.warnings ?? [],
   };
 }

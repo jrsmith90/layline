@@ -21,6 +21,7 @@ import {
   formatOpeningBiasAction,
   formatOpeningBiasConfidence,
 } from "@/lib/race/openingBias";
+import { roundUpLaylineHeadingDeg } from "@/lib/race/courseStrategy/laylineHeading";
 import {
   getLegalityOverallLabel,
   type RaceLegalityOverall,
@@ -1822,6 +1823,24 @@ export default function RaceReviewPage() {
 
           <AiCoachCard brief={reviewCoachBrief} />
 
+          {review.reviewReferenceBasis.length > 0 && (
+            <section className="layline-panel p-4">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <h2 className="text-xl font-black">Review Reference Basis</h2>
+                  <p className="mt-1 text-sm text-[color:var(--muted)]">
+                    These saved references now feed the review coach and the debrief logic.
+                  </p>
+                </div>
+                <div className="rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-2 text-xs font-black uppercase tracking-wide text-cyan-50">
+                  {review.reviewReferenceBasis.length} anchors
+                </div>
+              </div>
+
+              <ReferenceBasisList items={review.reviewReferenceBasis} className="mt-4" />
+            </section>
+          )}
+
           {session.openingBias && (
             <section className="layline-panel p-4">
               <div className="flex flex-wrap items-start justify-between gap-3">
@@ -1860,24 +1879,170 @@ export default function RaceReviewPage() {
                 />
               </div>
 
-              {(session.openingBias.reason || session.openingBias.latestActionLabel) && (
+              {(session.openingBias.reasons.length > 0 ||
+                session.openingBias.latestActionLabel ||
+                session.openingBias.referenceBasis.length > 0) && (
                 <div className="mt-3 grid gap-3 md:grid-cols-2">
-                  {session.openingBias.reason ? (
-                    <div className="rounded-xl border border-white/10 bg-black/20 p-3 text-sm leading-6">
-                      {session.openingBias.reason}
-                    </div>
+                  {session.openingBias.reasons.length > 0 ? (
+                    <SignalListCard
+                      title="Saved reasoning"
+                      items={session.openingBias.reasons}
+                    />
                   ) : null}
                   {session.openingBias.latestActionLabel ? (
-                    <div className="rounded-xl border border-cyan-400/20 bg-cyan-400/10 p-3 text-sm leading-6">
-                      {formatOpeningBiasAction(session.openingBias.latestAction) ??
-                        session.openingBias.latestActionLabel}
-                      {session.openingBias.latestReason
-                        ? ` · ${session.openingBias.latestReason}`
-                        : ""}
-                    </div>
+                    <SignalListCard
+                      title={
+                        formatOpeningBiasAction(session.openingBias.latestAction) ??
+                        session.openingBias.latestActionLabel
+                      }
+                      items={
+                        session.openingBias.latestReasons.length > 0
+                          ? session.openingBias.latestReasons
+                          : session.openingBias.latestReason
+                            ? [session.openingBias.latestReason]
+                            : []
+                      }
+                      tone="focus"
+                    />
                   ) : null}
                 </div>
               )}
+
+              {(session.openingBias.warnings.length > 0 ||
+                session.openingBias.latestWarnings.length > 0 ||
+                session.openingBias.referenceBasis.length > 0) && (
+                <div className="mt-3 grid gap-3 md:grid-cols-2">
+                  {session.openingBias.warnings.length > 0 ? (
+                    <SignalListCard
+                      title="Saved warnings"
+                      items={session.openingBias.warnings}
+                      tone="warning"
+                    />
+                  ) : null}
+                  {session.openingBias.latestWarnings.length > 0 ? (
+                    <SignalListCard
+                      title="Latest warnings"
+                      items={session.openingBias.latestWarnings}
+                      tone="warning"
+                    />
+                  ) : null}
+                </div>
+              )}
+
+              {session.openingBias.referenceBasis.length > 0 ? (
+                <ReferenceBasisList items={session.openingBias.referenceBasis} className="mt-3" />
+              ) : null}
+            </section>
+          )}
+
+          {session.courseStrategy && (
+            <section className="layline-panel p-4">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <h2 className="text-xl font-black">Course Strategy Plan</h2>
+                  <p className="mt-1 text-sm text-[color:var(--muted)]">
+                    The saved Step 3 opening-leg strategy that now feeds the review.
+                  </p>
+                </div>
+                <div className="rounded-full border border-white/10 bg-black/20 px-3 py-2 text-xs font-black uppercase tracking-wide">
+                  {session.courseStrategy.zones.length} zone
+                  {session.courseStrategy.zones.length === 1 ? "" : "s"}
+                </div>
+              </div>
+
+              <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
+                <Metric
+                  label="Opening bearing"
+                  value={
+                    session.courseStrategy.openingLegBearingDeg == null
+                      ? "--"
+                      : `${Math.round(session.courseStrategy.openingLegBearingDeg)} deg`
+                  }
+                />
+                <Metric
+                  label="First mark dist"
+                  value={
+                    session.courseStrategy.firstMarkDistance == null
+                      ? "--"
+                      : `${session.courseStrategy.firstMarkDistance.toFixed(2)} nm`
+                  }
+                />
+                <Metric
+                  label="Risks"
+                  value={String(session.courseStrategy.keyRisks.length)}
+                />
+                <Metric
+                  label="Recs"
+                  value={String(session.courseStrategy.recommendations.length)}
+                />
+              </div>
+
+              {session.courseStrategy.strategyNotes ? (
+                <div className="mt-3 rounded-xl border border-white/10 bg-black/20 p-4 text-sm leading-6 whitespace-pre-line">
+                  {session.courseStrategy.strategyNotes}
+                </div>
+              ) : null}
+
+              <div className="mt-3 grid gap-3 md:grid-cols-2">
+                {session.courseStrategy.keyRisks.length > 0 ? (
+                  <SignalListCard
+                    title="Key risks"
+                    items={session.courseStrategy.keyRisks}
+                    tone="warning"
+                  />
+                ) : null}
+                {session.courseStrategy.recommendations.length > 0 ? (
+                  <SignalListCard
+                    title="Saved recommendations"
+                    items={session.courseStrategy.recommendations}
+                    tone="focus"
+                  />
+                ) : null}
+              </div>
+
+              {session.courseStrategy.zones.length > 0 ? (
+                <div className="mt-3 grid gap-3 md:grid-cols-2">
+                  {session.courseStrategy.zones.map((zone) => (
+                    <div key={zone.id} className="rounded-xl border border-white/10 bg-black/20 p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <div className="text-sm font-black">{zone.label}</div>
+                          <div className="mt-1 text-xs uppercase tracking-[0.14em] text-[color:var(--muted)]">
+                            {formatZoneRisk(zone.windShiftRisk)} wind risk · {formatZoneCurrent(zone.currentEffect)} current
+                          </div>
+                        </div>
+                        <div className="text-right text-xs text-[color:var(--muted)]">
+                          <div>
+                            Hdg {zone.headingDeg == null ? "--" : `${Math.round(zone.headingDeg)} deg`}
+                          </div>
+                          <div>
+                            Layline{" "}
+                            {roundUpLaylineHeadingDeg(zone.laylineHeadingDeg) == null
+                              ? "--"
+                              : `${roundUpLaylineHeadingDeg(zone.laylineHeadingDeg)} deg`}
+                          </div>
+                        </div>
+                      </div>
+
+                      {zone.windShiftLocation ? (
+                        <div className="mt-3 text-sm leading-6 text-[color:var(--muted)]">
+                          {zone.windShiftLocation}
+                        </div>
+                      ) : null}
+
+                      {zone.notes ? (
+                        <div className="mt-3 rounded-lg border border-white/10 bg-white/5 p-3 text-sm leading-6 text-[color:var(--muted)]">
+                          {zone.notes}
+                        </div>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+
+              {session.courseStrategy.referenceBasis.length > 0 ? (
+                <ReferenceBasisList items={session.courseStrategy.referenceBasis} className="mt-3" />
+              ) : null}
             </section>
           )}
 
@@ -2569,6 +2734,87 @@ function Metric({ label, value }: { label: string; value: string }) {
         {label}
       </div>
       <div className="mt-1 text-xl font-black leading-none">{value}</div>
+    </div>
+  );
+}
+
+function formatZoneRisk(value: "high" | "moderate" | "low" | "unknown") {
+  switch (value) {
+    case "high":
+      return "High";
+    case "moderate":
+      return "Moderate";
+    case "low":
+      return "Low";
+    default:
+      return "Unknown";
+  }
+}
+
+function formatZoneCurrent(value: "favorable" | "adverse" | "neutral" | "unknown") {
+  switch (value) {
+    case "favorable":
+      return "Favorable";
+    case "adverse":
+      return "Adverse";
+    case "neutral":
+      return "Neutral";
+    default:
+      return "Unknown";
+  }
+}
+
+function SignalListCard({
+  title,
+  items,
+  tone = "neutral",
+}: {
+  title: string;
+  items: string[];
+  tone?: "neutral" | "focus" | "warning";
+}) {
+  const className =
+    tone === "warning"
+      ? "border-amber-300/30 bg-amber-300/10"
+      : tone === "focus"
+        ? "border-cyan-400/20 bg-cyan-400/10"
+        : "border-white/10 bg-black/20";
+
+  return (
+    <div className={`rounded-xl border p-3 ${className}`}>
+      <div className="text-[10px] font-black uppercase tracking-[0.16em] text-[color:var(--muted)]">
+        {title}
+      </div>
+      <div className="mt-3 grid gap-2">
+        {items.map((item) => (
+          <div key={item} className="rounded-lg border border-white/10 bg-black/20 p-3 text-sm leading-6">
+            {item}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ReferenceBasisList({
+  items,
+  className = "",
+}: {
+  items: string[];
+  className?: string;
+}) {
+  return (
+    <div className={`rounded-xl border border-cyan-400/20 bg-cyan-400/10 p-3 ${className}`}>
+      <div className="text-[10px] font-black uppercase tracking-[0.16em] text-cyan-100/80">
+        Reference basis
+      </div>
+      <div className="mt-3 grid gap-2">
+        {items.map((item) => (
+          <div key={item} className="rounded-lg border border-cyan-400/20 bg-black/20 p-3 text-sm leading-6 text-cyan-50">
+            {item}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

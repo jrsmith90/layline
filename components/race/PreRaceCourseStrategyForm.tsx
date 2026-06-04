@@ -4,6 +4,10 @@ import { useMemo, useState } from "react";
 import { AiCoachCard } from "@/components/ai/AiCoachCard";
 import { getCourseData } from "@/data/race/getCourseData";
 import { getCourseStrategyDefaults } from "@/data/race/getCourseStrategyInputs";
+import {
+  normalizeCourseStrategyLaylines,
+  roundUpLaylineHeadingDeg,
+} from "@/lib/race/courseStrategy/laylineHeading";
 import type {
   CourseStrategyAnswers,
   CourseStrategyResult,
@@ -44,11 +48,11 @@ export default function PreRaceCourseStrategyForm({
 
   const initialState = useMemo(() => {
     if (initialAnswers) {
-      return { ...initialAnswers, error: null };
+      return { ...normalizeCourseStrategyLaylines(initialAnswers), error: null };
     }
 
     const defaults = getCourseStrategyDefaults(defaultCourseId, course, windDirNum, tackAngleNum);
-    return { ...defaults, error: null };
+    return { ...normalizeCourseStrategyLaylines(defaults), error: null };
   }, [defaultCourseId, course, windDirNum, tackAngleNum, initialAnswers]);
 
   const [formState, setFormState] = useState<FormState>(initialState);
@@ -67,12 +71,13 @@ export default function PreRaceCourseStrategyForm({
 
   function applyCoachAutofill() {
     setFormState((prev) => ({
-      ...prev,
-      courseId: defaultCourseId,
-      zones: coachAssist.strategyAutofill.zones,
-      openingLegBearingDeg: course.firstLeg?.bearingDeg ?? prev.openingLegBearingDeg,
-      firstMarkDistance: course.firstLeg?.distanceNmCalculated ?? prev.firstMarkDistance,
-      strategyNotes: coachAssist.strategyAutofill.strategyNotes,
+      ...normalizeCourseStrategyLaylines({
+        courseId: defaultCourseId,
+        zones: coachAssist.strategyAutofill.zones,
+        openingLegBearingDeg: course.firstLeg?.bearingDeg ?? prev.openingLegBearingDeg,
+        firstMarkDistance: course.firstLeg?.distanceNmCalculated ?? prev.firstMarkDistance,
+        strategyNotes: coachAssist.strategyAutofill.strategyNotes,
+      }),
       error: null,
     }));
   }
@@ -193,10 +198,13 @@ export default function PreRaceCourseStrategyForm({
                       type="number"
                       min="0"
                       max="360"
-                      value={zone.laylineHeadingDeg ?? ""}
+                      step="1"
+                      value={roundUpLaylineHeadingDeg(zone.laylineHeadingDeg) ?? ""}
                       onChange={(e) =>
                         updateZone(zone.id, {
-                          laylineHeadingDeg: e.target.value ? Number(e.target.value) : null,
+                          laylineHeadingDeg: e.target.value
+                            ? roundUpLaylineHeadingDeg(Number(e.target.value))
+                            : null,
                         })
                       }
                       className="mt-1 w-full rounded border border-white/15 bg-black/30 px-2 py-1 text-sm"

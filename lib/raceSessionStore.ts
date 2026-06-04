@@ -16,6 +16,7 @@ import type { GpsTrackPoint } from "@/lib/useGpsCourse";
 import type { LaylineLog } from "@/lib/logStore";
 import { getLogs } from "@/lib/logStore";
 import type { OpeningBiasRecord } from "@/lib/race/openingBias";
+import type { CourseStrategyRecord } from "@/lib/race/courseStrategy/types";
 import {
   detectAutomaticTackRecords,
   detectAutomaticTackCalibrations,
@@ -100,6 +101,7 @@ export type RaceSession = {
   eventId?: string;
   courseId?: string;
   openingBias?: OpeningBiasRecord | null;
+  courseStrategy?: CourseStrategyRecord | null;
   startedAtISO: string;
   endedAtISO?: string;
   status: RaceSessionStatus;
@@ -151,6 +153,9 @@ export type RaceSessionReview = {
   incorrectChoices: RaceDecisionRecord[];
   coachingSignals: string[];
   workOnNext: string[];
+  reviewReferenceBasis: string[];
+  plannedCourseStrategy: CourseStrategyRecord | null;
+  plannedOpeningBias: OpeningBiasRecord | null;
 };
 
 const SESSIONS_KEY = "layline-race-sessions-v1";
@@ -231,7 +236,42 @@ function normalizeRaceSession(session: RaceSession): RaceSession {
     ...session,
     openingBias:
       session.openingBias && typeof session.openingBias === "object"
-        ? session.openingBias
+        ? {
+            ...session.openingBias,
+            reasons: Array.isArray(session.openingBias.reasons) ? session.openingBias.reasons : [],
+            warnings: Array.isArray(session.openingBias.warnings)
+              ? session.openingBias.warnings
+              : [],
+            referenceBasis: Array.isArray(session.openingBias.referenceBasis)
+              ? session.openingBias.referenceBasis
+              : [],
+            latestReasons: Array.isArray(session.openingBias.latestReasons)
+              ? session.openingBias.latestReasons
+              : [],
+            latestWarnings: Array.isArray(session.openingBias.latestWarnings)
+              ? session.openingBias.latestWarnings
+              : [],
+          }
+        : null,
+    courseStrategy:
+      session.courseStrategy && typeof session.courseStrategy === "object"
+        ? {
+            ...session.courseStrategy,
+            zones: Array.isArray(session.courseStrategy.zones) ? session.courseStrategy.zones : [],
+            keyRisks: Array.isArray(session.courseStrategy.keyRisks)
+              ? session.courseStrategy.keyRisks
+              : [],
+            recommendations: Array.isArray(session.courseStrategy.recommendations)
+              ? session.courseStrategy.recommendations
+              : [],
+            referenceBasis: Array.isArray(session.courseStrategy.referenceBasis)
+              ? session.courseStrategy.referenceBasis
+              : [],
+            strategyNotes:
+              typeof session.courseStrategy.strategyNotes === "string"
+                ? session.courseStrategy.strategyNotes
+                : "",
+          }
         : null,
     gpsTrack: Array.isArray(session.gpsTrack) ? session.gpsTrack : [],
     weatherSamples: Array.isArray(session.weatherSamples) ? session.weatherSamples : [],
@@ -1037,6 +1077,7 @@ export function importRaceSession(input: ImportRaceSessionInput) {
     eventId: courseSummary?.eventId,
     courseId: input.courseId,
     openingBias: null,
+    courseStrategy: null,
     startedAtISO: input.startedAtISO,
     endedAtISO: input.endedAtISO,
     status: "ended",
@@ -1069,6 +1110,7 @@ export function startRaceSession(input: {
   courseId?: string;
   eventId?: string;
   openingBias?: OpeningBiasRecord | null;
+  courseStrategy?: CourseStrategyRecord | null;
 }) {
   const session: RaceSession = {
     id: safeUUID(),
@@ -1076,6 +1118,7 @@ export function startRaceSession(input: {
     eventId: input.eventId,
     courseId: input.courseId,
     openingBias: input.openingBias ?? null,
+    courseStrategy: input.courseStrategy ?? null,
     startedAtISO: nowISO(),
     status: "active",
     createdFrom: "live",
@@ -1110,6 +1153,19 @@ export function updateRaceSessionOpeningBias(
   return updateSessionInStore({
     ...session,
     openingBias,
+  });
+}
+
+export function updateRaceSessionCourseStrategy(
+  id: string,
+  courseStrategy: CourseStrategyRecord | null,
+) {
+  const session = getRaceSession(id);
+  if (!session) return null;
+
+  return updateSessionInStore({
+    ...session,
+    courseStrategy,
   });
 }
 
@@ -2089,6 +2145,10 @@ export function buildRaceSessionReview(session: RaceSession): RaceSessionReview 
             : "sharp";
   const coachingSignals: string[] = [];
   const workOnNext: string[] = [];
+  const reviewReferenceBasis = [
+    ...(session.openingBias?.referenceBasis ?? []),
+    ...(session.courseStrategy?.referenceBasis ?? []),
+  ].filter((item, index, items) => items.indexOf(item) === index);
 
   if (incorrectChoices.length) {
     coachingSignals.push(
@@ -2140,6 +2200,34 @@ export function buildRaceSessionReview(session: RaceSession): RaceSessionReview 
     workOnNext.push("Reduce decision churn: make one clear call, hold long enough to measure SOG/VMG, then adjust.");
   }
 
+  if (session.openingBias?.referenceBasis.length) {
+    coachingSignals.push(
+      `Opening-bias debrief is anchored to ${session.openingBias.referenceBasis.length} saved reference point${
+        session.openingBias.referenceBasis.length === 1 ? "" : "s"
+      } from pre-race.`,
+    );
+  }
+
+  if (session.openingBias?.latestAction && session.openingBias.latestAction !== "hold_course") {
+    workOnNext.push(
+      "When the opening-bias re-check weakens or flips the original side call, decide earlier whether to stay flexible or switch.",
+    );
+  }
+
+  if (session.courseStrategy?.keyRisks.length) {
+    coachingSignals.push(
+      `Pre-race course strategy flagged ${session.courseStrategy.keyRisks.length} opening-leg risk${
+        session.courseStrategy.keyRisks.length === 1 ? "" : "s"
+      }; review whether those checks happened on the water.`,
+    );
+  }
+
+  if (session.courseStrategy?.strategyNotes.trim()) {
+    workOnNext.push(
+      "Compare the first-leg decisions against the saved course-strategy notes before rewriting the race story after the fact.",
+    );
+  }
+
   if (session.gpsTrack.length < 10) {
     workOnNext.push("Start the Race Recorder earlier so the after-action report has enough GPS data.");
   }
@@ -2175,6 +2263,9 @@ export function buildRaceSessionReview(session: RaceSession): RaceSessionReview 
     incorrectChoices,
     coachingSignals,
     workOnNext,
+    reviewReferenceBasis,
+    plannedCourseStrategy: session.courseStrategy ?? null,
+    plannedOpeningBias: session.openingBias ?? null,
   };
 }
 

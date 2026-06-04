@@ -24,3 +24,15 @@ export type CourseStrategyResult = {
   recommendations: string[];
   referenceBasis: string[];
 };
+
+export type CourseStrategyRecord = {
+  savedAtISO: string;
+  courseId: string;
+  zones: CourseZone[];
+  openingLegBearingDeg: number | null;
+  firstMarkDistance: number | null;
+  strategyNotes: string;
+  keyRisks: string[];
+  recommendations: string[];
+  referenceBasis: string[];
+};

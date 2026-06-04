@@ -1,3 +1,4 @@
+import { roundUpLaylineHeadingDeg } from "@/lib/race/courseStrategy/laylineHeading";
 import type { CourseStrategyResult } from "@/lib/race/courseStrategy/types";
 
 interface CourseStrategyResultCardProps {
@@ -40,7 +41,9 @@ export function CourseStrategyResultCard({
                     {zone.headingDeg != null ? `${Math.round(zone.headingDeg)}°` : "—"}
                   </td>
                   <td className="px-2 py-2 text-center">
-                    {zone.laylineHeadingDeg != null ? `${Math.round(zone.laylineHeadingDeg)}°` : "—"}
+                    {roundUpLaylineHeadingDeg(zone.laylineHeadingDeg) != null
+                      ? `${roundUpLaylineHeadingDeg(zone.laylineHeadingDeg)}°`
+                      : "—"}
                   </td>
                   <td className="px-2 py-2 text-center">
                     <span

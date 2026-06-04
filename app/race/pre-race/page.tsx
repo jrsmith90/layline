@@ -3,6 +3,7 @@
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useMemo, useSyncExternalStore } from "react";
+import { useDisplayMode } from "@/components/display/DisplayModeProvider";
 import { AppPageHeader } from "@/components/layout/AppPageHeader";
 import { WorkflowDisclosure } from "@/components/layout/WorkflowDisclosure";
 import { WorkflowQuickLinks } from "@/components/navigation/WorkflowQuickLinks";
@@ -58,8 +59,16 @@ const PRE_RACE_QUICK_LINKS = [
 const DEFAULT_TACTICAL_BOARD_DRAFT = buildTacticalBoardDraftDefaults(getDefaultCourseId());
 
 export default function Page() {
+  const { effectiveMode } = useDisplayMode();
+  const isDesktopLayout = effectiveMode === "desktop";
+
   return (
-    <main className="mx-auto max-w-5xl space-y-5 px-4 pb-8 pt-4">
+    <main
+      className={[
+        "mx-auto w-full space-y-5 px-4 pb-8 pt-4",
+        isDesktopLayout ? "max-w-[96rem]" : "max-w-5xl",
+      ].join(" ")}
+    >
       <AppPageHeader
         eyebrow="Race Setup"
         title="Build the opening picture."
@@ -77,7 +86,7 @@ export default function Page() {
 
       <WorkflowQuickLinks title="Updated Plan" items={PRE_RACE_QUICK_LINKS} />
 
-      <section className="grid gap-5 xl:grid-cols-[1.1fr_0.9fr]">
+      <section className="grid gap-5 lg:grid-cols-[1.1fr_0.9fr]">
         <div className="space-y-5">
           <PreRaceCommandDeck />
         </div>
@@ -94,7 +103,7 @@ export default function Page() {
         detail="Keep the map and routing context nearby, then move straight into the sail call."
         defaultOpen
       >
-        <div className="grid gap-5 xl:grid-cols-[1.05fr_0.95fr]">
+        <div className="grid gap-5 lg:grid-cols-[1.05fr_0.95fr]">
           <div id="conditions-map">
             <RaceConditionsMap />
           </div>

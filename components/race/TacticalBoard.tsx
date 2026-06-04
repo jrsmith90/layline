@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useMemo, useSyncExternalStore } from "react";
 import { Flag, Route, Sailboat, Wind } from "lucide-react";
 import { useAppMode } from "@/components/display/AppModeProvider";
+import { useDisplayMode } from "@/components/display/DisplayModeProvider";
 import { LiveInstrumentsPanel } from "@/components/gps/LiveInstrumentsPanel";
 import { RoutingConstraintsList } from "@/components/race/RoutingConstraintsList";
 import { InlineExplain } from "@/components/ui/InlineExplain";
@@ -196,6 +197,8 @@ export default function TacticalBoard() {
 
 export function TacticalBoardContent({ embedded = false }: { embedded?: boolean }) {
   const { isRaceMode } = useAppMode();
+  const { effectiveMode } = useDisplayMode();
+  const isDesktopLayout = effectiveMode === "desktop";
   const courseIds = useCourseIds();
   const draft = useSyncExternalStore(
     subscribeTacticalBoardStore,
@@ -291,7 +294,7 @@ export function TacticalBoardContent({ embedded = false }: { embedded?: boolean 
         </div>
       </section>
 
-      <div className="grid gap-5 xl:grid-cols-[1.05fr_0.95fr]">
+      <div className="grid gap-5 lg:grid-cols-[1.05fr_0.95fr]">
         <section className="layline-panel p-4">
           <div className="flex items-start justify-between gap-3">
             <div>
@@ -818,7 +821,12 @@ export function TacticalBoardContent({ embedded = false }: { embedded?: boolean 
   }
 
   return (
-    <main className="mx-auto max-w-5xl space-y-5 px-4 pb-8 pt-4">
+    <main
+      className={[
+        "mx-auto w-full space-y-5 px-4 pb-8 pt-4",
+        isDesktopLayout ? "max-w-[96rem]" : "max-w-5xl",
+      ].join(" ")}
+    >
       {content}
     </main>
   );

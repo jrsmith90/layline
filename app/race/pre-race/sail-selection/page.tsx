@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import { useDisplayMode } from "@/components/display/DisplayModeProvider";
 import {
   getRaceSailPlan,
   SEA_STATE_OPTIONS,
@@ -276,6 +277,8 @@ function buildFinalCall(params: {
 }
 
 export default function SailSelectionPage() {
+  const { effectiveMode } = useDisplayMode();
+  const isDesktopLayout = effectiveMode === "desktop";
   const router = useRouter();
   const defaultCourseId = getDefaultCourseId();
   const routeConfig = useMemo(() => getRouteBiasInputs(defaultCourseId), [defaultCourseId]);
@@ -418,7 +421,12 @@ export default function SailSelectionPage() {
     : null;
 
   return (
-    <main className="space-y-5">
+    <main
+      className={[
+        "mx-auto w-full space-y-5 px-4 pb-8 pt-4",
+        isDesktopLayout ? "max-w-[96rem]" : "max-w-5xl",
+      ].join(" ")}
+    >
       <header className="space-y-1">
         <h1 className="text-2xl font-bold tracking-tight">Sail Selection</h1>
         <p className="text-sm opacity-70">
