@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { useDisplayMode } from "@/components/display/DisplayModeProvider";
+import { PlannedRaceStartFields } from "@/components/race/PlannedRaceStartFields";
 import {
   getRaceSailPlan,
   SEA_STATE_OPTIONS,
@@ -22,7 +23,13 @@ import {
   getSeaStateFromWind,
   mapWeatherTrendToPlanningText,
 } from "@/lib/race/preRaceCoachAssist";
-import { setTacticalBoardConfirmedSailSelection } from "@/lib/race/tacticalBoard/store";
+import {
+  buildTacticalBoardDraftDefaults,
+  getStoredTacticalBoardDraft,
+  setTacticalBoardConfirmedSailSelection,
+  setTacticalBoardDraftField,
+  subscribeTacticalBoardStore,
+} from "@/lib/race/tacticalBoard/store";
 import { usePreRaceCoachAssist } from "@/lib/race/usePreRaceCoachAssist";
 
 function getDefaultHikingLevel(crewCount: CrewCount): HikingLevel {
@@ -281,6 +288,11 @@ export default function SailSelectionPage() {
   const isDesktopLayout = effectiveMode === "desktop";
   const router = useRouter();
   const defaultCourseId = getDefaultCourseId();
+  const tacticalBoardDraft = useSyncExternalStore(
+    subscribeTacticalBoardStore,
+    getStoredTacticalBoardDraft,
+    () => buildTacticalBoardDraftDefaults(defaultCourseId),
+  );
   const routeConfig = useMemo(() => getRouteBiasInputs(defaultCourseId), [defaultCourseId]);
   const [courseId, setCourseId] = useState(defaultCourseId);
   const [forecastWind, setForecastWind] = useState<number | "">("");
@@ -298,6 +310,8 @@ export default function SailSelectionPage() {
     courseId,
     courseData,
     tackAngleDeg: 42,
+    plannedRaceStartDate: tacticalBoardDraft.raceStartDate,
+    plannedRaceStartTime: tacticalBoardDraft.raceStartTime,
   });
   const {
     courseWindRead,
@@ -433,6 +447,16 @@ export default function SailSelectionPage() {
           Pick the course, pull the closest live wind read, and choose the race setup.
         </p>
       </header>
+
+      <Panel title="Planned Race Start">
+        <PlannedRaceStartFields
+          raceDate={tacticalBoardDraft.raceStartDate}
+          raceTime={tacticalBoardDraft.raceStartTime}
+          onRaceDateChange={(value) => setTacticalBoardDraftField("raceStartDate", value)}
+          onRaceTimeChange={(value) => setTacticalBoardDraftField("raceStartTime", value)}
+          helperText="Step 2 and Step 3 use this target to plan forecast wind and current ahead of the gun."
+        />
+      </Panel>
 
       <Panel title="Course Conditions">
         <div className="grid gap-4 md:grid-cols-[0.8fr_1.2fr]">

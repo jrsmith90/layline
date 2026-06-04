@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
       lon,
       fetchedAt: forecast.fetchedAt,
       current: forecast.current ?? null,
-      hourly: forecast.hourly?.slice(0, 6) ?? [],
+      hourly: forecast.hourly?.slice(0, 72) ?? [],
     });
   } catch (error) {
     return NextResponse.json({

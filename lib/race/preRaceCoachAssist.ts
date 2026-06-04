@@ -12,6 +12,7 @@ import { getCourseStrategyDefaults } from "@/data/race/getCourseStrategyInputs";
 import type { AiCoachBrief } from "@/lib/ai/coach";
 import type { CourseZone } from "@/lib/race/courseStrategy/types";
 import { wrap360 } from "@/lib/race/courseTracker";
+import { formatPlannedRaceStartLabel } from "@/lib/race/plannedRaceStart";
 import {
   getCoachReferencePolicy,
   getCourseStrategyReferencePolicy,
@@ -355,29 +356,54 @@ export function getFirstLegSamplePoint(courseData: CourseSummary) {
 export function buildForecastDecision(params: {
   courseWindRead: CourseWindRead;
   pointForecast: PointForecastPayload | null;
+  plannedStartISO?: string | null;
+  plannedStartDate?: string | null;
+  plannedStartTime?: string | null;
 }): ForecastDecision {
   const livePlanningWind = getPlanningWindFromTrend(
     params.courseWindRead.windAvgKt,
     params.courseWindRead.trend,
   );
 
-  const hourly = (params.pointForecast?.hourly ?? []).filter(
-    (entry) =>
-      typeof entry.windAvgKts === "number" ||
-      typeof entry.windGustKts === "number" ||
-      typeof entry.windDirectionDeg === "number",
+  const hourly = (params.pointForecast?.hourly ?? [])
+    .filter(
+      (entry) =>
+        typeof entry.windAvgKts === "number" ||
+        typeof entry.windGustKts === "number" ||
+        typeof entry.windDirectionDeg === "number",
+    )
+    .sort((left, right) => left.timeISO.localeCompare(right.timeISO));
+  const plannedStartLabel = formatPlannedRaceStartLabel(
+    params.plannedStartDate,
+    params.plannedStartTime,
   );
-  const nextFewHours = hourly.slice(0, 3);
+  const plannedStartMs =
+    typeof params.plannedStartISO === "string" ? Date.parse(params.plannedStartISO) : NaN;
+  const hasPlannedStart = Number.isFinite(plannedStartMs);
+  const lastForecastMs = hourly.length > 0 ? Date.parse(hourly[hourly.length - 1].timeISO) : NaN;
+  const firstForecastIndexAtOrAfter =
+    hasPlannedStart
+      ? hourly.findIndex((entry) => {
+          const entryMs = Date.parse(entry.timeISO);
+          return Number.isFinite(entryMs) && entryMs >= plannedStartMs;
+        })
+      : -1;
+  const forecastWindow =
+    hasPlannedStart && firstForecastIndexAtOrAfter !== -1
+      ? hourly.slice(firstForecastIndexAtOrAfter, firstForecastIndexAtOrAfter + 3)
+      : hasPlannedStart && hourly.length > 0
+        ? hourly.slice(Math.max(0, hourly.length - 3))
+        : hourly.slice(0, 3);
   const avgWind = average(
-    nextFewHours
+    forecastWindow
       .map((entry) => entry.windAvgKts)
       .filter((value): value is number => typeof value === "number"),
   );
-  const maxGust = nextFewHours.reduce<number | null>((highest, entry) => {
+  const maxGust = forecastWindow.reduce<number | null>((highest, entry) => {
     if (typeof entry.windGustKts !== "number") return highest;
     return highest == null ? entry.windGustKts : Math.max(highest, entry.windGustKts);
   }, null);
-  const directionValues = nextFewHours
+  const directionValues = forecastWindow
     .map((entry) => entry.windDirectionDeg)
     .filter((value): value is number => typeof value === "number");
   const prevailingDirection = circularAverageDeg(directionValues);
@@ -437,14 +463,29 @@ export function buildForecastDecision(params: {
       confidence: recommendedWind == null ? "low" : "medium",
       summary:
         recommendedWind == null
-          ? "Forecast assist is unavailable, so the coach only has the live course wind read."
-          : `Using the live course wind read only: plan around about ${recommendedWind.toFixed(
-              1,
-            )} kt and keep the broader picture flexible.`,
+          ? plannedStartLabel
+            ? `Forecast assist is unavailable for the planned start at ${plannedStartLabel}, so the coach only has the live course wind read.`
+            : "Forecast assist is unavailable, so the coach only has the live course wind read."
+          : plannedStartLabel
+            ? `Forecast assist is unavailable for the planned start at ${plannedStartLabel}, so the coach is leaning on the live course wind read only: plan around about ${recommendedWind.toFixed(
+                1,
+              )} kt and keep the broader picture flexible.`
+            : `Using the live course wind read only: plan around about ${recommendedWind.toFixed(
+                1,
+              )} kt and keep the broader picture flexible.`,
     };
   }
 
   const shiftCopy = formatSignedDegrees(directionShift);
+  const plannedStartBeyondForecastRange =
+    hasPlannedStart &&
+    Number.isFinite(lastForecastMs) &&
+    plannedStartMs > lastForecastMs + 60 * 60 * 1000;
+  const summaryLead = plannedStartLabel
+    ? plannedStartBeyondForecastRange
+      ? `The planned start at ${plannedStartLabel} sits beyond the detailed hourly forecast, so this uses the latest available forecast window.`
+      : `For the planned start at ${plannedStartLabel},`
+    : null;
 
   return {
     available: true,
@@ -458,10 +499,11 @@ export function buildForecastDecision(params: {
     trend,
     confidence,
     summary: [
+      summaryLead,
       recommendedWind != null
         ? `Plan around about ${recommendedWind.toFixed(1)} kt`
         : "Planning wind is still unclear",
-      avgWind != null ? `with the next few hours averaging ${avgWind.toFixed(1)} kt` : null,
+      avgWind != null ? `with the forecast window averaging ${avgWind.toFixed(1)} kt` : null,
       maxGust != null ? `and gusts reaching ${maxGust.toFixed(1)} kt` : null,
       shiftCopy ? `while the direction bias looks ${shiftCopy}` : null,
     ]

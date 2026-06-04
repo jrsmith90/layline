@@ -1,13 +1,16 @@
 "use client";
 
 import { useMemo, useSyncExternalStore } from "react";
+import { PlannedRaceStartFields } from "@/components/race/PlannedRaceStartFields";
 import PreRaceCourseStrategyForm from "@/components/race/PreRaceCourseStrategyForm";
 import { CourseStrategyResultCard } from "@/components/race/CourseStrategyResultCard";
+import { Panel } from "@/components/ui/Panel";
 import type { CourseStrategyAnswers, CourseStrategyResult } from "@/lib/race/courseStrategy/types";
 import {
   buildTacticalBoardDraftDefaults,
   getStoredTacticalBoardDraft,
   setTacticalBoardCourseStrategy,
+  setTacticalBoardDraftField,
   subscribeTacticalBoardStore,
 } from "@/lib/race/tacticalBoard/store";
 
@@ -34,11 +37,23 @@ export default function PreRaceCourseStrategyWorkflow() {
 
   return (
     <div className="space-y-6">
+      <Panel title="Planned Race Start">
+        <PlannedRaceStartFields
+          raceDate={draft.raceStartDate}
+          raceTime={draft.raceStartTime}
+          onRaceDateChange={(value) => setTacticalBoardDraftField("raceStartDate", value)}
+          onRaceTimeChange={(value) => setTacticalBoardDraftField("raceStartTime", value)}
+          helperText="Step 3 uses this same target to plan the opening-leg wind picture and current effect ahead of the gun."
+        />
+      </Panel>
+
       <PreRaceCourseStrategyForm
         key={draft.courseId}
         defaultCourseId={draft.courseId}
         meanWindDirectionDeg={draft.meanWindDirectionDeg}
         tackAngleDeg={draft.tackAngleDeg}
+        plannedRaceStartDate={draft.raceStartDate}
+        plannedRaceStartTime={draft.raceStartTime}
         confirmedSailSelection={draft.confirmedSailSelection}
         initialAnswers={draft.courseStrategy}
         onPlanReady={handleStrategyReady}

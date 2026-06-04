@@ -3,6 +3,11 @@
 import { useEffect, useMemo, useState } from "react";
 import type { LegType, RiskMode } from "@/data/logic/sailSelectionLogic";
 import type { CourseSummary } from "@/data/race/getCourseData";
+import {
+  buildPlannedRaceStartISO,
+  sanitizeRaceStartDate,
+  sanitizeRaceStartTime,
+} from "@/lib/race/plannedRaceStart";
 import { readJsonResponse } from "@/lib/readJsonResponse";
 import {
   buildCourseStrategyAssistBrief,
@@ -27,10 +32,24 @@ type UsePreRaceCoachAssistParams = {
   courseId: string;
   courseData: CourseSummary;
   tackAngleDeg: number;
+  plannedRaceStartDate?: string | null;
+  plannedRaceStartTime?: string | null;
   confirmedSailSelection?: ConfirmedSailSelectionSummary | null;
 };
 
 export function usePreRaceCoachAssist(params: UsePreRaceCoachAssistParams) {
+  const plannedRaceStartDate = useMemo(
+    () => sanitizeRaceStartDate(params.plannedRaceStartDate, params.courseData.raceDate),
+    [params.courseData.raceDate, params.plannedRaceStartDate],
+  );
+  const plannedRaceStartTime = useMemo(
+    () => sanitizeRaceStartTime(params.plannedRaceStartTime),
+    [params.plannedRaceStartTime],
+  );
+  const plannedRaceStartISO = useMemo(
+    () => buildPlannedRaceStartISO(plannedRaceStartDate, plannedRaceStartTime),
+    [plannedRaceStartDate, plannedRaceStartTime],
+  );
   const [liveWeather, setLiveWeather] = useState<LiveWeatherPayload | null>(null);
   const [liveWeatherError, setLiveWeatherError] = useState<string | null>(null);
   const [liveWeatherLoading, setLiveWeatherLoading] = useState(true);
@@ -88,7 +107,8 @@ export function usePreRaceCoachAssist(params: UsePreRaceCoachAssistParams) {
         setTideCurrentError(null);
         const query = new URLSearchParams({
           eventId: params.courseData.eventId,
-          date: params.courseData.raceDate,
+          date: plannedRaceStartDate,
+          time: plannedRaceStartTime,
         });
         const response = await fetch(`/api/weather/tide-current?${query.toString()}`, {
           cache: "no-store",
@@ -119,7 +139,7 @@ export function usePreRaceCoachAssist(params: UsePreRaceCoachAssistParams) {
     return () => {
       cancelled = true;
     };
-  }, [params.courseData.eventId, params.courseData.raceDate]);
+  }, [params.courseData.eventId, plannedRaceStartDate, plannedRaceStartTime]);
 
   useEffect(() => {
     let cancelled = false;
@@ -183,8 +203,11 @@ export function usePreRaceCoachAssist(params: UsePreRaceCoachAssistParams) {
       buildForecastDecision({
         courseWindRead,
         pointForecast: forecast,
+        plannedStartISO: plannedRaceStartISO,
+        plannedStartDate: plannedRaceStartDate,
+        plannedStartTime: plannedRaceStartTime,
       }),
-    [courseWindRead, forecast],
+    [courseWindRead, forecast, plannedRaceStartDate, plannedRaceStartISO, plannedRaceStartTime],
   );
 
   const currentImpact = useMemo<CurrentImpactDecision>(

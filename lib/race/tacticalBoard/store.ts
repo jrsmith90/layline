@@ -8,6 +8,11 @@ import type {
 import { getCourseData, getDefaultCourseId, hasCourse } from "@/data/race/getCourseData";
 import { roundUpLaylineHeadingDeg } from "@/lib/race/courseStrategy/laylineHeading";
 import { wrap360 } from "@/lib/race/courseTracker";
+import {
+  DEFAULT_RACE_START_TIME,
+  sanitizeRaceStartDate,
+  sanitizeRaceStartTime,
+} from "@/lib/race/plannedRaceStart";
 import type { ConfirmedSailSelectionSummary } from "@/lib/race/preRaceCoachAssist";
 import {
   getStoredTrackerStateSnapshot,
@@ -37,6 +42,8 @@ export type TacticalBoardConfirmedSailSelection = ConfirmedSailSelectionSummary;
 
 export type TacticalBoardDraft = {
   courseId: string;
+  raceStartDate: string;
+  raceStartTime: string;
   meanWindDirectionDeg: string;
   currentWindDirectionDeg: string;
   tackAngleDeg: string;
@@ -445,6 +452,8 @@ function applyCourseToDraft(draft: TacticalBoardDraft, courseId: string): Tactic
     ...draft,
     ...seeded,
     courseId: normalizedCourseId,
+    raceStartDate: draft.raceStartDate || seeded.raceStartDate,
+    raceStartTime: draft.raceStartTime || seeded.raceStartTime,
     meanWindDirectionDeg: draft.meanWindDirectionDeg,
     currentWindDirectionDeg: draft.currentWindDirectionDeg,
     tackAngleDeg: draft.tackAngleDeg,
@@ -492,6 +501,8 @@ function sanitizeDraft(input: Partial<TacticalBoardDraft> | null | undefined): T
   return {
     ...defaults,
     courseId: storedCourseId,
+    raceStartDate: sanitizeRaceStartDate(input?.raceStartDate, defaults.raceStartDate),
+    raceStartTime: sanitizeRaceStartTime(input?.raceStartTime, defaults.raceStartTime),
     meanWindDirectionDeg: sanitizeText(input?.meanWindDirectionDeg, defaults.meanWindDirectionDeg),
     currentWindDirectionDeg: sanitizeText(
       input?.currentWindDirectionDeg,
@@ -614,9 +625,12 @@ function ensureTrackerCourseLink() {
 export function buildTacticalBoardDraftDefaults(courseId: string): TacticalBoardDraft {
   const normalizedCourseId = normalizeCourseId(courseId);
   const seeded = courseSeed(normalizedCourseId);
+  const courseData = getCourseData(normalizedCourseId);
 
   return {
     courseId: normalizedCourseId,
+    raceStartDate: courseData.raceDate,
+    raceStartTime: DEFAULT_RACE_START_TIME,
     meanWindDirectionDeg: "",
     currentWindDirectionDeg: "",
     tackAngleDeg: "42",

@@ -23,6 +23,8 @@ interface PreRaceCourseStrategyFormProps {
   defaultCourseId: string;
   meanWindDirectionDeg: string;
   tackAngleDeg: string;
+  plannedRaceStartDate: string;
+  plannedRaceStartTime: string;
   confirmedSailSelection?: TacticalBoardConfirmedSailSelection | null;
   initialAnswers?: CourseStrategyAnswers | null;
   onPlanReady?: (payload: { result: CourseStrategyResult; answers: CourseStrategyAnswers }) => void;
@@ -32,6 +34,8 @@ export default function PreRaceCourseStrategyForm({
   defaultCourseId,
   meanWindDirectionDeg,
   tackAngleDeg,
+  plannedRaceStartDate,
+  plannedRaceStartTime,
   confirmedSailSelection,
   initialAnswers,
   onPlanReady,
@@ -43,6 +47,8 @@ export default function PreRaceCourseStrategyForm({
     courseId: defaultCourseId,
     courseData: course,
     tackAngleDeg: tackAngleNum,
+    plannedRaceStartDate,
+    plannedRaceStartTime,
     confirmedSailSelection: confirmedSailSelection ?? null,
   });
 
