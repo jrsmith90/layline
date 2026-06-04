@@ -1,17 +1,12 @@
 import type { CourseSummary } from "@/data/race/getCourseData";
 import type { CourseZone, CourseStrategyAnswers } from "@/lib/race/courseStrategy/types";
 import { roundUpLaylineHeadingDeg } from "@/lib/race/courseStrategy/laylineHeading";
+import { detectOpeningLegSailingMode } from "@/lib/race/openingLegType";
 
 function normalizeAngle(deg: number): number {
   let normalized = deg % 360;
   if (normalized < 0) normalized += 360;
   return normalized;
-}
-
-function angleDifference(from: number, to: number): number {
-  let diff = normalizeAngle(to - from);
-  if (diff > 180) diff -= 360;
-  return diff;
 }
 
 function generateDefaultZones(
@@ -49,7 +44,11 @@ function generateDefaultZones(
     ];
   }
 
-  const openingLegType = determineOpeningLegType(firstLegBearing, windDirectionDeg);
+  const openingLegType = detectOpeningLegSailingMode({
+    firstLegBearingDeg: firstLegBearing,
+    windDirectionDeg,
+    laylineDeg: tackAngleDeg,
+  });
 
   let portZone: CourseZone;
   let starboardZone: CourseZone;
@@ -111,18 +110,6 @@ function generateDefaultZones(
   }
 
   return [portZone, starboardZone];
-}
-
-function determineOpeningLegType(
-  firstLegBearing: number,
-  windDirectionDeg: number,
-): "upwind" | "reach" | "downwind" {
-  const diff = angleDifference(windDirectionDeg, firstLegBearing);
-  const absDiff = Math.abs(diff);
-
-  if (absDiff < 45) return "downwind";
-  if (absDiff > 135) return "upwind";
-  return "reach";
 }
 
 export function getCourseStrategyDefaults(

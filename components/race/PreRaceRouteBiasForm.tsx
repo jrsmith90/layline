@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useMemo, useState, useSyncExternalStore, type FormEvent } from "react";
 import { getCustomCourseRecord } from "@/data/race/customCourses";
 import {
   getRouteBiasInputs,
@@ -15,6 +15,15 @@ import {
   formatOpeningBiasConfidence,
   formatOpeningBiasLabel,
 } from "@/lib/race/openingBias";
+import {
+  detectOpeningLegType,
+  getOpeningLegTypeLabel,
+} from "@/lib/race/openingLegType";
+import {
+  buildTacticalBoardDraftDefaults,
+  getStoredTacticalBoardDraft,
+  subscribeTacticalBoardStore,
+} from "@/lib/race/tacticalBoard/store";
 import { useCourseCatalogVersion } from "@/lib/race/useCourseCatalogVersion";
 import { RoutingConstraintsList } from "@/components/race/RoutingConstraintsList";
 import { readJsonResponse } from "@/lib/readJsonResponse";
@@ -40,6 +49,8 @@ type FormValues = {
   currentSide: CurrentSide;
   edgeStrength: EdgeStrength;
 };
+
+const DEFAULT_TACTICAL_BOARD_DRAFT = buildTacticalBoardDraftDefaults(getDefaultCourseId());
 
 function createInitialValues(courseId: string): FormValues {
   return {
@@ -84,15 +95,59 @@ export default function PreRaceRouteBiasForm({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [result, setResult] = useState<RouteBiasResult | null>(() => initialResult ?? null);
   const [error, setError] = useState<string | null>(null);
+  const [openingLegManualOverride, setOpeningLegManualOverride] = useState(false);
   useCourseCatalogVersion();
+  const tacticalBoardDraft = useSyncExternalStore(
+    subscribeTacticalBoardStore,
+    getStoredTacticalBoardDraft,
+    () => DEFAULT_TACTICAL_BOARD_DRAFT,
+  );
 
   const config = getRouteBiasInputs(values.courseId);
+  const tackAngleDeg = useMemo(() => {
+    const parsed = Number(tacticalBoardDraft.tackAngleDeg);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : 42;
+  }, [tacticalBoardDraft.tackAngleDeg]);
+  const openingLegAutoRead = useMemo(
+    () =>
+      detectOpeningLegType({
+        windDirectionDeg: values.windDirectionDeg.trim()
+          ? Number(values.windDirectionDeg)
+          : null,
+        firstLegBearingDeg: config.firstLegBearingDeg,
+        laylineDeg: tackAngleDeg,
+      }),
+    [config.firstLegBearingDeg, tackAngleDeg, values.windDirectionDeg],
+  );
+  const shouldShowOpeningLegAutoRead = openingLegAutoRead.openingLegType !== "unknown";
+  const effectiveOpeningLegType = openingLegManualOverride
+    ? values.openingLegType
+    : openingLegAutoRead.openingLegType;
 
   function updateField<K extends keyof FormValues>(key: K, value: FormValues[K]) {
     setValues((prev) => ({
       ...prev,
       [key]: value
     }));
+  }
+
+  function handleCourseChange(nextCourseId: string) {
+    setOpeningLegManualOverride(false);
+    setValues((prev) => ({
+      ...prev,
+      courseId: nextCourseId,
+      openingLegType: "unknown",
+    }));
+  }
+
+  function handleOpeningLegTypeChange(nextOpeningLegType: OpeningLegType) {
+    setOpeningLegManualOverride(true);
+    updateField("openingLegType", nextOpeningLegType);
+  }
+
+  function restoreOpeningLegAutoRead() {
+    setOpeningLegManualOverride(false);
+    updateField("openingLegType", openingLegAutoRead.openingLegType);
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -133,7 +188,7 @@ export default function PreRaceRouteBiasForm({
           courseId: values.courseId,
           customCourse: getCustomCourseRecord(values.courseId),
           routingConstraints: config.routingConstraints,
-          openingLegType: values.openingLegType,
+          openingLegType: effectiveOpeningLegType,
           windDirectionDeg: parsedWindDirectionDeg,
           windSpeedKt: parsedWindSpeedKt,
           windTrend: values.windTrend,
@@ -155,7 +210,7 @@ export default function PreRaceRouteBiasForm({
         result: data as RouteBiasResult,
         answers: {
           courseId: values.courseId,
-          openingLegType: values.openingLegType,
+          openingLegType: effectiveOpeningLegType,
           windDirectionDeg: parsedWindDirectionDeg,
           windSpeedKt: parsedWindSpeedKt,
           windTrend: values.windTrend,
@@ -186,7 +241,7 @@ export default function PreRaceRouteBiasForm({
             <select
               className="w-full rounded-md border border-white/15 bg-black/30 px-3 py-2"
               value={values.courseId}
-              onChange={(e) => updateField("courseId", e.target.value)}
+              onChange={(e) => handleCourseChange(e.target.value)}
             >
               {config.prompts.announcedCourse.options?.map((option) => (
                 <option key={option.value} value={option.value} className="bg-slate-900">
@@ -202,8 +257,8 @@ export default function PreRaceRouteBiasForm({
             </span>
             <select
               className="w-full rounded-md border border-white/15 bg-black/30 px-3 py-2"
-              value={values.openingLegType}
-              onChange={(e) => updateField("openingLegType", e.target.value as OpeningLegType)}
+              value={effectiveOpeningLegType}
+              onChange={(e) => handleOpeningLegTypeChange(e.target.value as OpeningLegType)}
             >
               {config.prompts.openingLegType.options?.map((option) => (
                 <option key={option.value} value={option.value} className="bg-slate-900">
@@ -211,6 +266,30 @@ export default function PreRaceRouteBiasForm({
                 </option>
               ))}
             </select>
+            <div className="mt-2 space-y-2 text-xs leading-5 text-white/65">
+              <div>
+                {openingLegManualOverride && shouldShowOpeningLegAutoRead
+                  ? `Manual override is on. Auto-read would call this ${getOpeningLegTypeLabel(openingLegAutoRead.openingLegType)}.`
+                  : openingLegAutoRead.summary}
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="rounded-full border border-white/10 bg-black/20 px-2.5 py-1 text-[11px] font-semibold text-white/70">
+                  Wind angle {openingLegAutoRead.windAngleDeg != null ? `${openingLegAutoRead.windAngleDeg}°` : "--"}
+                </span>
+                <span className="rounded-full border border-white/10 bg-black/20 px-2.5 py-1 text-[11px] font-semibold text-white/70">
+                  Layline {Math.round(tackAngleDeg)}°
+                </span>
+                {openingLegManualOverride ? (
+                  <button
+                    type="button"
+                    onClick={restoreOpeningLegAutoRead}
+                    className="rounded-full border border-cyan-300/30 bg-cyan-300/10 px-2.5 py-1 text-[11px] font-semibold text-cyan-100"
+                  >
+                    Use auto-read
+                  </button>
+                ) : null}
+              </div>
+            </div>
           </label>
 
           <label className="block">
