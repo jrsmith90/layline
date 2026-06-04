@@ -125,12 +125,21 @@ export type TideCurrentPayload = {
   date: string;
   eventId?: string;
   generatedAt: string;
+  source?: string;
   tide: {
     stage?: string;
     heightFt?: number | null;
     displayTime?: string;
   };
   currentStations: CurrentStationSnapshot[];
+  snapshots?: Array<{
+    time: string;
+    displayTime: string;
+    tide: {
+      heightFt?: number | null;
+    };
+    currents: CurrentStationSnapshot[];
+  }>;
   error?: string;
 };
 
@@ -165,6 +174,17 @@ export type StrategyAutofill = {
   strategyNotes: string;
   referenceBasis: string[];
 };
+
+export type ZoneCurrentDecision = {
+  zoneId: string;
+  currentEffect: CourseZone["currentEffect"];
+  summary: string;
+  stationLabels: string[];
+  timeWindowLabel: string | null;
+  averageAssistKt: number | null;
+};
+
+export type ZoneCurrentDecisionMap = Record<string, ZoneCurrentDecision>;
 
 function average(values: number[]) {
   if (values.length === 0) return null;
@@ -214,6 +234,20 @@ function toRadians(value: number) {
   return (value * Math.PI) / 180;
 }
 
+function parseClockMinutes(value: string | null | undefined) {
+  if (!value) return null;
+  const match = value.match(/^(\d{2}):(\d{2})$/);
+  if (!match) return null;
+  return Number(match[1]) * 60 + Number(match[2]);
+}
+
+function toLocalNm(origin: { lat: number; lon: number }, point: { lat: number; lon: number }) {
+  return {
+    x: (point.lon - origin.lon) * 60 * Math.cos(toRadians(origin.lat)),
+    y: (point.lat - origin.lat) * 60,
+  };
+}
+
 function haversineNm(
   pointA: { lat: number; lon: number },
   pointB: { lat: number; lon: number },
@@ -228,6 +262,10 @@ function haversineNm(
       Math.sin(lonDiff / 2) *
       Math.sin(lonDiff / 2);
   return earthRadiusNm * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
+}
+
+function alongTrackAssistKt(legBearingDeg: number, directionDeg: number, speedKt: number) {
+  return speedKt * Math.cos(toRadians(angleDiffDeg(legBearingDeg, directionDeg)));
 }
 
 export function getSeaStateFromWind(wind: number): SeaState {
@@ -649,6 +687,258 @@ export function getSuggestedRiskMode(params: {
   return "max_performance";
 }
 
+function selectCurrentSnapshotWindow(tideCurrent: TideCurrentPayload | null) {
+  const snapshots = tideCurrent?.snapshots ?? [];
+  if (snapshots.length === 0) return [];
+
+  const targetTime = tideCurrent?.currentStations[0]?.time ?? snapshots[0]?.time ?? null;
+  const targetMinutes = parseClockMinutes(targetTime);
+
+  if (targetMinutes == null) {
+    return snapshots.slice(0, Math.min(3, snapshots.length));
+  }
+
+  const withDistance = snapshots.map((snapshot, index) => ({
+    snapshot,
+    index,
+    distance:
+      Math.abs((parseClockMinutes(snapshot.time) ?? targetMinutes) - targetMinutes),
+  }));
+  const nearest = [...withDistance].sort((left, right) => left.distance - right.distance)[0];
+  const startIndex = nearest?.index ?? 0;
+
+  if (startIndex <= snapshots.length - 3) {
+    return snapshots.slice(startIndex, startIndex + 3);
+  }
+
+  return snapshots.slice(Math.max(0, snapshots.length - 3));
+}
+
+function zoneCurrentEffectFromScores(params: {
+  zoneId: string;
+  ownScore: number | null;
+  otherScore: number | null;
+  currentImpact: CurrentImpactDecision;
+}) {
+  const ownScore = params.ownScore;
+  const otherScore = params.otherScore;
+  const scoreDiff =
+    ownScore != null && otherScore != null ? Number((ownScore - otherScore).toFixed(2)) : null;
+
+  if (scoreDiff != null) {
+    if (scoreDiff >= 0.12) return "favorable" as const;
+    if (scoreDiff <= -0.12) return "adverse" as const;
+  }
+
+  if (params.currentImpact.level === "low") {
+    return "neutral" as const;
+  }
+
+  const betterWaterSide = params.currentImpact.betterWaterSide;
+  if (
+    (betterWaterSide === "left" && params.zoneId === "port") ||
+    (betterWaterSide === "right" && params.zoneId === "starboard")
+  ) {
+    return "favorable" as const;
+  }
+
+  if (
+    (betterWaterSide === "left" && params.zoneId === "starboard") ||
+    (betterWaterSide === "right" && params.zoneId === "port")
+  ) {
+    return "adverse" as const;
+  }
+
+  return params.currentImpact.level === "unknown" ? "unknown" : "neutral";
+}
+
+export function buildZoneCurrentDecisions(params: {
+  courseData: CourseSummary;
+  tideCurrent: TideCurrentPayload | null;
+  currentImpact: CurrentImpactDecision;
+}): ZoneCurrentDecisionMap {
+  const decisions: ZoneCurrentDecisionMap = {};
+  const firstLeg = params.courseData.firstLeg;
+
+  const fallbackWindowLabel = params.currentImpact.stationDisplayTime ?? null;
+  const fallbackSummary = params.currentImpact.summary;
+
+  if (!firstLeg) {
+    for (const zoneId of ["port", "starboard"]) {
+      decisions[zoneId] = {
+        zoneId,
+        currentEffect: zoneCurrentEffectForSide(zoneId, params.currentImpact),
+        summary: fallbackSummary,
+        stationLabels: params.currentImpact.stationLabel ? [params.currentImpact.stationLabel] : [],
+        timeWindowLabel: fallbackWindowLabel,
+        averageAssistKt: null,
+      };
+    }
+
+    return decisions;
+  }
+
+  const fromMark = params.courseData.marks[firstLeg.fromMark];
+  const toMark = params.courseData.marks[firstLeg.toMark];
+
+  if (
+    !fromMark ||
+    !toMark ||
+    typeof fromMark.lat !== "number" ||
+    typeof fromMark.lon !== "number" ||
+    typeof toMark.lat !== "number" ||
+    typeof toMark.lon !== "number"
+  ) {
+    for (const zoneId of ["port", "starboard"]) {
+      decisions[zoneId] = {
+        zoneId,
+        currentEffect: zoneCurrentEffectForSide(zoneId, params.currentImpact),
+        summary: fallbackSummary,
+        stationLabels: params.currentImpact.stationLabel ? [params.currentImpact.stationLabel] : [],
+        timeWindowLabel: fallbackWindowLabel,
+        averageAssistKt: null,
+      };
+    }
+
+    return decisions;
+  }
+
+  const snapshots = selectCurrentSnapshotWindow(params.tideCurrent);
+  if (snapshots.length === 0) {
+    for (const zoneId of ["port", "starboard"]) {
+      decisions[zoneId] = {
+        zoneId,
+        currentEffect: zoneCurrentEffectForSide(zoneId, params.currentImpact),
+        summary: fallbackSummary,
+        stationLabels: params.currentImpact.stationLabel ? [params.currentImpact.stationLabel] : [],
+        timeWindowLabel: fallbackWindowLabel,
+        averageAssistKt: null,
+      };
+    }
+
+    return decisions;
+  }
+
+  const start = { lat: fromMark.lat, lon: fromMark.lon };
+  const finish = { lat: toMark.lat, lon: toMark.lon };
+  const legVector = toLocalNm(start, finish);
+  const legLength = Math.max(0.001, Math.hypot(legVector.x, legVector.y));
+  const midPoint = {
+    lat: Number(((fromMark.lat + toMark.lat) / 2).toFixed(6)),
+    lon: Number(((fromMark.lon + toMark.lon) / 2).toFixed(6)),
+  };
+
+  const aggregates: Record<
+    "port" | "starboard",
+    {
+      scoreSum: number;
+      weightSum: number;
+      stations: Set<string>;
+    }
+  > = {
+    port: { scoreSum: 0, weightSum: 0, stations: new Set<string>() },
+    starboard: { scoreSum: 0, weightSum: 0, stations: new Set<string>() },
+  };
+
+  for (const snapshot of snapshots) {
+    for (const station of snapshot.currents) {
+      if (
+        typeof station.lat !== "number" ||
+        typeof station.lon !== "number" ||
+        typeof station.directionDeg !== "number" ||
+        !Number.isFinite(station.speedKt)
+      ) {
+        continue;
+      }
+
+      const stationVector = toLocalNm(start, station);
+      const cross = legVector.x * stationVector.y - legVector.y * stationVector.x;
+      const crossTrackNm = cross / legLength;
+      const side =
+        Math.abs(crossTrackNm) <= 0.2
+          ? "center"
+          : crossTrackNm > 0
+            ? "port"
+            : "starboard";
+      const distanceWeight = 1 / Math.max(0.35, haversineNm(midPoint, station));
+      const assistKt = alongTrackAssistKt(firstLeg.bearingDeg, station.directionDeg, station.speedKt);
+
+      if (side === "center" || side === "port") {
+        aggregates.port.scoreSum += assistKt * distanceWeight;
+        aggregates.port.weightSum += distanceWeight;
+        aggregates.port.stations.add(station.label);
+      }
+
+      if (side === "center" || side === "starboard") {
+        aggregates.starboard.scoreSum += assistKt * distanceWeight;
+        aggregates.starboard.weightSum += distanceWeight;
+        aggregates.starboard.stations.add(station.label);
+      }
+    }
+  }
+
+  const portScore =
+    aggregates.port.weightSum > 0 ? Number((aggregates.port.scoreSum / aggregates.port.weightSum).toFixed(2)) : null;
+  const starboardScore =
+    aggregates.starboard.weightSum > 0
+      ? Number((aggregates.starboard.scoreSum / aggregates.starboard.weightSum).toFixed(2))
+      : null;
+  const timeWindowLabel =
+    snapshots.length > 1
+      ? `${snapshots[0]?.displayTime ?? snapshots[0]?.time} to ${
+          snapshots[snapshots.length - 1]?.displayTime ?? snapshots[snapshots.length - 1]?.time
+        }`
+      : snapshots[0]?.displayTime ?? snapshots[0]?.time ?? null;
+
+  for (const zoneId of ["port", "starboard"] as const) {
+    const ownScore = zoneId === "port" ? portScore : starboardScore;
+    const otherScore = zoneId === "port" ? starboardScore : portScore;
+    const stationLabels = [...aggregates[zoneId].stations];
+    const currentEffect = zoneCurrentEffectFromScores({
+      zoneId,
+      ownScore,
+      otherScore,
+      currentImpact: params.currentImpact,
+    });
+
+    const comparativeCopy =
+      ownScore != null && otherScore != null
+        ? `Average along-leg current is ${
+            ownScore >= 0 ? "+" : ""
+          }${ownScore.toFixed(2)} kt here versus ${
+            otherScore >= 0 ? "+" : ""
+          }${otherScore.toFixed(2)} kt on the opposite side.`
+        : fallbackSummary;
+
+    const decisionCopy =
+      currentEffect === "favorable"
+        ? "Current table edge favors this zone if the wind picture stays close."
+        : currentEffect === "adverse"
+          ? "Current table edge works against this zone if the wind picture stays close."
+          : currentEffect === "neutral"
+            ? "Current table spread does not separate the zones much right now."
+            : "Current table decision is still too soft to separate the zones cleanly.";
+
+    decisions[zoneId] = {
+      zoneId,
+      currentEffect,
+      summary: [
+        timeWindowLabel ? `NOAA current table ${timeWindowLabel}.` : null,
+        stationLabels.length > 0 ? `Using ${stationLabels.slice(0, 3).join(", ")}.` : null,
+        comparativeCopy,
+        decisionCopy,
+      ]
+        .filter((part): part is string => Boolean(part))
+        .join(" "),
+      stationLabels,
+      timeWindowLabel,
+      averageAssistKt: ownScore,
+    };
+  }
+
+  return decisions;
+}
+
 function zoneCurrentEffectForSide(
   sideId: string,
   currentImpact: CurrentImpactDecision,
@@ -678,6 +968,7 @@ export function buildStrategyAutofill(params: {
   tackAngleDeg: number;
   forecastDecision: ForecastDecision;
   currentImpact: CurrentImpactDecision;
+  zoneCurrentDecisions: ZoneCurrentDecisionMap;
   confirmedSailSelection?: ConfirmedSailSelectionSummary | null;
 }): StrategyAutofill {
   const defaults = getCourseStrategyDefaults(
@@ -703,15 +994,18 @@ export function buildStrategyAutofill(params: {
         ? "Watch the left-side lane for local bends, holes, and rebound."
         : "Watch the right-side lane for cleaner pressure and persistent shift shape.";
 
-    const currentEffect = zoneCurrentEffectForSide(zoneId, params.currentImpact);
+    const currentDecision = params.zoneCurrentDecisions[zoneId];
+    const currentEffect =
+      currentDecision?.currentEffect ?? zoneCurrentEffectForSide(zoneId, params.currentImpact);
     const currentNote =
-      currentEffect === "favorable"
+      currentDecision?.summary ??
+      (currentEffect === "favorable"
         ? "Current likely helps this side break ties if the wind picture is close."
         : currentEffect === "adverse"
           ? "Current likely taxes this side if the wind picture is close."
           : params.currentImpact.level === "low"
             ? "Current looks secondary here unless the lane picture gets very even."
-            : "Current effect still needs visual confirmation on this side.";
+            : "Current effect still needs visual confirmation on this side.");
 
     return {
       ...zone,

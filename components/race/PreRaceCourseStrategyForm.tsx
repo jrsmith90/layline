@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AiCoachCard } from "@/components/ai/AiCoachCard";
 import { getCourseData } from "@/data/race/getCourseData";
 import { getCourseStrategyDefaults } from "@/data/race/getCourseStrategyInputs";
@@ -63,6 +63,28 @@ export default function PreRaceCourseStrategyForm({
 
   const [formState, setFormState] = useState<FormState>(initialState);
   const [submitting, setSubmitting] = useState(false);
+  const [currentEffectOverrides, setCurrentEffectOverrides] = useState<Record<string, true>>({});
+
+  useEffect(() => {
+    setFormState(initialState);
+    setCurrentEffectOverrides({});
+  }, [initialState]);
+
+  useEffect(() => {
+    setFormState((prev) => ({
+      ...prev,
+      zones: prev.zones.map((zone) => {
+        const decision = coachAssist.zoneCurrentDecisions[zone.id.toLowerCase()];
+        if (!decision || currentEffectOverrides[zone.id]) {
+          return zone;
+        }
+
+        return zone.currentEffect === decision.currentEffect
+          ? zone
+          : { ...zone, currentEffect: decision.currentEffect };
+      }),
+    }));
+  }, [coachAssist.zoneCurrentDecisions, currentEffectOverrides]);
 
   function updateZone(zoneId: string, updates: Partial<CourseZone>) {
     setFormState((prev) => ({
@@ -76,6 +98,7 @@ export default function PreRaceCourseStrategyForm({
   }
 
   function applyCoachAutofill() {
+    setCurrentEffectOverrides({});
     setFormState((prev) => ({
       ...normalizeCourseStrategyLaylines({
         courseId: defaultCourseId,
@@ -246,13 +269,21 @@ export default function PreRaceCourseStrategyForm({
                 />
 
                 <label className="block text-xs">
-                  <span className="block text-white/60">Current effect</span>
+                  <span className="block text-white/60">
+                    Current effect
+                    <span className="ml-2 text-[10px] uppercase tracking-[0.14em] text-cyan-200/80">
+                      auto from current tables
+                    </span>
+                  </span>
                   <select
                     value={zone.currentEffect}
                     onChange={(e) =>
-                      updateZone(zone.id, {
-                        currentEffect: e.target.value as CourseZone["currentEffect"],
-                      })
+                      {
+                        setCurrentEffectOverrides((prev) => ({ ...prev, [zone.id]: true }));
+                        updateZone(zone.id, {
+                          currentEffect: e.target.value as CourseZone["currentEffect"],
+                        });
+                      }
                     }
                     className="mt-1 w-full rounded border border-white/15 bg-black/30 px-2 py-1 text-sm"
                   >
@@ -261,6 +292,12 @@ export default function PreRaceCourseStrategyForm({
                     <option value="neutral">Neutral</option>
                     <option value="adverse">Adverse</option>
                   </select>
+                  <div className="mt-2 text-[11px] leading-5 text-cyan-100/75">
+                    {coachAssist.zoneCurrentDecisions[zone.id.toLowerCase()]?.summary ??
+                      (coachAssist.isLoading
+                        ? "Loading current table decision for this zone..."
+                        : "Current table decision is not available yet.")}
+                  </div>
                 </label>
 
                 <textarea

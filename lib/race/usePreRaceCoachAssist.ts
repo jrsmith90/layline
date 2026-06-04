@@ -15,6 +15,7 @@ import {
   buildForecastDecision,
   buildSailSelectionAssistBrief,
   buildStrategyAutofill,
+  buildZoneCurrentDecisions,
   getCourseWindRead,
   getFirstLegSamplePoint,
   getLegTypeFromCourseWind,
@@ -55,6 +56,7 @@ export function usePreRaceCoachAssist(params: UsePreRaceCoachAssistParams) {
   const [liveWeatherLoading, setLiveWeatherLoading] = useState(true);
   const [tideCurrent, setTideCurrent] = useState<TideCurrentPayload | null>(null);
   const [tideCurrentError, setTideCurrentError] = useState<string | null>(null);
+  const [tideCurrentLoading, setTideCurrentLoading] = useState(true);
   const [forecast, setForecast] = useState<PointForecastPayload | null>(null);
   const [forecastError, setForecastError] = useState<string | null>(null);
   const [forecastLoading, setForecastLoading] = useState(true);
@@ -104,6 +106,7 @@ export function usePreRaceCoachAssist(params: UsePreRaceCoachAssistParams) {
 
     async function loadTideCurrent() {
       try {
+        setTideCurrentLoading(true);
         setTideCurrentError(null);
         const query = new URLSearchParams({
           eventId: params.courseData.eventId,
@@ -130,6 +133,10 @@ export function usePreRaceCoachAssist(params: UsePreRaceCoachAssistParams) {
           setTideCurrentError(
             error instanceof Error ? error.message : "Unable to load tide/current predictions.",
           );
+        }
+      } finally {
+        if (!cancelled) {
+          setTideCurrentLoading(false);
         }
       }
     }
@@ -250,6 +257,16 @@ export function usePreRaceCoachAssist(params: UsePreRaceCoachAssistParams) {
     [forecastDecision.nextThreeHourMaxGustKt, forecastDecision.recommendedWindKt],
   );
 
+  const zoneCurrentDecisions = useMemo(
+    () =>
+      buildZoneCurrentDecisions({
+        courseData: params.courseData,
+        tideCurrent,
+        currentImpact,
+      }),
+    [currentImpact, params.courseData, tideCurrent],
+  );
+
   const strategyAutofill = useMemo(
     () =>
       buildStrategyAutofill({
@@ -259,6 +276,7 @@ export function usePreRaceCoachAssist(params: UsePreRaceCoachAssistParams) {
         tackAngleDeg: params.tackAngleDeg,
         forecastDecision,
         currentImpact,
+        zoneCurrentDecisions,
         confirmedSailSelection: params.confirmedSailSelection ?? null,
       }),
     [
@@ -268,6 +286,7 @@ export function usePreRaceCoachAssist(params: UsePreRaceCoachAssistParams) {
       params.courseData,
       params.courseId,
       params.tackAngleDeg,
+      zoneCurrentDecisions,
     ],
   );
 
@@ -299,6 +318,7 @@ export function usePreRaceCoachAssist(params: UsePreRaceCoachAssistParams) {
     liveWeatherLoading,
     tideCurrent,
     tideCurrentError,
+    tideCurrentLoading,
     forecast,
     forecastError,
     forecastLoading,
@@ -308,9 +328,10 @@ export function usePreRaceCoachAssist(params: UsePreRaceCoachAssistParams) {
     suggestedRiskMode,
     suggestedLegType,
     suggestedSeaState,
+    zoneCurrentDecisions,
     strategyAutofill,
     sailBrief,
     strategyBrief,
-    isLoading: liveWeatherLoading || forecastLoading,
+    isLoading: liveWeatherLoading || tideCurrentLoading || forecastLoading,
   };
 }
