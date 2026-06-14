@@ -910,6 +910,45 @@ export default function RaceLiveCockpit() {
                   }
                 />
               </div>
+
+              <div className="mt-4 border-t border-white/10 pt-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="text-sm font-black">
+                    {leg ? `${leg.fromMark} → ${leg.toMark}` : "--"}
+                    {toMark?.name ? (
+                      <span className="ml-2 text-xs font-semibold opacity-60">{toMark.name}</span>
+                    ) : null}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => goToLeg(safeLegIndex + 1)}
+                    disabled={!canGoNext}
+                    className="rounded-xl border border-white/20 bg-black/20 px-3 py-2 text-xs font-black uppercase tracking-wide disabled:opacity-40"
+                  >
+                    Next Leg
+                  </button>
+                </div>
+                <div className="mt-3 grid grid-cols-3 gap-2">
+                  <BigMetric label="Wind" value={formatKt(windRead.windAvgKt)} />
+                  <BigMetric label="Gust" value={formatKt(windRead.windGustKt)} />
+                  <BigMetric label="From" value={fmtMag(effectiveWindFrom)} />
+                </div>
+                <div className="mt-2 grid grid-cols-3 gap-2">
+                  <BigMetric label="Distance" value={`${formatNumber(result?.distanceToMarkNm ?? null, 2)} nm`} />
+                  <BigMetric label="Bearing" value={fmtMag(result?.bearingToMarkDeg)} />
+                  <BigMetric label="VMG" value={`${formatNumber(result?.vmgToMarkKt ?? null, 1)} kt`} />
+                </div>
+                {recentTransition?.kind === "automatic" && (
+                  <div className="mt-3 rounded-xl border border-white/25 bg-black/20 px-3 py-2 text-xs font-semibold">
+                    {recentTransition.message}
+                  </div>
+                )}
+                {autoAdvanceArmed && (
+                  <div className="mt-2 text-xs font-semibold leading-5 opacity-70">
+                    Auto-advance armed. If leg does not flip after rounding, use the manual button.
+                  </div>
+                )}
+              </div>
             </section>
 
             {activeConstraints.length > 0 && (
@@ -932,59 +971,8 @@ export default function RaceLiveCockpit() {
             )}
           </div>
 
-          {/* RIGHT: supporting context */}
+          {/* RIGHT: tactical context */}
           <div className="space-y-4">
-            <section className="layline-panel p-4">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <div className="layline-kicker">Wind Source</div>
-                  <div className="mt-1 text-lg font-black">{windRead.label}</div>
-                  <div className="mt-1 text-xs text-[color:var(--muted)]">{windRead.sourceDetail}</div>
-                </div>
-                <Wind className="mt-1 text-[color:var(--muted)]" size={20} />
-              </div>
-              <div className="mt-3 grid grid-cols-3 gap-2">
-                <BigMetric label="Wind" value={formatKt(windRead.windAvgKt)} />
-                <BigMetric label="Gust" value={formatKt(windRead.windGustKt)} />
-                <BigMetric label="From" value={fmtMag(effectiveWindFrom)} />
-              </div>
-            </section>
-
-            <section className="layline-panel p-4">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <div className="layline-kicker">Next Mark</div>
-                  <div className="mt-1 text-xl font-black">
-                    {leg ? `${leg.fromMark} to ${leg.toMark}` : "--"}
-                  </div>
-                  <div className="mt-1 text-xs text-[color:var(--muted)]">{toMark?.name ?? "No mark selected"}</div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => goToLeg(safeLegIndex + 1)}
-                  disabled={!canGoNext}
-                  className="rounded-xl border border-[color:var(--divider)] bg-black/20 px-4 py-3 text-sm font-black uppercase tracking-wide disabled:opacity-40"
-                >
-                  Next Leg
-                </button>
-              </div>
-              <div className="mt-4 grid grid-cols-3 gap-2">
-                <BigMetric label="Distance" value={`${formatNumber(result?.distanceToMarkNm ?? null, 2)} nm`} />
-                <BigMetric label="Bearing" value={fmtMag(result?.bearingToMarkDeg)} />
-                <BigMetric label="VMG" value={`${formatNumber(result?.vmgToMarkKt ?? null, 1)} kt`} />
-              </div>
-              {recentTransition?.kind === "automatic" && (
-                <div className="mt-3 rounded-xl border border-[color:var(--favorable)]/40 bg-[color:var(--favorable)]/10 px-3 py-2 text-xs font-semibold text-teal-50">
-                  {recentTransition.message}
-                </div>
-              )}
-              {autoAdvanceArmed && (
-                <div className="mt-3 text-xs font-semibold leading-5 text-[color:var(--muted)]">
-                  Auto-advance is armed. If the leg does not flip after rounding, use the manual button.
-                </div>
-              )}
-            </section>
-
             <LiveTacticalBoardCard raceState={raceState} />
             <AiCoachCard brief={liveCoachBrief} compact />
           </div>
