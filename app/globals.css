@@ -1,19 +1,19 @@
 @import "tailwindcss";
 
-/* Layline Coastal Instrument Palette */
+/* Layline Flat Dark Palette */
 :root {
   /* Core surfaces */
-  --bg: #08202d;
-  --bg-deep: #06161f;
-  --panel: #10313d;
-  --panel-soft: #174150;
-  --panel-muted: #0c2731;
-  --divider: #3c6870;
+  --bg: #0a1a22;
+  --bg-deep: #081520;
+  --panel: #112230;
+  --panel-soft: #162d3c;
+  --panel-muted: #0d1e29;
+  --divider: #1e3a48;
 
   /* Text */
-  --text: #f3f7f3;
-  --text-soft: #d9e7e1;
-  --muted: #8da8a5;
+  --text: #f0f4f4;
+  --text-soft: #cddde0;
+  --muted: #7a9ea8;
 
   /* Tactical state colors */
   --favorable: #65c4b8;
@@ -29,10 +29,10 @@
   --teal: #65c4b8;
 
   /* Shape + depth */
-  --radius-card: 16px;
+  --radius-card: 12px;
   --radius-pill: 999px;
-  --shadow-panel: 0 18px 40px rgba(1, 13, 19, 0.34);
-  --shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  --shadow-panel: 0 4px 20px rgba(1, 10, 16, 0.4);
+  --shadow-inset: none;
 }
 
 html,
@@ -42,10 +42,7 @@ body {
 
 body {
   min-height: 100%;
-  background:
-    radial-gradient(circle at top left, rgba(101, 196, 184, 0.14), transparent 32rem),
-    radial-gradient(circle at bottom right, rgba(217, 178, 107, 0.08), transparent 24rem),
-    linear-gradient(180deg, var(--bg) 0%, var(--bg-deep) 100%);
+  background: var(--bg);
   color: var(--text);
   font-feature-settings: "tnum";
 }
@@ -66,20 +63,16 @@ button {
 
 /* Shared Layline UI helpers */
 .layline-panel {
-  background:
-    radial-gradient(circle at top, rgba(140, 200, 214, 0.08), transparent 55%),
-    linear-gradient(180deg, var(--panel) 0%, var(--panel-muted) 100%);
-  border: 1px solid color-mix(in srgb, var(--divider) 78%, transparent);
+  background: var(--panel);
+  border: 1px solid var(--divider);
   border-radius: var(--radius-card);
-  box-shadow: var(--shadow-panel), var(--shadow-inset);
+  box-shadow: var(--shadow-panel);
 }
 
 .layline-pill {
   border-radius: var(--radius-pill);
-  border: 1px solid color-mix(in srgb, var(--divider) 80%, transparent);
-  background:
-    linear-gradient(180deg, color-mix(in srgb, var(--panel-soft) 88%, transparent), color-mix(in srgb, var(--panel-muted) 92%, transparent));
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--divider);
+  background: var(--panel-soft);
 }
 
 .layline-chip {
@@ -88,8 +81,8 @@ button {
   gap: 0.4rem;
   min-height: 2rem;
   border-radius: var(--radius-pill);
-  border: 1px solid color-mix(in srgb, var(--divider) 76%, transparent);
-  background: color-mix(in srgb, var(--panel) 68%, transparent);
+  border: 1px solid var(--divider);
+  background: var(--panel-muted);
   padding: 0.4rem 0.8rem;
   font-size: 0.72rem;
   font-weight: 800;
@@ -117,11 +110,9 @@ button {
   gap: 0.9rem;
   min-height: 3.35rem;
   border-radius: var(--radius-pill);
-  border: 1px solid color-mix(in srgb, var(--divider) 82%, transparent);
-  background:
-    linear-gradient(180deg, color-mix(in srgb, var(--panel-soft) 90%, transparent), color-mix(in srgb, var(--panel-muted) 94%, transparent));
+  border: 1px solid var(--divider);
+  background: var(--panel-soft);
   padding: 0.95rem 1.1rem;
-  box-shadow: var(--shadow-inset);
 }
 
 .layline-learn-only {
