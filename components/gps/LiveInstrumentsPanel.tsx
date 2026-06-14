@@ -126,7 +126,7 @@ export function LiveInstrumentsPanel({
       </div>
 
       <div className="mt-4 grid grid-cols-3 gap-2">
-        <div className="rounded-xl border border-[color:var(--divider)] bg-black/20 p-3">
+        <div className="p-3">
           <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-[color:var(--muted)]">
             COG
           </div>
@@ -134,7 +134,7 @@ export function LiveInstrumentsPanel({
             {formatMagDeg(gps.cogDeg, variation)}
           </div>
         </div>
-        <div className="rounded-xl border border-[color:var(--divider)] bg-black/20 p-3">
+        <div className="p-3">
           <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-[color:var(--muted)]">
             SOG
           </div>
@@ -142,7 +142,7 @@ export function LiveInstrumentsPanel({
             {formatSpeedKt(gps.sogMps)}
           </div>
         </div>
-        <div className="rounded-xl border border-[color:var(--divider)] bg-black/20 p-3">
+        <div className="p-3">
           <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-[color:var(--muted)]">
             Acc
           </div>
@@ -154,7 +154,7 @@ export function LiveInstrumentsPanel({
 
       {!compact && (
         <>
-          <div className="mt-3 rounded-xl border border-[color:var(--divider)] bg-black/20 p-3 text-sm leading-5 text-[color:var(--text-soft)]">
+          <div className="mt-3 p-3 text-sm leading-5 text-[color:var(--text-soft)]">
             {getDecisionCue(context, gps)}
           </div>
 

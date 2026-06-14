@@ -1045,7 +1045,7 @@ export default function TrimJibPage() {
             </div>
           </div>
 
-          <div className="rounded-2xl border border-[color:var(--divider)] bg-black/20 p-4 space-y-3">
+          <div className="p-4 space-y-3">
             <div>
               <div className="text-xs tracking-widest text-[color:var(--muted)] uppercase">
                 Headline
@@ -1068,7 +1068,7 @@ export default function TrimJibPage() {
             {actionPlan.actions.map((item) => (
               <div
                 key={item.title}
-                className="rounded-2xl border border-[color:var(--divider)] bg-black/20 p-4 space-y-3"
+                className="p-4 space-y-3"
               >
                 <div className="text-xs tracking-widest text-white uppercase">
                   {item.title}
@@ -1102,7 +1102,7 @@ export default function TrimJibPage() {
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <div className="rounded-2xl border border-[color:var(--divider)] bg-black/20 p-4">
+            <div className="p-4">
               <div className="text-xs tracking-widest text-[color:var(--muted)] uppercase">
                 Why
               </div>
@@ -1110,7 +1110,7 @@ export default function TrimJibPage() {
                 {computed.why}
               </div>
             </div>
-            <div className="rounded-2xl border border-[color:var(--divider)] bg-black/20 p-4">
+            <div className="p-4">
               <div className="text-xs tracking-widest text-[color:var(--muted)] uppercase">
                 Do next
               </div>
@@ -1120,7 +1120,7 @@ export default function TrimJibPage() {
             </div>
           </div>
 
-          <div className="rounded-2xl border border-[color:var(--divider)] bg-black/20 p-4">
+          <div className="p-4">
             <div className="text-xs tracking-widest text-[color:var(--muted)] uppercase">
               If / Then
             </div>

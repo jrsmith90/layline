@@ -55,7 +55,7 @@ export function RoutingConstraintsList({
             className={
               compact
                 ? "rounded-lg border border-white/10 bg-black/20 p-3"
-                : "rounded-xl border border-[color:var(--divider)] bg-black/20 p-4"
+                : "p-4"
             }
           >
             <div className="flex flex-wrap items-center gap-2">

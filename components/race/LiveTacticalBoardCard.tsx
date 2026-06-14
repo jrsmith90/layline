@@ -392,7 +392,7 @@ function getSupportItems(
 
 function FocusMetric(props: { label: string; value: string }) {
   return (
-    <div className="rounded-xl border border-[color:var(--divider)] bg-black/20 p-2.5 sm:p-3">
+    <div className="p-2.5 sm:p-3">
       <div className="text-[10px] font-black uppercase tracking-[0.16em] text-[color:var(--muted)]">
         {props.label}
       </div>

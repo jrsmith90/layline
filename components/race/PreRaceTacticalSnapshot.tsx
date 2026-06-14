@@ -79,7 +79,7 @@ function getSideCopy(value: "starboard" | "port" | "even" | "unknown" | "square"
 
 function Metric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-xl border border-[color:var(--divider)] bg-black/20 p-3">
+    <div className="p-3">
       <div className="text-[11px] font-black uppercase tracking-[0.16em] text-[color:var(--muted)]">
         {label}
       </div>
@@ -95,7 +95,7 @@ function SummaryCard(props: {
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-2xl border border-[color:var(--divider)] bg-black/10 p-4">
+    <section className="p-4">
       <div className="flex items-start gap-3">
         <div className="mt-1 text-[color:var(--muted)]">{props.icon}</div>
         <div className="min-w-0 flex-1">
@@ -161,13 +161,13 @@ export function PreRaceTacticalSnapshot() {
             title="Launch Picture"
           >
             <div className="space-y-3">
-              <div className="rounded-xl border border-[color:var(--divider)] bg-black/20 px-4 py-3 text-sm leading-6 text-[color:var(--text-soft)]">
+              <div className="px-4 py-3 text-sm leading-6 text-[color:var(--text-soft)]">
                 {shiftHeadline}
               </div>
               {primaryCalls.map((call) => (
                 <div
                   key={call}
-                  className="rounded-xl border border-[color:var(--divider)] bg-black/20 px-4 py-3 text-sm leading-6 text-[color:var(--text-soft)]"
+                  className="px-4 py-3 text-sm leading-6 text-[color:var(--text-soft)]"
                 >
                   {call}
                 </div>
@@ -196,7 +196,7 @@ export function PreRaceTacticalSnapshot() {
                     value={latestOpeningBiasAction ?? "Hold saved plan"}
                   />
                 </div>
-                <div className="rounded-xl border border-[color:var(--divider)] bg-black/20 px-4 py-3 text-sm leading-6 text-[color:var(--text-soft)]">
+                <div className="px-4 py-3 text-sm leading-6 text-[color:var(--text-soft)]">
                   {draft.routeBias.latestUpdate?.reasons[0] ??
                     draft.routeBias.originalPlan.reasons[0] ??
                     "No saved opening-bias note yet."}
@@ -230,7 +230,7 @@ export function PreRaceTacticalSnapshot() {
             title="Bias Read"
           >
             <div className="space-y-3">
-              <div className="rounded-xl border border-[color:var(--divider)] bg-black/20 px-4 py-3 text-sm leading-6 text-[color:var(--text-soft)]">
+              <div className="px-4 py-3 text-sm leading-6 text-[color:var(--text-soft)]">
                 {lineHeadline}
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
@@ -245,13 +245,13 @@ export function PreRaceTacticalSnapshot() {
       <div className="flex flex-wrap gap-3">
         <Link
           href="/race/tactical-board"
-          className="inline-flex rounded-xl border border-[color:var(--divider)] bg-black/20 px-4 py-3 text-sm font-black uppercase tracking-wide text-[color:var(--text)]"
+          className="inline-flex px-4 py-3 text-sm font-black uppercase tracking-wide text-[color:var(--text)]"
         >
           Open Full Tactical Board
         </Link>
         <Link
           href="/race/live"
-          className="inline-flex rounded-xl border border-[color:var(--divider)] bg-black/10 px-4 py-3 text-sm font-black uppercase tracking-wide text-[color:var(--text)]"
+          className="inline-flex px-4 py-3 text-sm font-black uppercase tracking-wide text-[color:var(--text)]"
         >
           Open Race Live
         </Link>

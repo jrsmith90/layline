@@ -1401,7 +1401,7 @@ function GpxImportPanel({
         </label>
       </div>
 
-      <label className="mt-3 flex items-start gap-3 rounded-xl border border-[color:var(--divider)] bg-black/20 p-3 text-sm">
+      <label className="mt-3 flex items-start gap-3 p-3 text-sm">
         <input
           type="checkbox"
           checked={attachHistoricalWeather}
@@ -1685,7 +1685,7 @@ export default function RaceReviewPage() {
         actions={
           <Link
             href="/race/live"
-            className="rounded-xl border border-[color:var(--divider)] bg-black/20 px-4 py-3 text-sm font-black uppercase tracking-wide"
+            className="px-4 py-3 text-sm font-black uppercase tracking-wide"
           >
             Race Live
           </Link>
@@ -1752,7 +1752,7 @@ export default function RaceReviewPage() {
                   exportRaceSessionJson(session),
                 )
               }
-              className="flex items-center justify-center gap-2 rounded-xl border border-[color:var(--divider)] bg-black/20 px-4 py-3 text-sm font-black uppercase tracking-wide"
+              className="flex items-center justify-center gap-2 px-4 py-3 text-sm font-black uppercase tracking-wide"
             >
               <Download size={16} />
               Export
@@ -2195,7 +2195,7 @@ export default function RaceReviewPage() {
             title="Saved state and tactical replay"
           >
             <div className="space-y-5">
-              <section className="rounded-2xl border border-[color:var(--divider)] bg-black/20 p-4">
+              <section className="p-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <h2 className="text-xl font-black">Saved App State</h2>
@@ -2377,7 +2377,7 @@ export default function RaceReviewPage() {
                 )}
               </section>
 
-              <section className="rounded-2xl border border-[color:var(--divider)] bg-black/20 p-4">
+              <section className="p-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <h2 className="text-xl font-black">Tactical Board Replay</h2>
@@ -2525,7 +2525,7 @@ export default function RaceReviewPage() {
             title="Notes and trim logs"
           >
             <div className="space-y-5">
-              <section id="notes" className="rounded-2xl border border-[color:var(--divider)] bg-black/20 p-4 scroll-mt-24">
+              <section id="notes" className="p-4 scroll-mt-24">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <h2 className="text-xl font-black">Notes</h2>
@@ -2568,7 +2568,7 @@ export default function RaceReviewPage() {
                 </div>
               </section>
 
-              <section id="logs" className="rounded-2xl border border-[color:var(--divider)] bg-black/20 p-4 scroll-mt-24">
+              <section id="logs" className="p-4 scroll-mt-24">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <h2 className="text-xl font-black">Trim Logs</h2>
@@ -2614,7 +2614,7 @@ export default function RaceReviewPage() {
                           exportSessionTrimLogsToJson(session.trimLogs),
                         )
                       }
-                      className="rounded-xl border border-[color:var(--divider)] bg-black/20 px-4 py-3 text-sm font-black uppercase tracking-wide"
+                      className="px-4 py-3 text-sm font-black uppercase tracking-wide"
                     >
                       Export JSON
                     </button>
@@ -2627,7 +2627,7 @@ export default function RaceReviewPage() {
                           "text/csv",
                         )
                       }
-                      className="rounded-xl border border-[color:var(--divider)] bg-black/20 px-4 py-3 text-sm font-black uppercase tracking-wide"
+                      className="px-4 py-3 text-sm font-black uppercase tracking-wide"
                     >
                       Export CSV
                     </button>
@@ -2721,7 +2721,7 @@ export default function RaceReviewPage() {
                       <button
                         type="button"
                         onClick={() => removeSessionLog(log.id)}
-                        className="mt-2 w-full rounded-xl border border-[color:var(--divider)] bg-black/20 px-3 py-2 text-xs font-black uppercase tracking-wide"
+                        className="mt-2 w-full px-3 py-2 text-xs font-black uppercase tracking-wide"
                       >
                         Delete Log
                       </button>
@@ -2739,7 +2739,7 @@ export default function RaceReviewPage() {
 
 function Metric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-xl border border-[color:var(--divider)] bg-black/20 p-3">
+    <div className="p-3">
       <div className="text-[10px] font-black uppercase tracking-[0.16em] text-[color:var(--muted)]">
         {label}
       </div>

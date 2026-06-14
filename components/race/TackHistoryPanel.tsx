@@ -65,7 +65,7 @@ export function TackHistoryPanel({
       </div>
 
       {latest ? (
-        <div className="mt-3 rounded-xl border border-[color:var(--divider)] bg-black/20 p-3 text-xs leading-5 text-[color:var(--text-soft)]">
+        <div className="mt-3 p-3 text-xs leading-5 text-[color:var(--text-soft)]">
           Last tack: {formatDeg(latest.halfAngleDeg)} half-angle, {formatKt(latest.sogKt)},{" "}
           wind {fmtMag(latest.windFromDeg)}, {latest.confidence} confidence.
         </div>
@@ -103,7 +103,7 @@ export function TackHistoryPanel({
 
 function SmallMetric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-xl border border-[color:var(--divider)] bg-black/20 p-3">
+    <div className="p-3">
       <div className="text-[9px] font-black uppercase tracking-[0.14em] text-[color:var(--muted)]">
         {label}
       </div>

@@ -10,7 +10,7 @@ import type { TacticalBoardDraft } from "@/lib/race/tacticalBoard/store";
 
 function Metric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-xl border border-[color:var(--divider)] bg-black/20 p-3">
+    <div className="p-3">
       <div className="text-[11px] font-black uppercase tracking-[0.16em] text-[color:var(--muted)]">
         {label}
       </div>
@@ -38,7 +38,7 @@ function DetailList(props: { title: string; items: string[]; tone?: "default" | 
         : "bg-white/50";
 
   return (
-    <div className="rounded-xl border border-[color:var(--divider)] bg-black/10 p-4">
+    <div className="p-4">
       <div className={`text-sm font-black ${titleClass}`}>{props.title}</div>
       <ul className="mt-3 space-y-2 text-sm leading-6 text-[color:var(--text-soft)]">
         {props.items.map((item) => (

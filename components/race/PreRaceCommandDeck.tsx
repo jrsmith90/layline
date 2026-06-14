@@ -177,7 +177,7 @@ export function PreRaceCommandDeck() {
 
 function DeckMetric(props: { label: string; value: string; help?: string }) {
   return (
-    <div className="rounded-xl border border-[color:var(--divider)] bg-black/20 p-3">
+    <div className="p-3">
       <div className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.16em] text-[color:var(--muted)]">
         <span>{props.label}</span>
         {props.help ? (

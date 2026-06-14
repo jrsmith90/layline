@@ -206,7 +206,7 @@ function subscribeConstraintOverrideSnapshot(listener: () => void) {
 
 function ConstraintMetric(props: { label: string; value: string }) {
   return (
-    <div className="rounded-xl border border-[color:var(--divider)] bg-black/20 p-3">
+    <div className="p-3">
       <div className="text-[11px] font-black uppercase tracking-[0.16em] text-[color:var(--muted)]">
         {props.label}
       </div>
@@ -314,7 +314,7 @@ export default function RaceConstraintManagerPage() {
         actions={
           <Link
             href="/race/pre-race"
-            className="rounded-xl border border-[color:var(--divider)] bg-black/20 px-4 py-3 text-sm font-black uppercase tracking-wide"
+            className="px-4 py-3 text-sm font-black uppercase tracking-wide"
           >
             Back To Pre-Race
           </Link>
@@ -353,7 +353,7 @@ export default function RaceConstraintManagerPage() {
                 <button
                   type="button"
                   onClick={resetEditor}
-                  className="rounded-xl border border-[color:var(--divider)] bg-black/20 px-3 py-2 text-xs font-black uppercase tracking-wide text-[color:var(--text)]"
+                  className="px-3 py-2 text-xs font-black uppercase tracking-wide text-[color:var(--text)]"
                 >
                   Add Constraint
                 </button>
@@ -361,7 +361,7 @@ export default function RaceConstraintManagerPage() {
                   type="button"
                   onClick={handleResetDefaults}
                   disabled={!override}
-                  className="rounded-xl border border-[color:var(--divider)] bg-black/20 px-3 py-2 text-xs font-black uppercase tracking-wide text-[color:var(--text)] disabled:cursor-not-allowed disabled:opacity-50"
+                  className="px-3 py-2 text-xs font-black uppercase tracking-wide text-[color:var(--text)] disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   Use Event Defaults
                 </button>
@@ -379,7 +379,7 @@ export default function RaceConstraintManagerPage() {
               {effectiveConstraints.map((constraint) => (
                 <div
                   key={constraint.id}
-                  className="rounded-xl border border-[color:var(--divider)] bg-black/20 p-4"
+                  className="p-4"
                 >
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
@@ -399,7 +399,7 @@ export default function RaceConstraintManagerPage() {
                       <button
                         type="button"
                         onClick={() => handleEdit(constraint)}
-                        className="rounded-xl border border-[color:var(--divider)] bg-black/20 px-3 py-2 text-xs font-black uppercase tracking-wide text-[color:var(--text)]"
+                        className="px-3 py-2 text-xs font-black uppercase tracking-wide text-[color:var(--text)]"
                       >
                         Edit
                       </button>
@@ -575,14 +575,14 @@ export default function RaceConstraintManagerPage() {
               <button
                 type="button"
                 onClick={handleSave}
-                className="rounded-xl border border-[color:var(--divider)] bg-black/20 px-4 py-3 text-sm font-black uppercase tracking-wide text-[color:var(--text)]"
+                className="px-4 py-3 text-sm font-black uppercase tracking-wide text-[color:var(--text)]"
               >
                 {editingExistingConstraint ? "Save Constraint" : "Add Constraint"}
               </button>
               <button
                 type="button"
                 onClick={resetEditor}
-                className="rounded-xl border border-[color:var(--divider)] bg-black/20 px-4 py-3 text-sm font-black uppercase tracking-wide text-[color:var(--text)]"
+                className="px-4 py-3 text-sm font-black uppercase tracking-wide text-[color:var(--text)]"
               >
                 Clear Editor
               </button>

@@ -58,7 +58,7 @@ export function PreRaceLegHeadingChart() {
 
   if (rows.length === 0) {
     return (
-      <div className="rounded-xl border border-[color:var(--divider)] bg-black/20 p-4 text-sm text-[color:var(--text-soft)]">
+      <div className="p-4 text-sm text-[color:var(--text-soft)]">
         No leg geometry is loaded for this course yet.
       </div>
     );
@@ -67,7 +67,7 @@ export function PreRaceLegHeadingChart() {
   return (
     <section className="space-y-4">
       <div className="grid gap-3 md:grid-cols-3">
-        <div className="rounded-xl border border-[color:var(--divider)] bg-black/20 p-3">
+        <div className="p-3">
           <div className="text-[11px] font-black uppercase tracking-[0.16em] text-[color:var(--muted)]">
             Selected Course
           </div>
@@ -75,7 +75,7 @@ export function PreRaceLegHeadingChart() {
             {formatCourseLabel(draft.courseId)}
           </div>
         </div>
-        <div className="rounded-xl border border-[color:var(--divider)] bg-black/20 p-3">
+        <div className="p-3">
           <div className="text-[11px] font-black uppercase tracking-[0.16em] text-[color:var(--muted)]">
             Tack Angle
           </div>
@@ -83,7 +83,7 @@ export function PreRaceLegHeadingChart() {
             {Math.round(tackAngleDeg)} deg
           </div>
         </div>
-        <div className="rounded-xl border border-[color:var(--divider)] bg-black/20 p-3">
+        <div className="p-3">
           <div className="text-[11px] font-black uppercase tracking-[0.16em] text-[color:var(--muted)]">
             Total Legs
           </div>
@@ -91,13 +91,13 @@ export function PreRaceLegHeadingChart() {
         </div>
       </div>
 
-      <div className="rounded-xl border border-[color:var(--divider)] bg-black/20 p-4 text-sm leading-6 text-[color:var(--text-soft)]">
+      <div className="p-4 text-sm leading-6 text-[color:var(--text-soft)]">
         This chart offsets each published mark-to-mark bearing by your saved tack angle to show a
         quick port and starboard target heading for every leg. Update the tack angle in the
         tactical board inputs if you want this reference to move.
       </div>
 
-      <div className="overflow-x-auto rounded-2xl border border-[color:var(--divider)] bg-black/20">
+      <div className="overflow-x-auto ">
         <table className="min-w-full border-collapse text-left">
           <thead>
             <tr className="border-b border-[color:var(--divider)] bg-black/20">

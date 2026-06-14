@@ -21,7 +21,7 @@ const DEFAULT_TACTICAL_BOARD_DRAFT = buildTacticalBoardDraftDefaults(getDefaultC
 
 function SetupMetric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-xl border border-[color:var(--divider)] bg-black/20 p-3">
+    <div className="p-3">
       <div className="text-[11px] font-black uppercase tracking-[0.16em] text-[color:var(--muted)]">
         {label}
       </div>
@@ -34,7 +34,7 @@ function formatDistance(value: number | null | undefined) {
   return typeof value === "number" && Number.isFinite(value) ? `${value.toFixed(2)} nm` : "--";
 }
 
-export function PreRaceSetupPanel() {
+export function PreRaceSetupPanel({ hideHeader = false }: { hideHeader?: boolean }) {
   const draft = useSyncExternalStore(
     subscribeTacticalBoardStore,
     getStoredTacticalBoardDraft,
@@ -52,47 +52,49 @@ export function PreRaceSetupPanel() {
 
   return (
     <section className="layline-panel p-5">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <div className="layline-kicker">Selections</div>
-          <h2 className="mt-1 text-2xl font-black tracking-tight text-[color:var(--text)]">
-            Set the top-line brief once
-          </h2>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-[color:var(--text-soft)]">
-            Pick the course and planned start here, then use the sections below as the ordered
-            crew brief instead of repeating the same setup choices in multiple places.
-          </p>
-        </div>
+      {!hideHeader && (
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <div className="layline-kicker">Selections</div>
+            <h2 className="mt-1 text-2xl font-black tracking-tight text-[color:var(--text)]">
+              Set the top-line brief once
+            </h2>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-[color:var(--text-soft)]">
+              Pick the course and planned start here, then use the sections below as the ordered
+              crew brief instead of repeating the same setup choices in multiple places.
+            </p>
+          </div>
 
-        <div className="flex flex-wrap gap-3">
-          <Link
-            href="/race/pre-race/sail-selection"
-            className="inline-flex rounded-xl border border-[color:var(--divider)] bg-black/20 px-4 py-3 text-sm font-black uppercase tracking-wide text-[color:var(--text)]"
-          >
-            Open Sail Selection
-          </Link>
-          <Link
-            href="/race/courses"
-            className="inline-flex rounded-xl border border-[color:var(--divider)] bg-black/10 px-4 py-3 text-sm font-black uppercase tracking-wide text-[color:var(--text)]"
-          >
-            Manage Courses
-          </Link>
-          <Link
-            href="/race/constraints"
-            className="inline-flex rounded-xl border border-[color:var(--divider)] bg-black/10 px-4 py-3 text-sm font-black uppercase tracking-wide text-[color:var(--text)]"
-          >
-            Manage Constraints
-          </Link>
-          <Link
-            href="/race/inventory"
-            className="inline-flex rounded-xl border border-[color:var(--divider)] bg-black/10 px-4 py-3 text-sm font-black uppercase tracking-wide text-[color:var(--text)]"
-          >
-            Manage Inventory
-          </Link>
+          <div className="flex flex-wrap gap-3">
+            <Link
+              href="/race/pre-race/sail-selection"
+              className="inline-flex px-4 py-3 text-sm font-black uppercase tracking-wide text-[color:var(--text)]"
+            >
+              Open Sail Selection
+            </Link>
+            <Link
+              href="/race/courses"
+              className="inline-flex px-4 py-3 text-sm font-black uppercase tracking-wide text-[color:var(--text)]"
+            >
+              Manage Courses
+            </Link>
+            <Link
+              href="/race/constraints"
+              className="inline-flex px-4 py-3 text-sm font-black uppercase tracking-wide text-[color:var(--text)]"
+            >
+              Manage Constraints
+            </Link>
+            <Link
+              href="/race/inventory"
+              className="inline-flex px-4 py-3 text-sm font-black uppercase tracking-wide text-[color:var(--text)]"
+            >
+              Manage Inventory
+            </Link>
+          </div>
         </div>
-      </div>
+      )}
 
-      <div className="mt-5 grid gap-5 xl:grid-cols-[1.1fr_0.9fr]">
+      <div className={hideHeader ? "grid gap-5 xl:grid-cols-[1.1fr_0.9fr]" : "mt-5 grid gap-5 xl:grid-cols-[1.1fr_0.9fr]"}>
         <div className="space-y-4">
           <label className="block">
             <span className="mb-1 block text-sm font-medium text-[color:var(--text)]">

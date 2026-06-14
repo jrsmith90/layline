@@ -35,7 +35,7 @@ export function PreRaceLegLookoutSheet({
   const cardClass =
     tone === "print"
       ? "rounded-2xl border border-slate-200 bg-slate-50 p-4"
-      : "rounded-2xl border border-[color:var(--divider)] bg-black/20 p-4";
+      : "p-4";
   const kickerClass =
     tone === "print"
       ? "text-[11px] font-black uppercase tracking-[0.16em] text-slate-500"

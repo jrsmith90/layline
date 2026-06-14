@@ -42,7 +42,7 @@ const headerActions = (
     </Link>
     <Link
       href="/race/live"
-      className="rounded-xl border border-[color:var(--divider)] bg-black/20 px-4 py-3 text-sm font-black uppercase tracking-wide"
+      className="px-4 py-3 text-sm font-black uppercase tracking-wide"
     >
       Race Live
     </Link>
@@ -61,21 +61,45 @@ export default function Page() {
 
   if (isDesktopLayout) {
     return (
-      <div className="grid min-h-screen grid-cols-[minmax(320px,_38%)_1fr] items-start gap-6 px-6 py-5">
+      <div className="grid min-h-screen grid-cols-[minmax(320px,_38%)_1fr] items-start gap-8 px-8 py-8">
         {/* Left column: setup inputs */}
-        <div className="sticky top-5 flex max-h-[calc(100vh-2.5rem)] flex-col gap-4 overflow-y-auto pb-4">
-          <AppPageHeader
-            eyebrow="Race Setup"
-            title="Build the opening picture."
-            badges={["Course", "Sail Choice", "Course Strategy", "Opening Bias", "Tactical Board"]}
-            actions={headerActions}
-          />
-          <PreRaceSetupPanel />
-          <PreRacePlanningInputsPanel />
+        <div className="sticky top-8 flex max-h-[calc(100vh-4rem)] flex-col gap-5 overflow-y-auto pb-6">
+          {/* Bare title — matches home page desktop style */}
+          <div>
+            <div className="layline-kicker">Race Setup</div>
+            <h1 className="mt-2 text-4xl font-black tracking-tight text-[color:var(--text)]">
+              Build the opening picture.
+            </h1>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Link
+                href="/race/pre-race/export"
+                target="_blank"
+                rel="noreferrer"
+                className="layline-pill px-4 py-2 text-sm font-semibold text-[color:var(--favorable)] transition hover:opacity-80"
+              >
+                Export PDF →
+              </Link>
+              <Link
+                href="/race/live"
+                className="layline-pill px-4 py-2 text-sm font-semibold text-[color:var(--text)] transition hover:opacity-80"
+              >
+                Race Live →
+              </Link>
+              <Link
+                href="/race/pre-race/sail-selection"
+                className="layline-pill px-4 py-2 text-sm font-semibold text-[color:var(--muted)] transition hover:text-[color:var(--text)]"
+              >
+                Sail Selection →
+              </Link>
+            </div>
+          </div>
+
+          <PreRaceSetupPanel hideHeader />
+          <PreRacePlanningInputsPanel hideHeader />
         </div>
 
         {/* Right column: intelligence read-out */}
-        <div className="space-y-4 pb-8">
+        <div className="space-y-8 pb-8">
           <DesktopSection
             id="course-read"
             badge="Course Read"
@@ -254,11 +278,10 @@ function DesktopSection(props: {
   children: ReactNode;
 }) {
   return (
-    <section id={props.id} className="scroll-mt-5">
-      <div className="mb-3 flex items-baseline gap-3">
+    <section id={props.id} className="scroll-mt-8">
+      <div className="mb-4 flex items-center gap-3 border-b border-[color:var(--divider)] pb-3">
         <span className="layline-kicker">{props.badge}</span>
-        <span className="text-xs text-[color:var(--divider)]">·</span>
-        <span className="text-sm font-bold text-[color:var(--text-soft)]">{props.title}</span>
+        <span className="flex-1 text-sm font-semibold text-[color:var(--text-soft)]">{props.title}</span>
       </div>
       {props.children}
     </section>

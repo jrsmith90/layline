@@ -453,7 +453,7 @@ export default function CourseManagerPage() {
         actions={
           <Link
             href="/race/pre-race"
-            className="rounded-xl border border-[color:var(--divider)] bg-black/20 px-4 py-3 text-sm font-black uppercase tracking-wide"
+            className="px-4 py-3 text-sm font-black uppercase tracking-wide"
           >
             Back To Pre-Race
           </Link>
@@ -470,7 +470,7 @@ export default function CourseManagerPage() {
             <button
               type="button"
               onClick={resetEditor}
-              className="rounded-xl border border-[color:var(--divider)] bg-black/20 px-3 py-2 text-xs font-black uppercase tracking-wide"
+              className="px-3 py-2 text-xs font-black uppercase tracking-wide"
             >
               New Course
             </button>
@@ -478,14 +478,14 @@ export default function CourseManagerPage() {
 
           <div className="mt-4 space-y-3">
             {savedCustomCourses.length === 0 ? (
-              <div className="rounded-xl border border-[color:var(--divider)] bg-black/20 p-4 text-sm text-[color:var(--text-soft)]">
+              <div className="p-4 text-sm text-[color:var(--text-soft)]">
                 No custom courses saved yet. Start with the editor to the right.
               </div>
             ) : (
               savedCustomCourses.map((course) => (
                 <div
                   key={course.id}
-                  className="rounded-xl border border-[color:var(--divider)] bg-black/20 p-4"
+                  className="p-4"
                 >
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
@@ -523,7 +523,7 @@ export default function CourseManagerPage() {
                       <button
                         type="button"
                         onClick={() => handleEdit(course.id)}
-                        className="rounded-xl border border-[color:var(--divider)] bg-black/20 px-3 py-2 text-xs font-black uppercase tracking-wide"
+                        className="px-3 py-2 text-xs font-black uppercase tracking-wide"
                       >
                         {course.isLocked ? "View" : "Edit"}
                       </button>
@@ -575,7 +575,7 @@ export default function CourseManagerPage() {
                 return (
                   <div
                     key={markKey}
-                    className="rounded-xl border border-[color:var(--divider)] bg-black/20 px-3 py-2 text-sm text-[color:var(--text-soft)]"
+                    className="px-3 py-2 text-sm text-[color:var(--text-soft)]"
                   >
                     {formatMarkChoice(markKey, mark, customCourseMarks)}
                   </div>
@@ -684,7 +684,7 @@ export default function CourseManagerPage() {
                           index === 0 ||
                           index === editor.sequence.length - 1
                         }
-                        className="rounded-xl border border-[color:var(--divider)] bg-black/20 px-3 py-2 text-xs font-black uppercase tracking-wide disabled:opacity-50"
+                        className="px-3 py-2 text-xs font-black uppercase tracking-wide disabled:opacity-50"
                       >
                         Remove
                       </button>
@@ -696,7 +696,7 @@ export default function CourseManagerPage() {
                   type="button"
                   onClick={addSequenceItem}
                   disabled={isEditingLockedCourse}
-                  className="mt-3 rounded-xl border border-[color:var(--divider)] bg-black/20 px-3 py-2 text-xs font-black uppercase tracking-wide"
+                  className="mt-3 px-3 py-2 text-xs font-black uppercase tracking-wide"
                 >
                   Add Mark
                 </button>
@@ -730,7 +730,7 @@ export default function CourseManagerPage() {
                 <button
                   type="button"
                   onClick={handleSave}
-                  className="rounded-xl border border-[color:var(--divider)] bg-black/20 px-4 py-3 text-sm font-black uppercase tracking-wide"
+                  className="px-4 py-3 text-sm font-black uppercase tracking-wide"
                 >
                   {editingCourseId ? "Save Changes" : "Save Course"}
                 </button>
@@ -738,7 +738,7 @@ export default function CourseManagerPage() {
               <button
                 type="button"
                 onClick={resetEditor}
-                className="rounded-xl border border-[color:var(--divider)] bg-black/20 px-4 py-3 text-sm font-black uppercase tracking-wide"
+                className="px-4 py-3 text-sm font-black uppercase tracking-wide"
               >
                 Reset
               </button>

@@ -26,7 +26,7 @@ function InputSection(props: {
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-2xl border border-[color:var(--divider)] bg-black/10 p-4">
+    <section className="p-4">
       <div className="layline-kicker">{props.badge}</div>
       <h3 className="mt-1 text-xl font-black text-[color:var(--text)]">{props.title}</h3>
       <p className="mt-2 text-sm leading-6 text-[color:var(--text-soft)]">{props.detail}</p>
@@ -35,7 +35,7 @@ function InputSection(props: {
   );
 }
 
-export function PreRacePlanningInputsPanel() {
+export function PreRacePlanningInputsPanel({ hideHeader = false }: { hideHeader?: boolean }) {
   const draft = useSyncExternalStore(
     subscribeTacticalBoardStore,
     getStoredTacticalBoardDraft,
@@ -64,18 +64,20 @@ export function PreRacePlanningInputsPanel() {
 
   return (
     <section className="layline-panel p-5">
-      <div className="max-w-4xl">
-        <div className="layline-kicker">Planning Inputs</div>
-        <h2 className="mt-1 text-2xl font-black tracking-tight text-[color:var(--text)]">
-          Fill the manual inputs once
-        </h2>
-        <p className="mt-2 text-sm leading-6 text-[color:var(--text-soft)]">
-          Use this block for the remaining dropdowns and manual fields, then scroll the rest of the
-          page as a read-only crew brief. The course and planned start above drive both sections.
-        </p>
-      </div>
+      {!hideHeader && (
+        <div className="max-w-4xl">
+          <div className="layline-kicker">Planning Inputs</div>
+          <h2 className="mt-1 text-2xl font-black tracking-tight text-[color:var(--text)]">
+            Fill the manual inputs once
+          </h2>
+          <p className="mt-2 text-sm leading-6 text-[color:var(--text-soft)]">
+            Use this block for the remaining dropdowns and manual fields, then scroll the rest of the
+            page as a read-only crew brief. The course and planned start above drive both sections.
+          </p>
+        </div>
+      )}
 
-      <div className="mt-5 grid gap-5">
+      <div className={hideHeader ? "grid gap-5" : "mt-5 grid gap-5"}>
         <InputSection
           badge="Strategy Inputs"
           title="Opening-leg strategy inputs"

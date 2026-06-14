@@ -26,7 +26,7 @@ function formatSignedRisk(value: string | null | undefined) {
 
 function Metric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-xl border border-[color:var(--divider)] bg-black/20 p-3">
+    <div className="p-3">
       <div className="text-[11px] font-black uppercase tracking-[0.16em] text-[color:var(--muted)]">
         {label}
       </div>
@@ -51,13 +51,13 @@ export function PreRaceSailPackageSummary({
         <div className="flex flex-wrap gap-3">
           <Link
             href="/race/pre-race/sail-selection"
-            className="inline-flex rounded-xl border border-[color:var(--divider)] bg-black/20 px-4 py-3 text-sm font-black uppercase tracking-wide text-[color:var(--text)]"
+            className="inline-flex px-4 py-3 text-sm font-black uppercase tracking-wide text-[color:var(--text)]"
           >
             Open Sail Selection
           </Link>
           <Link
             href="/race/inventory"
-            className="inline-flex rounded-xl border border-[color:var(--divider)] bg-black/10 px-4 py-3 text-sm font-black uppercase tracking-wide text-[color:var(--text)]"
+            className="inline-flex px-4 py-3 text-sm font-black uppercase tracking-wide text-[color:var(--text)]"
           >
             Manage Inventory
           </Link>
@@ -93,7 +93,7 @@ export function PreRaceSailPackageSummary({
 
       <div className="grid gap-4 xl:grid-cols-[1.05fr_0.95fr]">
         <div className="space-y-4">
-          <div className="rounded-2xl border border-[color:var(--divider)] bg-black/20 p-4">
+          <div className="p-4">
             <div className="text-[11px] font-black uppercase tracking-[0.16em] text-[color:var(--muted)]">
               Coach Summary
             </div>
@@ -102,7 +102,7 @@ export function PreRaceSailPackageSummary({
             </div>
           </div>
 
-          <div className="rounded-2xl border border-[color:var(--divider)] bg-black/10 p-4 text-sm leading-6 text-[color:var(--text-soft)]">
+          <div className="p-4 text-sm leading-6 text-[color:var(--text-soft)]">
             <div className="text-[11px] font-black uppercase tracking-[0.16em] text-[color:var(--muted)]">
               Forecast And Current Read
             </div>
@@ -129,13 +129,13 @@ export function PreRaceSailPackageSummary({
           <div className="flex flex-wrap gap-3">
             <Link
               href="/race/pre-race/sail-selection"
-              className="inline-flex rounded-xl border border-[color:var(--divider)] bg-black/20 px-4 py-3 text-sm font-black uppercase tracking-wide text-[color:var(--text)]"
+              className="inline-flex px-4 py-3 text-sm font-black uppercase tracking-wide text-[color:var(--text)]"
             >
               Edit Sail Package
             </Link>
             <Link
               href="/race/inventory"
-              className="inline-flex rounded-xl border border-[color:var(--divider)] bg-black/10 px-4 py-3 text-sm font-black uppercase tracking-wide text-[color:var(--text)]"
+              className="inline-flex px-4 py-3 text-sm font-black uppercase tracking-wide text-[color:var(--text)]"
             >
               Manage Inventory
             </Link>

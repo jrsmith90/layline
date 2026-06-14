@@ -513,7 +513,7 @@ export function TacticalBoardContent({
                 {tacticalCalls.map((call) => (
                   <div
                     key={call}
-                    className="rounded-xl border border-[color:var(--divider)] bg-black/20 px-4 py-3 text-sm leading-6 text-[color:var(--text-soft)]"
+                    className="px-4 py-3 text-sm leading-6 text-[color:var(--text-soft)]"
                   >
                     {call}
                   </div>
@@ -629,7 +629,7 @@ export function TacticalBoardContent({
                   )}
                 </>
               ) : (
-                <div className="mt-4 rounded-xl border border-[color:var(--divider)] bg-black/20 p-4 text-sm leading-6 text-[color:var(--text-soft)]">
+                <div className="mt-4 p-4 text-sm leading-6 text-[color:var(--text-soft)]">
                   Lock an opening-leg route-bias plan in Pre-race to carry the first-leg side
                   call into this board and the live overlay.
                 </div>
@@ -715,7 +715,7 @@ export function TacticalBoardContent({
               {tacticalCalls.map((call) => (
                 <div
                   key={call}
-                  className="rounded-xl border border-[color:var(--divider)] bg-black/20 px-4 py-3 text-sm leading-6 text-[color:var(--text-soft)]"
+                  className="px-4 py-3 text-sm leading-6 text-[color:var(--text-soft)]"
                 >
                   {call}
                 </div>
@@ -831,7 +831,7 @@ export function TacticalBoardContent({
                 )}
               </>
             ) : (
-              <div className="mt-4 rounded-xl border border-[color:var(--divider)] bg-black/20 p-4 text-sm leading-6 text-[color:var(--text-soft)]">
+              <div className="mt-4 p-4 text-sm leading-6 text-[color:var(--text-soft)]">
                 Lock an opening-leg route-bias plan in Pre-race to carry the first-leg side
                 call into this board and the live overlay.
               </div>
@@ -916,7 +916,7 @@ export function TacticalBoardContent({
               </p>
             </div>
           </div>
-          <div className="rounded-2xl border border-[color:var(--divider)] bg-black/20 px-4 py-3 text-sm leading-6 text-[color:var(--text-soft)]">
+          <div className="px-4 py-3 text-sm leading-6 text-[color:var(--text-soft)]">
             {getFavoredTackAction(board.upwind.favoredTack, firstMarkTarget)}
           </div>
         </div>
@@ -1181,7 +1181,7 @@ function HeadingCalloutCard(props: {
 
 function MetricCard(props: { label: string; value: string; help?: string }) {
   return (
-    <div className="rounded-xl border border-[color:var(--divider)] bg-black/20 p-3">
+    <div className="p-3">
       <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.16em] text-[color:var(--muted)]">
         <span>{props.label}</span>
         {props.help ? (

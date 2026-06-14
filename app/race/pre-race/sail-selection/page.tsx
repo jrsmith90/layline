@@ -523,7 +523,7 @@ export default function SailSelectionPage() {
 
           <Link
             href="/race/inventory"
-            className="inline-flex w-fit rounded-xl border border-[color:var(--divider)] bg-black/20 px-4 py-3 text-sm font-black uppercase tracking-wide"
+            className="inline-flex w-fit px-4 py-3 text-sm font-black uppercase tracking-wide"
           >
             Manage Inventory
           </Link>
@@ -563,7 +563,7 @@ export default function SailSelectionPage() {
             </p>
           </label>
 
-          <div className="rounded-2xl border border-[color:var(--divider)] bg-black/20 p-4">
+          <div className="p-4">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div>
                 <div className="text-xs uppercase tracking-wide opacity-60">
@@ -836,7 +836,7 @@ export default function SailSelectionPage() {
               </div>
             </div>
 
-            <div className="rounded-xl border border-[color:var(--divider)] bg-black/20 p-3">
+            <div className="p-3">
               <div className="flex items-center justify-between">
                 <div className="text-xs uppercase opacity-60">Confidence</div>
                 <div className={`text-sm font-semibold ${
@@ -858,11 +858,11 @@ export default function SailSelectionPage() {
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-              <div className="rounded-2xl border border-[color:var(--divider)] bg-black/20 p-4">
+              <div className="p-4">
                 <div className="text-xs tracking-widest uppercase opacity-60">Effective Wind</div>
                 <div className="mt-2 text-lg font-semibold">{result.effectiveWind.toFixed(1)} kt</div>
               </div>
-              <div className="rounded-2xl border border-[color:var(--divider)] bg-black/20 p-4">
+              <div className="p-4">
                 <div className="text-xs tracking-widest uppercase opacity-60">Reef Call</div>
                 <div className="mt-2 text-lg font-semibold">
                   {formatReefCall(effectiveSelection?.reefCall ?? result.reefCall)}
@@ -871,7 +871,7 @@ export default function SailSelectionPage() {
             </div>
 
             <div className="grid gap-3 md:grid-cols-3">
-              <div className="rounded-2xl border border-[color:var(--divider)] bg-black/20 p-4">
+              <div className="p-4">
                 <div className="text-xs tracking-widest uppercase opacity-60">Main</div>
                 <div className="mt-2 text-base font-semibold">
                   {formatMainChoice(effectiveSelection?.mainChoice ?? result.mainChoice)}
@@ -879,7 +879,7 @@ export default function SailSelectionPage() {
               </div>
 
               {effectiveSelection?.headsailChoice && (
-                <div className="rounded-2xl border border-[color:var(--divider)] bg-black/20 p-4">
+                <div className="p-4">
                   <div className="text-xs tracking-widest uppercase opacity-60">Headsail</div>
                   <div className="mt-2 text-base font-semibold">
                     {formatHeadsailChoice(effectiveSelection.headsailChoice)}
@@ -888,7 +888,7 @@ export default function SailSelectionPage() {
               )}
 
               {effectiveSelection?.spinnakerChoice && (
-                <div className="rounded-2xl border border-[color:var(--divider)] bg-black/20 p-4">
+                <div className="p-4">
                   <div className="text-xs tracking-widest uppercase opacity-60">Spinnaker</div>
                   <div className="mt-2 text-base font-semibold">
                     {formatSpinChoice(effectiveSelection.spinnakerChoice)}
@@ -1013,12 +1013,12 @@ export default function SailSelectionPage() {
               </div>
             </div>
 
-            <div className="rounded-2xl border border-[color:var(--divider)] bg-black/20 p-4">
+            <div className="p-4">
               <div className="text-xs tracking-widest uppercase opacity-60">Why This Changed</div>
               <div className="mt-2 text-sm leading-relaxed opacity-90">{result.reason}</div>
             </div>
 
-            <div className="rounded-2xl border border-[color:var(--divider)] bg-black/20 p-4">
+            <div className="p-4">
               <div className="text-xs tracking-widest uppercase opacity-60">Race Notes</div>
               <ul className="mt-2 list-disc ml-5 space-y-1 text-sm opacity-90">
                 {result.notes.map((n, i) => (
@@ -1027,7 +1027,7 @@ export default function SailSelectionPage() {
               </ul>
             </div>
 
-            <div className="rounded-2xl border border-[color:var(--divider)] bg-black/20 p-4">
+            <div className="p-4">
               <div className="text-xs tracking-widest uppercase opacity-60">What Would Change the Call</div>
               <ul className="mt-2 list-disc ml-5 space-y-1 text-sm opacity-90">
                 {callChangeTriggers.map((item, i) => (

@@ -1224,7 +1224,7 @@ export default function RaceLiveCockpit() {
             type="button"
             onClick={() => goToLeg(safeLegIndex + 1)}
             disabled={!canGoNext}
-            className="rounded-xl border border-[color:var(--divider)] bg-black/20 px-4 py-3 text-sm font-black uppercase tracking-wide disabled:opacity-40"
+            className="px-4 py-3 text-sm font-black uppercase tracking-wide disabled:opacity-40"
           >
             Next Leg
           </button>
@@ -1274,7 +1274,7 @@ export default function RaceLiveCockpit() {
             <button
               type="button"
               onClick={() => setShowWeather((value) => !value)}
-              className="mt-3 w-full rounded-xl border border-[color:var(--divider)] bg-black/20 px-3 py-3 text-sm font-black uppercase tracking-wide"
+              className="mt-3 w-full px-3 py-3 text-sm font-black uppercase tracking-wide"
             >
               {showWeather ? "Hide Weather Source" : "Show Weather Source"}
             </button>
@@ -1458,7 +1458,7 @@ function BigMetric({
   className?: string;
 }) {
   return (
-    <div className={["rounded-xl border border-[color:var(--divider)] bg-black/20 p-2.5 sm:p-3", className].join(" ")}>
+    <div className={["p-2.5 sm:p-3", className].join(" ")}>
       <div className="text-[10px] font-black uppercase tracking-[0.16em] text-[color:var(--muted)]">
         {label}
       </div>

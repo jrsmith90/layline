@@ -68,7 +68,7 @@ export default function SailInventoryPage() {
         actions={
           <Link
             href="/race/pre-race/sail-selection"
-            className="rounded-xl border border-[color:var(--divider)] bg-black/20 px-4 py-3 text-sm font-black uppercase tracking-wide"
+            className="px-4 py-3 text-sm font-black uppercase tracking-wide"
           >
             Back To Sail Selection
           </Link>
@@ -82,7 +82,7 @@ export default function SailInventoryPage() {
             return (
               <div
                 key={key}
-                className="rounded-xl border border-[color:var(--divider)] bg-black/20 p-3"
+                className="p-3"
               >
                 <div className="text-[11px] font-black uppercase tracking-[0.16em] text-[color:var(--muted)]">
                   {meta.title}
@@ -206,7 +206,7 @@ function InventoryEditor(props: { savedDefaults: SailInventoryDefaults }) {
               return (
                 <div
                   key={key}
-                  className="rounded-xl border border-[color:var(--divider)] bg-black/20 p-3"
+                  className="p-3"
                 >
                   <div className="text-[11px] font-black uppercase tracking-[0.16em] text-[color:var(--muted)]">
                     {formatSailInventoryKey(key)}
@@ -251,14 +251,14 @@ function InventoryEditor(props: { savedDefaults: SailInventoryDefaults }) {
               type="button"
               onClick={handleRevert}
               disabled={!isDirty}
-              className="rounded-xl border border-[color:var(--divider)] bg-black/20 px-4 py-3 text-sm font-black uppercase tracking-wide disabled:opacity-40"
+              className="px-4 py-3 text-sm font-black uppercase tracking-wide disabled:opacity-40"
             >
               Revert Unsaved Changes
             </button>
             <button
               type="button"
               onClick={handleRestoreStandardDefaults}
-              className="rounded-xl border border-[color:var(--divider)] bg-black/20 px-4 py-3 text-sm font-black uppercase tracking-wide"
+              className="px-4 py-3 text-sm font-black uppercase tracking-wide"
             >
               Load Standard Defaults
             </button>

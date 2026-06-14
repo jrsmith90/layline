@@ -357,7 +357,7 @@ export default function ActiveCourseTracker() {
             type="button"
             onClick={() => goToLeg(safeLegIndex - 1)}
             disabled={!canGoPrev}
-            className="rounded-xl border border-[color:var(--divider)] bg-black/20 px-4 py-3 text-sm font-bold uppercase tracking-wide disabled:opacity-40"
+            className="px-4 py-3 text-sm font-bold uppercase tracking-wide disabled:opacity-40"
           >
             Prev Leg
           </button>
@@ -365,7 +365,7 @@ export default function ActiveCourseTracker() {
             type="button"
             onClick={() => goToLeg(safeLegIndex + 1)}
             disabled={!canGoNext}
-            className="rounded-xl border border-[color:var(--divider)] bg-black/20 px-4 py-3 text-sm font-bold uppercase tracking-wide disabled:opacity-40"
+            className="px-4 py-3 text-sm font-bold uppercase tracking-wide disabled:opacity-40"
           >
             Next Leg
           </button>
@@ -505,7 +505,7 @@ export default function ActiveCourseTracker() {
           <section className="layline-panel p-4">
             <div className="layline-kicker">Layline Read</div>
             <div className="mt-4 grid gap-3 md:grid-cols-2">
-              <div className="rounded-xl border border-[color:var(--divider)] bg-black/20 p-4">
+              <div className="p-4">
                 <div className="text-xs font-bold uppercase tracking-[0.16em] text-[color:var(--muted)]">
                   Current tack
                 </div>
@@ -520,7 +520,7 @@ export default function ActiveCourseTracker() {
                 </div>
               </div>
 
-              <div className="rounded-xl border border-[color:var(--divider)] bg-black/20 p-4">
+              <div className="p-4">
                 <div className="text-xs font-bold uppercase tracking-[0.16em] text-[color:var(--muted)]">
                   Opposite tack
                 </div>
@@ -543,7 +543,7 @@ export default function ActiveCourseTracker() {
 
 function Metric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-xl border border-[color:var(--divider)] bg-black/20 p-3">
+    <div className="p-3">
       <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-[color:var(--muted)]">
         {label}
       </div>

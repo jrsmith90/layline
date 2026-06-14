@@ -144,7 +144,7 @@ export function TackCalibrationPanel({
           type="button"
           onClick={() => raceDayHalfAngle != null && onUseHalfAngle(raceDayHalfAngle)}
           disabled={raceDayHalfAngle == null}
-          className="rounded-xl border border-[color:var(--divider)] bg-black/20 px-4 py-3 text-sm font-bold uppercase tracking-wide disabled:opacity-40"
+          className="px-4 py-3 text-sm font-bold uppercase tracking-wide disabled:opacity-40"
         >
           Use Race-day
         </button>
@@ -153,7 +153,7 @@ export function TackCalibrationPanel({
           type="button"
           onClick={clearCalibrations}
           disabled={results.length === 0}
-          className="rounded-xl border border-[color:var(--divider)] bg-black/20 px-4 py-3 text-sm font-bold uppercase tracking-wide disabled:opacity-40"
+          className="px-4 py-3 text-sm font-bold uppercase tracking-wide disabled:opacity-40"
         >
           Clear
         </button>
@@ -190,7 +190,7 @@ export function TackCalibrationPanel({
 
 function Metric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-xl border border-[color:var(--divider)] bg-black/20 p-3">
+    <div className="p-3">
       <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-[color:var(--muted)]">
         {label}
       </div>

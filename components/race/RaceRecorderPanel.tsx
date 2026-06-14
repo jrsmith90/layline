@@ -477,14 +477,14 @@ export function RaceRecorderPanel({
         <button
           type="button"
           onClick={recoverToday}
-          className="flex items-center justify-center gap-2 rounded-xl border border-[color:var(--divider)] bg-black/20 px-3 py-3 text-sm font-black uppercase tracking-wide"
+          className="flex items-center justify-center gap-2 px-3 py-3 text-sm font-black uppercase tracking-wide"
         >
           <Flag size={15} />
           Recover Today
         </button>
         <Link
           href="/race/review"
-          className="flex items-center justify-center gap-2 rounded-xl border border-[color:var(--divider)] bg-black/20 px-3 py-3 text-sm font-black uppercase tracking-wide"
+          className="flex items-center justify-center gap-2 px-3 py-3 text-sm font-black uppercase tracking-wide"
         >
           <NotebookPen size={15} />
           Review
@@ -511,7 +511,7 @@ export function RaceRecorderPanel({
           type="button"
           onClick={saveNote}
           disabled={!session || !note.trim()}
-          className="rounded-xl border border-[color:var(--divider)] bg-black/20 px-3 py-3 text-sm font-black uppercase tracking-wide disabled:opacity-50"
+          className="px-3 py-3 text-sm font-black uppercase tracking-wide disabled:opacity-50"
         >
           Add Note
         </button>
@@ -526,7 +526,7 @@ export function RaceRecorderPanel({
               exportRaceSessionJson(session),
             )
           }
-          className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-[color:var(--divider)] bg-black/20 px-3 py-3 text-sm font-black uppercase tracking-wide"
+          className="mt-3 flex w-full items-center justify-center gap-2 px-3 py-3 text-sm font-black uppercase tracking-wide"
         >
           <Download size={15} />
           Export Session
@@ -540,7 +540,7 @@ export function RaceRecorderPanel({
 
 function SmallMetric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-xl border border-[color:var(--divider)] bg-black/20 p-3">
+    <div className="p-3">
       <div className="text-[9px] font-black uppercase tracking-[0.14em] text-[color:var(--muted)]">
         {label}
       </div>
