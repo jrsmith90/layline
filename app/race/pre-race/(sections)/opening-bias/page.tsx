@@ -2,12 +2,15 @@
 
 import { useSyncExternalStore } from "react";
 import { PreRaceOpeningBiasSummary } from "@/components/race/PreRaceOpeningBiasSummary";
+import PreRaceRouteBiasForm from "@/components/race/PreRaceRouteBiasForm";
 import { getDefaultCourseId } from "@/data/race/getCourseData";
 import {
   buildTacticalBoardDraftDefaults,
   getStoredTacticalBoardDraft,
+  setTacticalBoardRouteBiasPlan,
   subscribeTacticalBoardStore,
 } from "@/lib/race/tacticalBoard/store";
+import type { RouteBiasAnswers, RouteBiasResult } from "@/lib/race/scoreRouteBias";
 
 const DEFAULT = buildTacticalBoardDraftDefaults(getDefaultCourseId());
 
@@ -27,9 +30,35 @@ export default function OpeningBiasPage() {
     () => DEFAULT,
   );
 
+  function handleRouteBiasReady(payload: {
+    result: RouteBiasResult;
+    answers: RouteBiasAnswers;
+  }) {
+    setTacticalBoardRouteBiasPlan({
+      answers: payload.answers,
+      plan: payload.result,
+    });
+  }
+
   return (
     <section>
       <SectionHead badge="Opening Bias" title="Opening-bias intel" />
+
+      <div className="mb-8">
+        <PreRaceRouteBiasForm
+          key={JSON.stringify({
+            courseId: draft.courseId,
+            answers: draft.routeBias.originalAnswers,
+            plan: draft.routeBias.originalPlan,
+          })}
+          defaultCourseId={draft.courseId}
+          initialAnswers={draft.routeBias.originalAnswers}
+          initialResult={draft.routeBias.originalPlan}
+          showCourseField={false}
+          onPlanReady={handleRouteBiasReady}
+        />
+      </div>
+
       <PreRaceOpeningBiasSummary draft={draft} />
     </section>
   );

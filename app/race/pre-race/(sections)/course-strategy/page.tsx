@@ -2,12 +2,15 @@
 
 import { useSyncExternalStore } from "react";
 import { CourseStrategyResultCard } from "@/components/race/CourseStrategyResultCard";
+import PreRaceCourseStrategyForm from "@/components/race/PreRaceCourseStrategyForm";
 import { getDefaultCourseId } from "@/data/race/getCourseData";
 import {
   buildTacticalBoardDraftDefaults,
   getStoredTacticalBoardDraft,
+  setTacticalBoardCourseStrategy,
   subscribeTacticalBoardStore,
 } from "@/lib/race/tacticalBoard/store";
+import type { CourseStrategyAnswers, CourseStrategyResult } from "@/lib/race/courseStrategy/types";
 
 const DEFAULT = buildTacticalBoardDraftDefaults(getDefaultCourseId());
 
@@ -27,9 +30,34 @@ export default function CourseStrategyPage() {
     () => DEFAULT,
   );
 
+  function handleStrategyReady(payload: {
+    result: CourseStrategyResult;
+    answers: CourseStrategyAnswers;
+  }) {
+    setTacticalBoardCourseStrategy({
+      answers: payload.answers,
+      result: payload.result,
+    });
+  }
+
   return (
     <section>
       <SectionHead badge="Strategy Intel" title="Opening-leg strategy intel" />
+
+      <div className="mb-8">
+        <PreRaceCourseStrategyForm
+          key={`strategy-${draft.courseId}`}
+          defaultCourseId={draft.courseId}
+          meanWindDirectionDeg={draft.meanWindDirectionDeg}
+          tackAngleDeg={draft.tackAngleDeg}
+          plannedRaceStartDate={draft.raceStartDate}
+          plannedRaceStartTime={draft.raceStartTime}
+          confirmedSailSelection={draft.confirmedSailSelection}
+          initialAnswers={draft.courseStrategy}
+          onPlanReady={handleStrategyReady}
+        />
+      </div>
+
       {draft.courseStrategyResult ? (
         <CourseStrategyResultCard
           result={draft.courseStrategyResult}
@@ -38,7 +66,7 @@ export default function CourseStrategyPage() {
         />
       ) : (
         <div className="rounded-xl border border-dashed border-[color:var(--divider)] p-5 text-sm leading-6 text-[color:var(--text-soft)]">
-          No course strategy saved yet. Fill the strategy input block on the left, then this becomes the read-only strategy brief.
+          No course strategy saved yet. Fill the strategy inputs above, then this becomes the read-only strategy brief.
         </div>
       )}
     </section>

@@ -4,7 +4,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { useDisplayMode } from "@/components/display/DisplayModeProvider";
-import { PreRacePlanningInputsPanel } from "@/components/race/PreRacePlanningInputsPanel";
 import { PreRaceSetupPanel } from "@/components/race/PreRaceSetupPanel";
 
 const SECTIONS = [
@@ -84,13 +83,11 @@ export default function PreRaceSectionsLayout({ children }: { children: ReactNod
         </div>
       </header>
 
-      <div className="grid flex-1 grid-cols-[minmax(320px,_38%)_1fr] items-start gap-8 px-8 py-8">
-        <div className="sticky top-24 flex max-h-[calc(100vh-9rem)] flex-col gap-5 overflow-y-auto pb-6">
-          <PreRaceSetupPanel hideHeader />
-          <div className="h-px bg-[color:var(--divider)]" />
-          <PreRacePlanningInputsPanel hideHeader />
-        </div>
+      <div className="border-b border-[color:var(--divider)] px-8 py-5">
+        <PreRaceSetupPanel hideHeader />
+      </div>
 
+      <div className="flex-1 px-8 py-8">
         <div className="pb-8">{children}</div>
       </div>
     </div>
