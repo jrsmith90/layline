@@ -68,10 +68,10 @@ type ChartPoint = {
 
 const STATIONS: Array<{ id: string; label: string; color: string; dash?: string }> = [
   { id: "ACT6106", label: "Greenbury Pt", color: "#818cf8" },
-  { id: "ACT4976", label: "Tolly Pt", color: "#38bdf8" },
-  { id: "cb1102",  label: "Bay Bridge",  color: "#a78bfa", dash: "4 3" },
-  { id: "ACT4971", label: "Thomas Pt SE",color: "#34d399", dash: "4 3" },
-  { id: "ACT4966", label: "Thomas Pt E", color: "#fb923c", dash: "4 3" },
+  { id: "ACT4976", label: "Tolly Pt",     color: "#38bdf8" },
+  { id: "cb1102",  label: "Bay Bridge",   color: "#a78bfa", dash: "4 3" },
+  { id: "ACT4971", label: "Thomas Pt SE", color: "#34d399", dash: "4 3" },
+  { id: "ACT4966", label: "Thomas Pt E",  color: "#fb923c", dash: "4 3" },
 ];
 
 const X_TICKS = [0, 180, 360, 540, 720, 900, 1080, 1260, 1440];
@@ -81,6 +81,25 @@ const X_LABELS: Record<number, string> = {
 };
 
 const DEFAULT = buildTacticalBoardDraftDefaults(getDefaultCourseId());
+
+function shiftDate(dateStr: string, days: number): string {
+  const [y, mo, d] = dateStr.split("-").map(Number);
+  const dt = new Date(y!, mo! - 1, d!);
+  dt.setDate(dt.getDate() + days);
+  const yy = dt.getFullYear();
+  const mm = String(dt.getMonth() + 1).padStart(2, "0");
+  const dd = String(dt.getDate()).padStart(2, "0");
+  return `${yy}-${mm}-${dd}`;
+}
+
+function formatDisplayDate(dateStr: string): string {
+  const [y, mo, d] = dateStr.split("-").map(Number);
+  return new Date(y!, mo! - 1, d!).toLocaleDateString("en-US", {
+    weekday: "long",
+    month: "short",
+    day: "numeric",
+  });
+}
 
 function timeToMinute(time: string): number {
   const [h, m] = time.split(":").map(Number);
@@ -163,19 +182,26 @@ export default function TideCurrentChart() {
     () => DEFAULT,
   );
   const courseData = useResolvedCourseData(draft.courseId);
+  const [selectedDate, setSelectedDate] = useState<string>(courseData.raceDate);
   const [payload, setPayload] = useState<TideCurrentPayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [hiddenSeries, setHiddenSeries] = useState<Set<string>>(new Set());
+
+  // Reset to race date when the course changes
+  useEffect(() => {
+    setSelectedDate(courseData.raceDate);
+  }, [courseData.raceDate]);
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     setError(null);
 
+    const isRaceDay = selectedDate === courseData.raceDate;
     const params = new URLSearchParams({
-      date: courseData.raceDate,
-      eventId: courseData.eventId,
+      date: selectedDate,
+      ...(isRaceDay ? { eventId: courseData.eventId } : {}),
       time: "12:00",
     });
 
@@ -195,19 +221,19 @@ export default function TideCurrentChart() {
       });
 
     return () => { cancelled = true; };
-  }, [courseData.raceDate, courseData.eventId]);
+  }, [selectedDate, courseData.raceDate, courseData.eventId]);
 
   const chartData = useMemo(() => (payload ? buildChartData(payload) : []), [payload]);
-
   const hiloLines = useMemo(() => payload?.tide.hilo ?? [], [payload]);
+  const isRaceDay = selectedDate === courseData.raceDate;
 
   const raceStartMin = useMemo(
-    () => (payload ? displayToMinute(payload.raceWindow.firstWarning) : null),
-    [payload],
+    () => (payload && isRaceDay ? displayToMinute(payload.raceWindow.firstWarning) : null),
+    [payload, isRaceDay],
   );
   const raceLimitMin = useMemo(
-    () => (payload ? displayToMinute(payload.raceWindow.timeLimit) : null),
-    [payload],
+    () => (payload && isRaceDay ? displayToMinute(payload.raceWindow.timeLimit) : null),
+    [payload, isRaceDay],
   );
 
   function handleLegendClick(data: { dataKey?: string | number }) {
@@ -221,29 +247,53 @@ export default function TideCurrentChart() {
     });
   }
 
-  if (loading) {
-    return (
-      <div className="flex h-52 items-center justify-center">
-        <span className="text-sm text-[#7a9ea8]">Loading tide and current data…</span>
-      </div>
-    );
-  }
-
-  if (error || !payload) {
-    return (
-      <div className="flex h-32 items-center justify-center">
-        <span className="text-sm text-[#d2725c]">{error ?? "No data available."}</span>
-      </div>
-    );
-  }
-
   return (
     <div>
-      <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
-        <p className="text-xs text-[#7a9ea8]">
-          Tide height (left axis, ft) and current velocity (right axis, kt).
-          Flood is positive · ebb is negative · click a station name to toggle it.
-        </p>
+      {/* Date selector row */}
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setSelectedDate((d) => shiftDate(d, -1))}
+            className="flex h-7 w-7 items-center justify-center rounded border border-[color:var(--divider)] text-[#7a9ea8] transition-colors hover:border-[#2a5a70] hover:text-[#cddde0]"
+            aria-label="Previous day"
+          >
+            ‹
+          </button>
+
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-semibold text-[#cddde0]">
+              {formatDisplayDate(selectedDate)}
+            </span>
+            {isRaceDay && (
+              <span className="layline-kicker">Race Day</span>
+            )}
+          </div>
+
+          <button
+            onClick={() => setSelectedDate((d) => shiftDate(d, 1))}
+            className="flex h-7 w-7 items-center justify-center rounded border border-[color:var(--divider)] text-[#7a9ea8] transition-colors hover:border-[#2a5a70] hover:text-[#cddde0]"
+            aria-label="Next day"
+          >
+            ›
+          </button>
+
+          <input
+            type="date"
+            value={selectedDate}
+            onChange={(e) => { if (e.target.value) setSelectedDate(e.target.value); }}
+            className="h-7 rounded border border-[color:var(--divider)] bg-transparent px-2 text-xs text-[#7a9ea8] outline-none focus:border-[#2a5a70] focus:text-[#cddde0]"
+          />
+
+          {!isRaceDay && (
+            <button
+              onClick={() => setSelectedDate(courseData.raceDate)}
+              className="text-xs text-[#7a9ea8] underline-offset-2 hover:text-[#65c4b8] hover:underline"
+            >
+              back to race day
+            </button>
+          )}
+        </div>
+
         <div className="flex flex-wrap gap-3 text-xs">
           {hiloLines.map((event, i) => (
             <span
@@ -256,156 +306,166 @@ export default function TideCurrentChart() {
         </div>
       </div>
 
-      <ResponsiveContainer width="100%" height={300}>
-        <ComposedChart data={chartData} margin={{ top: 8, right: 58, left: 0, bottom: 4 }}>
-          <CartesianGrid strokeDasharray="2 4" stroke="#1e3a48" vertical={false} />
+      {/* Legend hint */}
+      <p className="mb-2 text-xs text-[#7a9ea8]">
+        Tide height (left axis, ft) and current velocity (right axis, kt).
+        Flood is positive · ebb is negative · click a station name to toggle it.
+      </p>
 
-          <XAxis
-            dataKey="minute"
-            type="number"
-            domain={[0, 1440]}
-            ticks={X_TICKS}
-            tickFormatter={(min: number) => X_LABELS[min] ?? ""}
-            tick={{ fill: "#7a9ea8", fontSize: 10 }}
-            axisLine={{ stroke: "#1e3a48" }}
-            tickLine={false}
-            interval={0}
-          />
+      {loading ? (
+        <div className="flex h-52 items-center justify-center">
+          <span className="text-sm text-[#7a9ea8]">Loading tide and current data…</span>
+        </div>
+      ) : error || !payload ? (
+        <div className="flex h-32 items-center justify-center">
+          <span className="text-sm text-[#d2725c]">{error ?? "No data available."}</span>
+        </div>
+      ) : (
+        <ResponsiveContainer width="100%" height={300}>
+          <ComposedChart data={chartData} margin={{ top: 8, right: 58, left: 0, bottom: 4 }}>
+            <CartesianGrid strokeDasharray="2 4" stroke="#1e3a48" vertical={false} />
 
-          <YAxis
-            yAxisId="tide"
-            orientation="left"
-            domain={[0, "dataMax + 0.5"]}
-            tickFormatter={(v: number) => `${v.toFixed(1)}`}
-            tick={{ fill: "#65c4b8", fontSize: 10 }}
-            axisLine={false}
-            tickLine={false}
-            width={30}
-            label={{
-              value: "ft",
-              angle: -90,
-              position: "insideLeft",
-              fill: "#65c4b8",
-              fontSize: 9,
-              dx: 10,
-            }}
-          />
-
-          <YAxis
-            yAxisId="current"
-            orientation="right"
-            tickFormatter={(v: number) => `${v > 0 ? "+" : ""}${v.toFixed(1)}`}
-            tick={{ fill: "#7a9ea8", fontSize: 10 }}
-            axisLine={false}
-            tickLine={false}
-            width={42}
-            label={{
-              value: "kt",
-              angle: 90,
-              position: "insideRight",
-              fill: "#7a9ea8",
-              fontSize: 9,
-              dx: -6,
-            }}
-          />
-
-          {/* Current zero baseline */}
-          <ReferenceLine yAxisId="current" y={0} stroke="#2a4a5a" strokeWidth={1.5} />
-
-          {/* Race window band */}
-          {raceStartMin != null && raceLimitMin != null && (
-            <ReferenceArea
-              yAxisId="tide"
-              x1={raceStartMin}
-              x2={raceLimitMin}
-              fill="#65c4b8"
-              fillOpacity={0.06}
+            <XAxis
+              dataKey="minute"
+              type="number"
+              domain={[0, 1440]}
+              ticks={X_TICKS}
+              tickFormatter={(min: number) => X_LABELS[min] ?? ""}
+              tick={{ fill: "#7a9ea8", fontSize: 10 }}
+              axisLine={{ stroke: "#1e3a48" }}
+              tickLine={false}
+              interval={0}
             />
-          )}
 
-          {/* First warning line */}
-          {raceStartMin != null && (
-            <ReferenceLine
+            <YAxis
               yAxisId="tide"
-              x={raceStartMin}
-              stroke="#65c4b8"
-              strokeWidth={1.5}
-              strokeDasharray="4 3"
+              orientation="left"
+              domain={[0, "dataMax + 0.5"]}
+              tickFormatter={(v: number) => `${v.toFixed(1)}`}
+              tick={{ fill: "#65c4b8", fontSize: 10 }}
+              axisLine={false}
+              tickLine={false}
+              width={30}
               label={{
-                value: "Start",
-                position: "insideTopLeft",
+                value: "ft",
+                angle: -90,
+                position: "insideLeft",
                 fill: "#65c4b8",
                 fontSize: 9,
-                dy: -2,
+                dx: 10,
               }}
             />
-          )}
 
-          {/* H/L tide markers */}
-          {hiloLines.map((event, i) => (
-            <ReferenceLine
-              key={i}
-              yAxisId="tide"
-              x={event.minute}
-              stroke={event.type === "high" ? "#65c4b8" : "#d9b26b"}
-              strokeWidth={1}
-              strokeDasharray="2 5"
-              label={{
-                value: event.type === "high" ? "H" : "L",
-                position: "insideTopRight",
-                fill: event.type === "high" ? "#65c4b8" : "#d9b26b",
-                fontSize: 8,
-              }}
-            />
-          ))}
-
-          {/* Tide area */}
-          <Area
-            yAxisId="tide"
-            type="monotone"
-            dataKey="tide"
-            fill="#65c4b8"
-            fillOpacity={0.1}
-            stroke="#65c4b8"
-            strokeWidth={2}
-            dot={false}
-            activeDot={{ r: 3, fill: "#65c4b8", strokeWidth: 0 }}
-            name="Tide"
-          />
-
-          {/* Current station lines */}
-          {STATIONS.map((station) => (
-            <Line
-              key={station.id}
+            <YAxis
               yAxisId="current"
-              type="monotone"
-              dataKey={station.id}
-              stroke={hiddenSeries.has(station.id) ? "transparent" : station.color}
-              strokeWidth={1.5}
-              strokeDasharray={station.dash}
-              dot={false}
-              activeDot={hiddenSeries.has(station.id) ? false : { r: 3, strokeWidth: 0 }}
-              name={station.label}
-              legendType="line"
+              orientation="right"
+              tickFormatter={(v: number) => `${v > 0 ? "+" : ""}${v.toFixed(1)}`}
+              tick={{ fill: "#7a9ea8", fontSize: 10 }}
+              axisLine={false}
+              tickLine={false}
+              width={42}
+              label={{
+                value: "kt",
+                angle: 90,
+                position: "insideRight",
+                fill: "#7a9ea8",
+                fontSize: 9,
+                dx: -6,
+              }}
             />
-          ))}
 
-          <Tooltip
-            content={<CustomTooltip />}
-            cursor={{ stroke: "#2a4a5a", strokeWidth: 1 }}
-          />
+            <ReferenceLine yAxisId="current" y={0} stroke="#2a4a5a" strokeWidth={1.5} />
 
-          <Legend
-            wrapperStyle={{ paddingTop: 8 }}
-            formatter={(value: string, entry: { color?: string }) =>
-              <LegendLabel value={value} color={entry.color} />
-            }
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            onClick={(data: any) => handleLegendClick(data)}
-            iconSize={12}
-          />
-        </ComposedChart>
-      </ResponsiveContainer>
+            {raceStartMin != null && raceLimitMin != null && (
+              <ReferenceArea
+                yAxisId="tide"
+                x1={raceStartMin}
+                x2={raceLimitMin}
+                fill="#65c4b8"
+                fillOpacity={0.06}
+              />
+            )}
+
+            {raceStartMin != null && (
+              <ReferenceLine
+                yAxisId="tide"
+                x={raceStartMin}
+                stroke="#65c4b8"
+                strokeWidth={1.5}
+                strokeDasharray="4 3"
+                label={{
+                  value: "Start",
+                  position: "insideTopLeft",
+                  fill: "#65c4b8",
+                  fontSize: 9,
+                  dy: -2,
+                }}
+              />
+            )}
+
+            {hiloLines.map((event, i) => (
+              <ReferenceLine
+                key={i}
+                yAxisId="tide"
+                x={event.minute}
+                stroke={event.type === "high" ? "#65c4b8" : "#d9b26b"}
+                strokeWidth={1}
+                strokeDasharray="2 5"
+                label={{
+                  value: event.type === "high" ? "H" : "L",
+                  position: "insideTopRight",
+                  fill: event.type === "high" ? "#65c4b8" : "#d9b26b",
+                  fontSize: 8,
+                }}
+              />
+            ))}
+
+            <Area
+              yAxisId="tide"
+              type="monotone"
+              dataKey="tide"
+              fill="#65c4b8"
+              fillOpacity={0.1}
+              stroke="#65c4b8"
+              strokeWidth={2}
+              dot={false}
+              activeDot={{ r: 3, fill: "#65c4b8", strokeWidth: 0 }}
+              name="Tide"
+            />
+
+            {STATIONS.map((station) => (
+              <Line
+                key={station.id}
+                yAxisId="current"
+                type="monotone"
+                dataKey={station.id}
+                stroke={hiddenSeries.has(station.id) ? "transparent" : station.color}
+                strokeWidth={1.5}
+                strokeDasharray={station.dash}
+                dot={false}
+                activeDot={hiddenSeries.has(station.id) ? false : { r: 3, strokeWidth: 0 }}
+                name={station.label}
+                legendType="line"
+              />
+            ))}
+
+            <Tooltip
+              content={<CustomTooltip />}
+              cursor={{ stroke: "#2a4a5a", strokeWidth: 1 }}
+            />
+
+            <Legend
+              wrapperStyle={{ paddingTop: 8 }}
+              formatter={(value: string, entry: { color?: string }) =>
+                <LegendLabel value={value} color={entry.color} />
+              }
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              onClick={(data: any) => handleLegendClick(data)}
+              iconSize={12}
+            />
+          </ComposedChart>
+        </ResponsiveContainer>
+      )}
     </div>
   );
 }
