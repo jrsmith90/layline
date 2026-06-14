@@ -158,11 +158,13 @@ export type RaceSessionReview = {
   plannedOpeningBias: OpeningBiasRecord | null;
 };
 
-const SESSIONS_KEY = "layline-race-sessions-v1";
-const ACTIVE_SESSION_ID_KEY = "layline-active-race-session-id-v1";
-const SNAPSHOT_CACHE_KEY = "layline-race-session-repository-cache-v1";
-const GPS_TRACK_KEY = "layline-phone-gps-track-v1";
-const TRACKER_KEY = "layline-active-course-tracker-v1";
+import { STORAGE_KEYS } from "@/lib/storageKeys";
+
+const SESSIONS_KEY = STORAGE_KEYS.sessions;
+const ACTIVE_SESSION_ID_KEY = STORAGE_KEYS.activeSessionId;
+const SNAPSHOT_CACHE_KEY = STORAGE_KEYS.sessionRepositoryCache;
+const GPS_TRACK_KEY = STORAGE_KEYS.gpsTrack;
+const TRACKER_KEY = STORAGE_KEYS.activeCourseTracker;
 const REPOSITORY_ENDPOINT = "/api/race-sessions";
 const MAX_RACE_STATE_SNAPSHOTS = 720;
 const MAX_TACTICAL_BOARD_SNAPSHOTS = 720;

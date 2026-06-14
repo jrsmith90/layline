@@ -1,4 +1,5 @@
 import { absAngleDiffDeg, angleDiffDeg, wrap360 } from "@/lib/race/courseTracker";
+import { STORAGE_KEYS } from "@/lib/storageKeys";
 
 export type TackCalibrationTrackPoint = {
   at: string;
@@ -39,7 +40,7 @@ export type TackRecord = {
   sourceCalibrationId: string;
 };
 
-export const TACK_CALIBRATION_STORAGE_KEY = "layline-tack-calibrations-v1";
+export const TACK_CALIBRATION_STORAGE_KEY = STORAGE_KEYS.tackCalibrations;
 const EMPTY_TACK_CALIBRATIONS: TackCalibrationResult[] = [];
 let cachedTackCalibrationRaw: string | null | undefined;
 let cachedTackCalibrationSnapshot: TackCalibrationResult[] = EMPTY_TACK_CALIBRATIONS;

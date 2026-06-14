@@ -1,5 +1,7 @@
 "use client";
 
+import { STORAGE_KEYS } from "@/lib/storageKeys";
+
 export type Rating = "better" | "same" | "worse";
 export type LogStatus = "pending" | "unrated" | "rated";
 
@@ -68,8 +70,8 @@ export type LaylineLog = {
   logicVersion: string; // bump when rules change
 };
 
-const STORAGE_KEY = "layline-logs-v1";
-const PENDING_ID_KEY = "layline-pending-log-id-v1";
+const STORAGE_KEY = STORAGE_KEYS.logs;
+const PENDING_ID_KEY = STORAGE_KEYS.pendingLogId;
 
 function nowISO() {
   return new Date().toISOString();

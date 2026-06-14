@@ -10,6 +10,7 @@ import {
   type ReactNode,
 } from "react";
 import { Laptop, MonitorSmartphone, Smartphone, Tablet } from "lucide-react";
+import { STORAGE_KEYS } from "@/lib/storageKeys";
 
 export type DisplayMode = "auto" | "phone" | "ipad" | "desktop";
 export type EffectiveDisplayMode = "phone" | "ipad" | "desktop";
@@ -20,7 +21,7 @@ type DisplayModeContextValue = {
   setMode: (mode: DisplayMode) => void;
 };
 
-const DISPLAY_MODE_KEY = "layline-display-mode";
+const DISPLAY_MODE_KEY = STORAGE_KEYS.displayMode;
 const IPAD_WIDTH_QUERY = "(min-width: 768px)";
 const DESKTOP_WIDTH_QUERY = "(min-width: 1180px)";
 

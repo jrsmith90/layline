@@ -4,6 +4,7 @@ import {
   hasCourse,
   type CourseSummary,
 } from "@/data/race/getCourseData";
+import { STORAGE_KEYS } from "@/lib/storageKeys";
 import {
   absAngleDiffDeg,
   bearingDeg,
@@ -71,7 +72,7 @@ const AUTO_ADVANCE_CROSS_TRACK_TOLERANCE_NM = 0.12;
 const AUTO_ADVANCE_BEARING_TOLERANCE_DEG = 85;
 const AUTO_ADVANCE_MIN_SPEED_KT = 0.8;
 
-export const TRACKER_STORAGE_KEY = "layline-active-course-tracker-v1";
+export const TRACKER_STORAGE_KEY = STORAGE_KEYS.activeCourseTracker;
 export const RECENT_TRACKER_TRANSITION_WINDOW_MS = 20_000;
 
 function createEmptyLegDetectionState(): TrackerLegDetectionState {

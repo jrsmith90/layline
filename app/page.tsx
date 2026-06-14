@@ -28,7 +28,7 @@ const primaryFlow = [
 ];
 
 const quickTools = [
-  { href: "/race/pre-race/sail-selection", label: "Sail Selection" },
+  { href: "/race/brief", label: "Skipper Brief" },
   { href: "/race/pre-race#tactical-board", label: "Tactical Board" },
   { href: "/start", label: "Start" },
   { href: "/trim", label: "Trim" },

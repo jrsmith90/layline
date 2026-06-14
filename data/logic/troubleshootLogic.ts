@@ -42,6 +42,7 @@ export type TroubleshootLiveContext = {
   tideStage?: "high" | "low" | "rising" | "falling";
   sogKt?: number;
   cogDeg?: number;
+  tackAngleDeg?: number;
   sourceNote?: string;
 };
 
@@ -164,6 +165,27 @@ export function buildTroubleshootContextCues(
             ? "Use SOG/COG as the reality check after each trim change."
             : "Turn on Phone GPS to include live SOG/COG in this troubleshoot read.",
       tone: context.sogKt != null && context.sogKt < 1.2 ? "danger" : "good",
+    },
+    {
+      label: "Tack angle",
+      value:
+        context.tackAngleDeg == null
+          ? "Not calibrated"
+          : `${Math.round(context.tackAngleDeg)} deg`,
+      guidance:
+        context.tackAngleDeg == null
+          ? "No tack calibration data yet. Sail a few tacks with GPS on to auto-calibrate."
+          : context.tackAngleDeg > 100
+            ? "Wide tack angle: check for excessive heel, over-ease on mainsail, or a running backstay not loaded."
+            : context.tackAngleDeg < 78
+              ? "Narrow tack angle: boat may be pinching. Check jib lead fore/aft and ease main traveler if over-trimmed."
+              : "Tack angle looks normal for upwind work.",
+      tone:
+        context.tackAngleDeg == null
+          ? "neutral"
+          : context.tackAngleDeg > 100 || context.tackAngleDeg < 78
+            ? "warning"
+            : "good",
     },
   ];
 

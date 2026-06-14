@@ -5,6 +5,7 @@ import type {
   PressureSide,
   WindTrend,
 } from "@/data/race/getRouteBiasInputs";
+import { STORAGE_KEYS } from "@/lib/storageKeys";
 import { getCourseData, getDefaultCourseId, hasCourse } from "@/data/race/getCourseData";
 import { roundUpLaylineHeadingDeg } from "@/lib/race/courseStrategy/laylineHeading";
 import { wrap360 } from "@/lib/race/courseTracker";
@@ -60,7 +61,7 @@ export type TacticalBoardDraft = {
   courseStrategyResult: CourseStrategyResult | null;
 };
 
-const TACTICAL_BOARD_DRAFT_KEY = "layline-tactical-board-draft-v1";
+const TACTICAL_BOARD_DRAFT_KEY = STORAGE_KEYS.tacticalBoardDraft;
 const TACTICAL_BOARD_STORE_EVENT = "layline:tactical-board-store";
 
 let memoryDraft: TacticalBoardDraft = buildTacticalBoardDraftDefaults(getDefaultCourseId());

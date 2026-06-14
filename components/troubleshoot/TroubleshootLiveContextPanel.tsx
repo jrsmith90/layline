@@ -8,6 +8,10 @@ import {
   buildTroubleshootContextSummary,
   type TroubleshootLiveContext,
 } from "@/data/logic/troubleshootLogic";
+import {
+  getRaceDayHalfAngle,
+  readTackCalibrations,
+} from "@/lib/race/tackCalibration";
 
 const starterContext: Omit<TroubleshootLiveContext, "sogKt" | "cogDeg"> = {
   currentDirection: "ebb",
@@ -333,6 +337,9 @@ export function TroubleshootLiveContextPanel() {
     const topWindAvgKt = noaaWind?.cbibsAnnapolis?.windAvgKt;
     const bottomWindAvgKt = noaaWind?.thomasPoint?.windAvgKt;
 
+    const halfAngle = getRaceDayHalfAngle(readTackCalibrations());
+    const tackAngleDeg = halfAngle != null ? halfAngle * 2 : undefined;
+
     return {
       ...starterContext,
       windAvgKt:
@@ -363,6 +370,7 @@ export function TroubleshootLiveContextPanel() {
       ),
       sogKt,
       cogDeg: gps.cogDeg ?? undefined,
+      tackAngleDeg,
     };
   }, [gps.cogDeg, gps.sogMps, noaaWind]);
 

@@ -3,13 +3,14 @@ import {
   type SailInventoryDefaults,
 } from "@/data/logic/sailSelectionLogic";
 import { SAIL_INVENTORY_CATEGORY_META } from "@/lib/race/sailInventoryCatalog";
+import { STORAGE_KEYS } from "@/lib/storageKeys";
 
 export type StoredSailInventoryState = {
   defaults: SailInventoryDefaults;
   updatedAtISO: string;
 };
 
-const SAIL_INVENTORY_STORAGE_KEY = "layline-sail-inventory-v1";
+const SAIL_INVENTORY_STORAGE_KEY = STORAGE_KEYS.sailInventory;
 
 let cachedSailInventoryState: StoredSailInventoryState | null = null;
 let sailInventoryVersion = 0;

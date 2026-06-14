@@ -10,8 +10,9 @@ import {
 import { Navigation } from "lucide-react";
 import { useDisplayMode } from "@/components/display/DisplayModeProvider";
 import { useGpsCourse } from "@/lib/useGpsCourse";
+import { STORAGE_KEYS } from "@/lib/storageKeys";
 
-const GPS_ENABLED_KEY = "layline-phone-gps-enabled";
+const GPS_ENABLED_KEY = STORAGE_KEYS.phoneGpsEnabled;
 const GPS_ENABLED_EVENT = "layline:phone-gps-enabled";
 
 type PhoneGpsContextValue = ReturnType<typeof useGpsCourse> & {

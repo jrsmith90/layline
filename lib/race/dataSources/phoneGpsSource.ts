@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useReducer, useRef, useState, useSyncExternalStore } from "react";
+import { STORAGE_KEYS } from "@/lib/storageKeys";
 import type {
   RaceInputSourceSnapshot,
   RaceInputSourceState,
@@ -14,7 +15,7 @@ type PhoneGpsSnapshotState = Omit<
   "enabled" | "supported" | "freshness" | "confidence"
 >;
 
-const TRACK_STORAGE_KEY = "layline-phone-gps-track-v1";
+const TRACK_STORAGE_KEY = STORAGE_KEYS.gpsTrack;
 const MAX_TRACK_POINTS = 2000;
 const MIN_TRACK_INTERVAL_MS = 5000;
 const GPS_FRESH_MS = 5000;
