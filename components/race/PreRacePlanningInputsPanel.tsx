@@ -26,7 +26,7 @@ function InputSection(props: {
   children: React.ReactNode;
 }) {
   return (
-    <section className="p-4">
+    <section className="border-t border-[color:var(--divider)] pt-5 first:border-t-0 first:pt-0">
       <div className="layline-kicker">{props.badge}</div>
       <h3 className="mt-1 text-xl font-black text-[color:var(--text)]">{props.title}</h3>
       <p className="mt-2 text-sm leading-6 text-[color:var(--text-soft)]">{props.detail}</p>
@@ -63,7 +63,7 @@ export function PreRacePlanningInputsPanel({ hideHeader = false }: { hideHeader?
   }
 
   return (
-    <section className="layline-panel p-5">
+    <section className={hideHeader ? "py-2" : "layline-panel p-5"}>
       {!hideHeader && (
         <div className="max-w-4xl">
           <div className="layline-kicker">Planning Inputs</div>

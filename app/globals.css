@@ -64,6 +64,7 @@ button {
 /* Shared Layline UI helpers */
 .layline-panel {
   border-radius: var(--radius-card);
+  border: 1px solid var(--divider);
 }
 
 .layline-pill {

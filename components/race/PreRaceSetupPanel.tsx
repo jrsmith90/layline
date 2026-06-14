@@ -21,11 +21,11 @@ const DEFAULT_TACTICAL_BOARD_DRAFT = buildTacticalBoardDraftDefaults(getDefaultC
 
 function SetupMetric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="p-3">
-      <div className="text-[11px] font-black uppercase tracking-[0.16em] text-[color:var(--muted)]">
+    <div className="border-b border-[color:var(--divider)] pb-3 pt-1">
+      <div className="text-[10px] font-black uppercase tracking-[0.16em] text-[color:var(--muted)]">
         {label}
       </div>
-      <div className="mt-2 text-sm font-black text-[color:var(--text)]">{value}</div>
+      <div className="mt-1.5 text-sm font-black text-[color:var(--text)]">{value}</div>
     </div>
   );
 }
@@ -51,7 +51,7 @@ export function PreRaceSetupPanel({ hideHeader = false }: { hideHeader?: boolean
   );
 
   return (
-    <section className="layline-panel p-5">
+    <section className={hideHeader ? "py-2" : "layline-panel p-5"}>
       {!hideHeader && (
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>

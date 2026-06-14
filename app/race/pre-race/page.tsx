@@ -95,6 +95,7 @@ export default function Page() {
           </div>
 
           <PreRaceSetupPanel hideHeader />
+          <div className="h-px bg-[color:var(--divider)]" />
           <PreRacePlanningInputsPanel hideHeader />
         </div>
 
@@ -176,7 +177,7 @@ export default function Page() {
   }
 
   return (
-    <main className="mx-auto w-full max-w-5xl space-y-4 px-4 pb-8 pt-4">
+    <main className="mx-auto w-full max-w-5xl space-y-6 px-4 pb-8 pt-4">
       <AppPageHeader
         eyebrow="Race Setup"
         title="Build the opening picture."
@@ -296,8 +297,8 @@ function PageSection(props: {
   children: ReactNode;
 }) {
   return (
-    <section id={props.id} className="layline-panel scroll-mt-24 overflow-hidden">
-      <div className="p-4">
+    <section id={props.id} className="scroll-mt-24 border-t border-[color:var(--divider)] pt-6 pb-2">
+      <div className="mb-4">
         <div className="layline-kicker">{props.badge ?? "Section"}</div>
         <div className="mt-1 text-lg font-black text-[color:var(--text)]">{props.title}</div>
         {props.detail ? (
@@ -306,7 +307,7 @@ function PageSection(props: {
           </div>
         ) : null}
       </div>
-      <div className="border-t border-[color:var(--divider)] p-4">{props.children}</div>
+      {props.children}
     </section>
   );
 }
