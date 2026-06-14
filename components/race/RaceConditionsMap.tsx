@@ -7,8 +7,8 @@ import {
   Marker,
   Polyline,
   Popup,
+  TileLayer,
   Tooltip,
-  WMSTileLayer,
   useMap,
 } from "react-leaflet";
 import { Navigation } from "lucide-react";
@@ -128,9 +128,11 @@ type WindMarker = {
 };
 
 const DEFAULT_TACTICAL_BOARD_DRAFT = buildTacticalBoardDraftDefaults(getDefaultCourseId());
-const NOAA_CHART_WMS_URL =
-  "https://gis.charttools.noaa.gov/arcgis/rest/services/MCS/NOAAChartDisplay/MapServer/exts/MaritimeChartService/WMSServer";
-const NOAA_CHART_LAYERS = "1,2,3,4,5,6,7,8,9,10,11,12";
+const ESRI_OCEAN_BASE_URL =
+  "https://server.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Base/MapServer/tile/{z}/{y}/{x}";
+const ESRI_OCEAN_REFERENCE_URL =
+  "https://server.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Reference/MapServer/tile/{z}/{y}/{x}";
+const OPENSEAMAP_URL = "https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png";
 const DEFAULT_CENTER: [number, number] = [38.95, -76.35];
 const HOLLOW_ARROW_FILL = "#f7fbff";
 const WIND_MARKERS: WindMarker[] = [
@@ -588,13 +590,13 @@ export default function RaceConditionsMap({
             </div>
 
             {loading || !isMapClientReady ? (
-              <div className="h-96 bg-[#bfdfe9] flex items-center justify-center">
+              <div className="flex h-[540px] items-center justify-center bg-[#c8dfe8]">
                 <div className="text-center">
                   <div className="text-sm text-[#25313a]">Loading chart and conditions...</div>
                 </div>
               </div>
             ) : error ? (
-              <div className="h-96 bg-[#bfdfe9] flex items-center justify-center">
+              <div className="flex h-[540px] items-center justify-center bg-[#c8dfe8]">
                 <div className="text-center text-red-600">
                   <div className="text-sm font-semibold">{error}</div>
                 </div>
@@ -607,19 +609,29 @@ export default function RaceConditionsMap({
                 minZoom={5}
                 maxZoom={16}
                 scrollWheelZoom
-                style={{ height: "420px", backgroundColor: "#bfdfe9" }}
+                style={{ height: "540px", backgroundColor: "#c8dfe8" }}
                 attributionControl
               >
                 <FitMapToBounds bounds={mapBounds.bounds} />
-                <WMSTileLayer
-                  url={NOAA_CHART_WMS_URL}
-                  layers={NOAA_CHART_LAYERS}
-                  format="image/png"
-                  transparent
-                  version="1.3.0"
-                  attribution="NOAA Chart Display Service"
+                <TileLayer
+                  url={ESRI_OCEAN_BASE_URL}
+                  attribution="Tiles &copy; Esri — Sources: GEBCO, NOAA, CHS, OSU, UNH, CSUMB, National Geographic, DeLorme, NAVTEQ"
                   maxZoom={16}
                   minZoom={5}
+                />
+                <TileLayer
+                  url={ESRI_OCEAN_REFERENCE_URL}
+                  attribution=""
+                  maxZoom={16}
+                  minZoom={5}
+                  opacity={0.9}
+                />
+                <TileLayer
+                  url={OPENSEAMAP_URL}
+                  attribution='&copy; <a href="https://www.openseamap.org">OpenSeaMap</a>'
+                  maxZoom={16}
+                  minZoom={8}
+                  opacity={0.85}
                 />
 
                 {coursePositions.length > 1 ? (
@@ -771,7 +783,7 @@ export default function RaceConditionsMap({
         </div>
 
         <aside className="space-y-3">
-          <div className="rounded-lg border border-[color:var(--divider)] bg-black/20 p-3">
+          <div className="border-b border-[color:var(--divider)] pb-3">
             <div className="text-xs font-black uppercase tracking-[0.16em] text-[color:var(--muted)]">
               Chart Information
             </div>
@@ -799,7 +811,7 @@ export default function RaceConditionsMap({
           </div>
 
           {courseData.specialRoutingConstraints.length > 0 && (
-            <div className="rounded-lg border border-[color:var(--divider)] bg-black/20 p-3">
+            <div className="border-b border-[color:var(--divider)] pb-3">
               <div className="text-xs font-black uppercase tracking-[0.16em] text-[color:var(--muted)]">
                 Instruction Limits
               </div>
@@ -813,7 +825,7 @@ export default function RaceConditionsMap({
           )}
 
           {payload?.tide && (
-            <div className="rounded-lg border border-[color:var(--divider)] bg-black/20 p-3">
+            <div className="border-b border-[color:var(--divider)] pb-3">
               <div className="text-xs font-black uppercase tracking-[0.16em] text-[color:var(--muted)]">
                 Tide
               </div>
@@ -849,7 +861,7 @@ export default function RaceConditionsMap({
             </div>
           )}
 
-          <div className="layline-learn-only rounded-lg border border-[color:var(--divider)] bg-black/20 p-3 text-xs text-[color:var(--muted)]">
+          <div className="layline-learn-only border-b border-[color:var(--divider)] pb-3 text-xs text-[color:var(--muted)]">
             <div className="font-bold">About this map</div>
             <p className="mt-2">
               Uses NOAA&apos;s official ENC Chart Display Service with traditional paper chart symbology. Tide and current predictions are layered from NOAA CO-OPS for planning only.

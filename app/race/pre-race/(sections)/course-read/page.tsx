@@ -21,11 +21,9 @@ export default function CourseReadPage() {
   return (
     <section>
       <SectionHead badge="Course Read" title="Read the course and chart" />
-      <div className="grid gap-4 xl:grid-cols-2">
-        <div>
-          <RaceConditionsMap showCourseSelector={false} />
-        </div>
+      <div className="space-y-6">
         <CoursePreviewCard showControls={false} />
+        <RaceConditionsMap showCourseSelector={false} />
       </div>
     </section>
   );
