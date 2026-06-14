@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { AiCoachCard } from "@/components/ai/AiCoachCard";
 import { useAppMode } from "@/components/display/AppModeProvider";
+import { useDisplayMode } from "@/components/display/DisplayModeProvider";
 import { WorkflowDisclosure } from "@/components/layout/WorkflowDisclosure";
 import { Flag, LocateFixed, TimerReset, Wind } from "lucide-react";
 import {
@@ -403,6 +404,8 @@ function getLegalityCockpitOverride(legality: RaceLegalityState) {
 export default function RaceLiveCockpit() {
   const courseIds = useCourseIds();
   const { mode, isRaceMode } = useAppMode();
+  const { effectiveMode } = useDisplayMode();
+  const isDesktopLayout = effectiveMode === "desktop";
   const gps = usePhoneGps();
   const variation = useMagneticVariation();
   const fmtMag = (v: number | null | undefined) => formatMagDeg(v, variation);
@@ -826,6 +829,257 @@ export default function RaceLiveCockpit() {
     const now = Date.now();
     setNowMs(now);
     setStartedAtMs(now);
+  }
+
+  if (isDesktopLayout) {
+    return (
+      <div className="flex flex-col gap-5 px-6 py-5 pb-10">
+        {/* Main 2-column: cockpit call left, context right */}
+        <div className="grid grid-cols-[minmax(0,_9fr)_minmax(0,_11fr)] items-start gap-5">
+
+          {/* LEFT: primary cockpit call */}
+          <div className="space-y-4">
+            <section className={["rounded-2xl border p-5", callClass(primaryCall)].join(" ")}>
+              <div className="flex items-center justify-between gap-3">
+                <div className="text-xs font-black uppercase tracking-[0.18em] opacity-75">Race Live</div>
+                <div className="text-[11px] font-bold uppercase tracking-wide opacity-75">
+                  {formatCourseLabel(courseId)} · Leg {safeLegIndex + 1}
+                </div>
+              </div>
+              <div className="mt-3 text-[3rem] font-black uppercase leading-none tracking-tight">
+                {cockpitAnswer.action}
+              </div>
+              <div className="mt-3 inline-flex rounded-full border border-white/20 bg-black/20 px-3 py-1 text-sm font-black uppercase tracking-[0.14em]">
+                {cockpitAnswer.line}
+              </div>
+              <div className="mt-4 space-y-3">
+                {cockpitModeCopy.showWhy ? (
+                  <div>
+                    <div className="text-xs font-black uppercase tracking-[0.16em] opacity-65">Why</div>
+                    <p className="mt-1 text-[0.95rem] font-semibold leading-6 opacity-95">{cockpitAnswer.why}</p>
+                  </div>
+                ) : (
+                  <p className="text-[0.98rem] font-black leading-6">{cockpitModeCopy.primaryDetail}</p>
+                )}
+                {cockpitModeCopy.showFix && (
+                  <div>
+                    <div className="text-xs font-black uppercase tracking-[0.16em] opacity-65">Fix</div>
+                    <p className="mt-1 text-[0.95rem] font-black leading-6">{cockpitAnswer.fix}</p>
+                  </div>
+                )}
+                {!isRaceMode && cockpitModeCopy.teachingNote && (
+                  <div className="rounded-2xl border border-white/15 bg-black/20 p-3">
+                    <div className="text-xs font-black uppercase tracking-[0.16em] opacity-70">Coach</div>
+                    <p className="mt-2 text-sm font-semibold leading-5 opacity-90">{cockpitModeCopy.teachingNote}</p>
+                  </div>
+                )}
+              </div>
+              {cockpitModeCopy.visibleWarnings.length ? (
+                <div className="mt-3 text-xs leading-5 opacity-80">{cockpitModeCopy.visibleWarnings.join(" ")}</div>
+              ) : null}
+              <div className="mt-3 rounded-2xl border border-white/15 bg-black/20 p-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="text-xs font-black uppercase tracking-[0.16em] opacity-75">Input confidence</div>
+                  <div className="text-xs font-black uppercase tracking-[0.16em] opacity-90">{raceState.confidence.overall}</div>
+                </div>
+                <p className="mt-2 text-sm font-semibold leading-5 opacity-90">{confidencePanelCopy.body}</p>
+                {confidencePanelCopy.visibleSignals.length > 0 ? (
+                  <div className="mt-2 space-y-1 text-xs leading-5 opacity-80">
+                    {confidencePanelCopy.visibleSignals.map((signal) => (
+                      <div key={signal.key}>{signal.message}</div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="mt-2 text-xs leading-5 opacity-75">{confidencePanelCopy.fallback}</div>
+                )}
+              </div>
+              <div className="mt-4 grid grid-cols-3 gap-2">
+                <BigMetric label="Off Line" value={`${formatNumber(result?.degreesOffLaylineDeg ?? null, 0)} deg`} />
+                <BigMetric
+                  label="Tack Hdg"
+                  value={`${fmtMag(result?.currentTackHeadingDeg)} (${fmtMag(result?.nextTackHeadingDeg)})`}
+                />
+                <BigMetric
+                  label="Tack In"
+                  value={
+                    result?.distanceToTackNm == null
+                      ? "--"
+                      : result.minutesToTack == null
+                        ? `${result.distanceToTackNm.toFixed(2)} nm`
+                        : `${Math.max(1, Math.round(result.minutesToTack))}m`
+                  }
+                />
+              </div>
+            </section>
+
+            {activeConstraints.length > 0 && (
+              <section className="layline-panel p-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <div className="layline-kicker">Live Legality</div>
+                    <div className="mt-1 text-xl font-black">Race instructions in play</div>
+                  </div>
+                  <div className={["rounded-full border px-3 py-2 text-xs font-black uppercase tracking-wide", legalityTone(raceState.legality.overall)].join(" ")}>
+                    {getLegalityOverallLabel(raceState.legality.overall)}
+                  </div>
+                </div>
+                <p className="mt-3 text-sm font-semibold leading-6 text-[color:var(--text)]">{raceState.legality.summary}</p>
+                <p className="mt-2 text-xs leading-5 text-[color:var(--muted)]">{raceState.legality.detail}</p>
+                <div className="mt-3">
+                  <RoutingConstraintsList constraints={activeConstraints} assessments={activeConstraintAssessments} compact />
+                </div>
+              </section>
+            )}
+          </div>
+
+          {/* RIGHT: supporting context */}
+          <div className="space-y-4">
+            <section className="layline-panel p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <div className="layline-kicker">Wind Source</div>
+                  <div className="mt-1 text-lg font-black">{windRead.label}</div>
+                  <div className="mt-1 text-xs text-[color:var(--muted)]">{windRead.sourceDetail}</div>
+                </div>
+                <Wind className="mt-1 text-[color:var(--muted)]" size={20} />
+              </div>
+              <div className="mt-3 grid grid-cols-3 gap-2">
+                <BigMetric label="Wind" value={formatKt(windRead.windAvgKt)} />
+                <BigMetric label="Gust" value={formatKt(windRead.windGustKt)} />
+                <BigMetric label="From" value={fmtMag(effectiveWindFrom)} />
+              </div>
+            </section>
+
+            <section className="layline-panel p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <div className="layline-kicker">Next Mark</div>
+                  <div className="mt-1 text-xl font-black">
+                    {leg ? `${leg.fromMark} to ${leg.toMark}` : "--"}
+                  </div>
+                  <div className="mt-1 text-xs text-[color:var(--muted)]">{toMark?.name ?? "No mark selected"}</div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => goToLeg(safeLegIndex + 1)}
+                  disabled={!canGoNext}
+                  className="rounded-xl border border-[color:var(--divider)] bg-black/20 px-4 py-3 text-sm font-black uppercase tracking-wide disabled:opacity-40"
+                >
+                  Next Leg
+                </button>
+              </div>
+              <div className="mt-4 grid grid-cols-3 gap-2">
+                <BigMetric label="Distance" value={`${formatNumber(result?.distanceToMarkNm ?? null, 2)} nm`} />
+                <BigMetric label="Bearing" value={fmtMag(result?.bearingToMarkDeg)} />
+                <BigMetric label="VMG" value={`${formatNumber(result?.vmgToMarkKt ?? null, 1)} kt`} />
+              </div>
+              {recentTransition?.kind === "automatic" && (
+                <div className="mt-3 rounded-xl border border-[color:var(--favorable)]/40 bg-[color:var(--favorable)]/10 px-3 py-2 text-xs font-semibold text-teal-50">
+                  {recentTransition.message}
+                </div>
+              )}
+              {autoAdvanceArmed && (
+                <div className="mt-3 text-xs font-semibold leading-5 text-[color:var(--muted)]">
+                  Auto-advance is armed. If the leg does not flip after rounding, use the manual button.
+                </div>
+              )}
+            </section>
+
+            <LiveTacticalBoardCard raceState={raceState} />
+            <AiCoachCard brief={liveCoachBrief} compact />
+          </div>
+        </div>
+
+        {/* Bottom row: boat tools · tack history · course + recording */}
+        <div className="grid grid-cols-3 items-start gap-5">
+          <section className="layline-panel p-4">
+            <div className="layline-kicker">Boat Tools</div>
+            <div className="mt-3 grid grid-cols-3 gap-2">
+              <BigMetric label="COG" value={fmtMag(gps.cogDeg)} />
+              <BigMetric label="SOG" value={formatSpeedKt(gps.sogMps)} />
+              <BigMetric label="Tack" value={`${Math.round(tackAngle)} deg`} />
+            </div>
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={gps.toggle}
+                className={[
+                  "flex items-center justify-center gap-2 rounded-xl border px-3 py-4 text-sm font-black uppercase tracking-wide",
+                  gps.enabled
+                    ? "border-[color:var(--favorable)] bg-[color:var(--favorable)]/15 text-teal-50"
+                    : "border-[color:var(--divider)] bg-black/20",
+                ].join(" ")}
+              >
+                <LocateFixed size={16} />
+                GPS {gps.enabled ? "On" : "Off"}
+              </button>
+              <button
+                type="button"
+                onClick={startCapture}
+                disabled={isCapturing}
+                className="flex items-center justify-center gap-2 rounded-xl border border-[color:var(--warning)] bg-[color:var(--warning)]/15 px-3 py-4 text-sm font-black uppercase tracking-wide text-amber-50 disabled:opacity-70"
+              >
+                <TimerReset size={16} />
+                {isCapturing ? `${secondsLeft}s` : "Capture Tack"}
+              </button>
+            </div>
+            {calibrationError && (
+              <div className="mt-3 rounded-xl border border-[color:var(--unfavorable)] bg-[color:var(--unfavorable)]/15 p-3 text-sm text-red-100">
+                {calibrationError}
+              </div>
+            )}
+          </section>
+
+          <TackHistoryPanel
+            records={activeSession?.tackRecords ?? []}
+            standardAngleDeg={standardTackAngle}
+            currentTackAngleDeg={tackAngle}
+            isRecording={activeSession?.status === "active"}
+          />
+
+          <div className="space-y-4">
+            <section className="layline-panel p-4">
+              <div className="layline-kicker">Course Setup</div>
+              <div className="mt-3 space-y-3">
+                <label className="block space-y-1">
+                  <div className="text-xs font-bold uppercase tracking-[0.16em] text-[color:var(--muted)]">Course</div>
+                  <select
+                    className="w-full rounded-xl border border-[color:var(--divider)] bg-black/30 p-3"
+                    value={courseId}
+                    onChange={(event) => setTrackerCourseId(event.target.value)}
+                  >
+                    {courseIds.map((id) => (
+                      <option key={id} value={id} className="bg-slate-900">
+                        {formatCourseLabel(id)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <BigMetric label="X-track" value={`${formatNumber(result?.crossTrackErrorNm ?? null, 2)} nm`} />
+              </div>
+            </section>
+            <RaceRecorderPanel
+              courseId={courseId}
+              gpsTrack={gps.track}
+              currentDecision={recorderDecision}
+              raceStateCapture={raceStateCapture}
+              tacticalBoardCapture={tacticalBoardCapture}
+              tackContext={tackContext}
+            />
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between px-1 text-xs text-[color:var(--muted)]">
+          <Link href="/race/pre-race#tactical-board" className="font-bold uppercase tracking-wide">
+            Pre-Race Board
+          </Link>
+          <span className="flex items-center gap-1">
+            <Flag size={13} />
+            {calibrations.length} tack samples
+          </span>
+        </div>
+      </div>
+    );
   }
 
   return (

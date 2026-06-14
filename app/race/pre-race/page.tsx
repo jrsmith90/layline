@@ -30,6 +30,25 @@ const RaceConditionsMap = dynamic(
 
 const DEFAULT_TACTICAL_BOARD_DRAFT = buildTacticalBoardDraftDefaults(getDefaultCourseId());
 
+const headerActions = (
+  <div className="flex flex-wrap gap-3">
+    <Link
+      href="/race/pre-race/export"
+      target="_blank"
+      rel="noreferrer"
+      className="rounded-xl border border-[color:var(--divider)] bg-[color:var(--favorable)]/15 px-4 py-3 text-sm font-black uppercase tracking-wide text-[color:var(--text)]"
+    >
+      Export PDF
+    </Link>
+    <Link
+      href="/race/live"
+      className="rounded-xl border border-[color:var(--divider)] bg-black/20 px-4 py-3 text-sm font-black uppercase tracking-wide"
+    >
+      Race Live
+    </Link>
+  </div>
+);
+
 export default function Page() {
   const { effectiveMode } = useDisplayMode();
   const isDesktopLayout = effectiveMode === "desktop";
@@ -40,36 +59,106 @@ export default function Page() {
   );
   const courseData = useResolvedCourseData(draft.courseId);
 
+  if (isDesktopLayout) {
+    return (
+      <div className="grid min-h-screen grid-cols-[minmax(320px,_38%)_1fr] items-start gap-6 px-6 py-5">
+        {/* Left column: setup inputs */}
+        <div className="sticky top-5 flex max-h-[calc(100vh-2.5rem)] flex-col gap-4 overflow-y-auto pb-4">
+          <AppPageHeader
+            eyebrow="Race Setup"
+            title="Build the opening picture."
+            badges={["Course", "Sail Choice", "Course Strategy", "Opening Bias", "Tactical Board"]}
+            actions={headerActions}
+          />
+          <PreRaceSetupPanel />
+          <PreRacePlanningInputsPanel />
+        </div>
+
+        {/* Right column: intelligence read-out */}
+        <div className="space-y-4 pb-8">
+          <DesktopSection
+            id="course-read"
+            badge="Course Read"
+            title="Read the course and chart"
+          >
+            <div className="grid gap-4 xl:grid-cols-2">
+              <div id="conditions-map">
+                <RaceConditionsMap showCourseSelector={false} />
+              </div>
+              <CoursePreviewCard showControls={false} />
+            </div>
+          </DesktopSection>
+
+          <DesktopSection
+            id="sail-package"
+            badge="Sail Package"
+            title="Confirm the sail package"
+          >
+            <PreRaceSailPackageSummary selection={draft.confirmedSailSelection} />
+          </DesktopSection>
+
+          <DesktopSection
+            id="course-strategy"
+            badge="Strategy Intel"
+            title="Opening-leg strategy intel"
+          >
+            {draft.courseStrategyResult ? (
+              <CourseStrategyResultCard
+                result={draft.courseStrategyResult}
+                strategyNotes={draft.courseStrategy?.strategyNotes}
+                title="Saved course strategy"
+              />
+            ) : (
+              <div className="rounded-xl border border-dashed border-[color:var(--divider)] p-5 text-sm leading-6 text-[color:var(--text-soft)]">
+                No course strategy saved yet. Fill the strategy input block on the left, then this becomes the read-only strategy brief.
+              </div>
+            )}
+          </DesktopSection>
+
+          <DesktopSection
+            id="route-plan"
+            badge="Opening Bias"
+            title="Opening-bias intel"
+          >
+            <PreRaceOpeningBiasSummary draft={draft} />
+          </DesktopSection>
+
+          <DesktopSection
+            id="tactical-board"
+            badge="Tactical Snapshot"
+            title="Carry the launch picture forward"
+          >
+            <PreRaceTacticalSnapshot />
+          </DesktopSection>
+
+          <DesktopSection
+            id="leg-headings"
+            badge="Heading Reference"
+            title="Mark-to-mark heading chart"
+          >
+            <PreRaceLegHeadingChart />
+          </DesktopSection>
+
+          <DesktopSection
+            id="crew-lookout"
+            badge="Crew Brief"
+            title="Leg-by-leg lookout sheet"
+          >
+            <PreRaceLegLookoutSheet courseData={courseData} draft={draft} />
+          </DesktopSection>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <main
-      className={[
-        "mx-auto w-full space-y-5 px-4 pb-8 pt-4",
-        isDesktopLayout ? "max-w-[96rem]" : "max-w-5xl",
-      ].join(" ")}
-    >
+    <main className="mx-auto w-full max-w-5xl space-y-4 px-4 pb-8 pt-4">
       <AppPageHeader
         eyebrow="Race Setup"
         title="Build the opening picture."
         description="Set the selections once at the top, then work straight down the dockside brief so the whole crew arrives with the same race picture."
         badges={["Course", "Sail Choice", "Course Strategy", "Opening Bias", "Tactical Board"]}
-        actions={
-          <div className="flex flex-wrap gap-3">
-            <Link
-              href="/race/pre-race/export"
-              target="_blank"
-              rel="noreferrer"
-              className="rounded-xl border border-[color:var(--divider)] bg-[color:var(--favorable)]/15 px-4 py-3 text-sm font-black uppercase tracking-wide text-[color:var(--text)]"
-            >
-              Export PDF
-            </Link>
-            <Link
-              href="/race/live"
-              className="rounded-xl border border-[color:var(--divider)] bg-black/20 px-4 py-3 text-sm font-black uppercase tracking-wide"
-            >
-              Race Live
-            </Link>
-          </div>
-        }
+        actions={headerActions}
       />
 
       <PreRaceSetupPanel />
@@ -82,11 +171,10 @@ export default function Page() {
         title="Read the course and chart"
         detail="Start with the map and course brief, then carry that same picture into the sail call and the rest of the crew plan."
       >
-        <div className="grid gap-5 lg:grid-cols-[1.05fr_0.95fr]">
+        <div className="grid gap-4 lg:grid-cols-2">
           <div id="conditions-map">
             <RaceConditionsMap showCourseSelector={false} />
           </div>
-
           <CoursePreviewCard showControls={false} />
         </div>
       </PageSection>
@@ -113,7 +201,7 @@ export default function Page() {
             title="Saved course strategy"
           />
         ) : (
-          <div className="rounded-2xl border border-dashed border-[color:var(--divider)] bg-black/10 p-5 text-sm leading-6 text-[color:var(--text-soft)]">
+          <div className="rounded-xl border border-dashed border-[color:var(--divider)] bg-black/10 p-5 text-sm leading-6 text-[color:var(--text-soft)]">
             No course strategy is saved yet. Fill the strategy input block at the top of the page,
             then this section becomes the read-only strategy brief.
           </div>
@@ -159,6 +247,24 @@ export default function Page() {
   );
 }
 
+function DesktopSection(props: {
+  id?: string;
+  badge: string;
+  title: string;
+  children: ReactNode;
+}) {
+  return (
+    <section id={props.id} className="scroll-mt-5">
+      <div className="mb-3 flex items-baseline gap-3">
+        <span className="layline-kicker">{props.badge}</span>
+        <span className="text-xs text-[color:var(--divider)]">·</span>
+        <span className="text-sm font-bold text-[color:var(--text-soft)]">{props.title}</span>
+      </div>
+      {props.children}
+    </section>
+  );
+}
+
 function PageSection(props: {
   id?: string;
   title: string;
@@ -170,7 +276,7 @@ function PageSection(props: {
     <section id={props.id} className="layline-panel scroll-mt-24 overflow-hidden">
       <div className="p-4">
         <div className="layline-kicker">{props.badge ?? "Section"}</div>
-        <div className="mt-1 text-xl font-black text-[color:var(--text)]">{props.title}</div>
+        <div className="mt-1 text-lg font-black text-[color:var(--text)]">{props.title}</div>
         {props.detail ? (
           <div className="layline-learn-only mt-1 text-sm leading-6 text-[color:var(--text-soft)]">
             {props.detail}

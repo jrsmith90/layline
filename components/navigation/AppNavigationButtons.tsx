@@ -32,6 +32,7 @@ export function AppNavigationButtons() {
     routeTitles.find((route) => pathname.startsWith(route.prefix))?.title ?? "Layline";
 
   if (isHome) return null;
+  if (effectiveMode === "desktop") return null;
 
   function goBack() {
     if (window.history.length > 1) {
@@ -50,11 +51,7 @@ export function AppNavigationButtons() {
       <div
         className={[
           "mx-auto flex items-center justify-between gap-3",
-          effectiveMode === "desktop"
-            ? "max-w-[96rem]"
-            : effectiveMode === "ipad"
-              ? "max-w-5xl"
-              : "max-w-md",
+          effectiveMode === "ipad" ? "max-w-5xl" : "max-w-md",
         ].join(" ")}
       >
         <button
