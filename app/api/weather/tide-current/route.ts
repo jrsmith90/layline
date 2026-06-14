@@ -96,6 +96,13 @@ function getRaceWindow(eventId?: string | null) {
     };
   }
 
+  if (eventId === "2026-governors-cup-annapolis-to-st-marys-md") {
+    return {
+      firstWarning: "3:55 PM",
+      timeLimit: "See SIs",
+    };
+  }
+
   return {
     firstWarning: "Race window",
     timeLimit: "See SIs",

@@ -436,6 +436,186 @@ const tedOsiusTwilight2026CourseGeometry: RaceCourseGeometry = {
   ],
 };
 
+const governorsCupCourse: RaceCourseRecord = {
+  label: "Governor's Cup",
+  sequence: ["X", "TP", "PNP", "PL", "SMJ", "SM1", "SM2", "SM3", "CP"],
+  markRoundings: [null, "starboard", "starboard", "starboard", "starboard", null, null, null, null],
+  textSummary: [
+    "Start at Annapolis R2 (X).",
+    "Pass Thomas Point Shoal Light to starboard (TP) — WP1.",
+    "Pass Point No Point Light to starboard (PNP) — WP2.",
+    "Pass Point Lookout Light to starboard (PL) — WP3.",
+    "Pass St. Mary's River Junction Buoy FL(2+1)R6s to starboard (SMJ) — WP4.",
+    "Pass St. Mary's River Day Marker 1 on channel side (SM1) — WP5.",
+    "Pass St. Mary's River Day Marker 2 on channel side (SM2) — WP6.",
+    "Pass St. Mary's River Day Marker 3 on channel side (SM3) — WP7.",
+    "Finish at Church Point Cross (CP).",
+  ],
+  distanceNmSI: 68.6,
+  distanceNmCalculated: 66.60,
+  legs: [
+    { legNumber: 1, fromMark: "X",   toMark: "TP",  bearingDeg: 192.1, distanceNmCalculated: 2.66  },
+    { legNumber: 2, fromMark: "TP",  toMark: "PNP", bearingDeg: 171.5, distanceNmCalculated: 46.60 },
+    { legNumber: 3, fromMark: "PNP", toMark: "PL",  bearingDeg: 196.8, distanceNmCalculated: 6.27  },
+    { legNumber: 4, fromMark: "PL",  toMark: "SMJ", bearingDeg: 338.8, distanceNmCalculated: 7.19  },
+    { legNumber: 5, fromMark: "SMJ", toMark: "SM1", bearingDeg: 327.6, distanceNmCalculated: 1.18  },
+    { legNumber: 6, fromMark: "SM1", toMark: "SM2", bearingDeg: 314.8, distanceNmCalculated: 1.00  },
+    { legNumber: 7, fromMark: "SM2", toMark: "SM3", bearingDeg: 317.6, distanceNmCalculated: 0.81  },
+    { legNumber: 8, fromMark: "SM3", toMark: "CP",  bearingDeg: 321.9, distanceNmCalculated: 0.89  },
+  ],
+  notes: "Point-to-point offshore race, 68.6 NM. WP5–WP7 pass on channel side. Inner St. Mary's River mark positions (SM1–SM3, CP) are approximate — verify against current NOAA charts prior to racing.",
+};
+
+const governorsCup2026CourseGeometry: RaceCourseGeometry = {
+  event: {
+    name: "Governor's Cup Yacht Race",
+    location: "Annapolis to St. Mary's City, MD",
+    dates: "2026-07-31",
+    source: "Governor's Cup Yacht Race Sailing Instructions",
+  },
+  startFinishMark: "X",
+  marks: {
+    X: {
+      ...ANNAPOLIS_STANDARD_GOVERNMENT_MARKS.X,
+    },
+    TP: {
+      id: "Thomas Point Shoal Light",
+      name: "Thomas Point Shoal Lighthouse",
+      lat: 38.8983,
+      lon: -76.4367,
+      characteristics: "Fl (2+1) R 6s",
+      markType: "government_light",
+      labelHint: "Thomas Pt",
+    },
+    PNP: {
+      id: "Point No Point Light",
+      name: "Point No Point Lighthouse",
+      lat: 38.1300,
+      lon: -76.2900,
+      characteristics: "Fl W 6s",
+      markType: "government_light",
+      labelHint: "Pt No Pt",
+    },
+    PL: {
+      id: "Point Lookout Light",
+      name: "Point Lookout Lighthouse",
+      lat: 38.0300,
+      lon: -76.3283,
+      characteristics: "Fl W 6s",
+      markType: "government_light",
+      labelHint: "Pt Lookout",
+    },
+    SMJ: {
+      id: 'R "SM"',
+      name: "St. Mary's River Junction Buoy",
+      lat: 38.1417,
+      lon: -76.3833,
+      characteristics: "Fl (2+1) R 6s",
+      markType: "government_buoy",
+      markColor: "red",
+      labelHint: "SM Jct",
+    },
+    SM1: {
+      id: "SM-1",
+      name: "St. Mary's River Day Marker 1",
+      lat: 38.1583,
+      lon: -76.3967,
+      characteristics: "",
+      labelHint: "SM DM1",
+    },
+    SM2: {
+      id: "SM-2",
+      name: "St. Mary's River Day Marker 2",
+      lat: 38.1700,
+      lon: -76.4117,
+      characteristics: "",
+      labelHint: "SM DM2",
+    },
+    SM3: {
+      id: "SM-3",
+      name: "St. Mary's River Day Marker 3",
+      lat: 38.1800,
+      lon: -76.4233,
+      characteristics: "",
+      labelHint: "SM DM3",
+    },
+    CP: {
+      id: "Church Point",
+      name: "Church Point Cross",
+      lat: 38.1917,
+      lon: -76.4350,
+      characteristics: "",
+      labelHint: "Church Pt",
+    },
+  },
+  courses: {
+    "governors-cup": governorsCupCourse,
+  },
+  specialRoutingNotes: [
+    "WP1–WP4 shall be passed to starboard.",
+    "WP5–WP7 (St. Mary's River day markers) shall be passed on the channel side.",
+    "Inner St. Mary's River mark positions (SM1–SM3, CP) are approximate — verify against current NOAA charts prior to racing.",
+  ],
+  specialRoutingConstraints: [
+    {
+      id: "gc-thomas-point-starboard",
+      type: "leave_to_starboard",
+      appliesTo: "all_keelboat_classes",
+      markLabel: "Thomas Point Shoal Light",
+      markName: "Thomas Point Shoal Lighthouse",
+      markKey: "TP",
+    },
+    {
+      id: "gc-point-no-point-starboard",
+      type: "leave_to_starboard",
+      appliesTo: "all_keelboat_classes",
+      markLabel: "Point No Point Light",
+      markName: "Point No Point Lighthouse",
+      markKey: "PNP",
+    },
+    {
+      id: "gc-point-lookout-starboard",
+      type: "leave_to_starboard",
+      appliesTo: "all_keelboat_classes",
+      markLabel: "Point Lookout Light",
+      markName: "Point Lookout Lighthouse",
+      markKey: "PL",
+    },
+    {
+      id: "gc-sm-junction-starboard",
+      type: "leave_to_starboard",
+      appliesTo: "all_keelboat_classes",
+      markLabel: "St. Mary's River Junction Buoy FL(2+1)R6s",
+      markName: "St. Mary's River Junction Buoy",
+      markKey: "SMJ",
+    },
+    {
+      id: "gc-sm1-channel-side",
+      type: "pass_on_channel_side",
+      appliesTo: "all_keelboat_classes",
+      markLabel: "St. Mary's Day Marker 1",
+      markName: "St. Mary's River Day Marker 1",
+      markKey: "SM1",
+    },
+    {
+      id: "gc-sm2-channel-side",
+      type: "pass_on_channel_side",
+      appliesTo: "all_keelboat_classes",
+      markLabel: "St. Mary's Day Marker 2",
+      markName: "St. Mary's River Day Marker 2",
+      markKey: "SM2",
+    },
+    {
+      id: "gc-sm3-channel-side",
+      type: "pass_on_channel_side",
+      appliesTo: "all_keelboat_classes",
+      markLabel: "St. Mary's Day Marker 3",
+      markName: "St. Mary's River Day Marker 3",
+      markKey: "SM3",
+    },
+  ],
+};
+
 export const raceEvents: RaceEventRecord[] = [
   {
     id: "2026-helly-hansen-sailing-world-regatta-series-annapolis-md",
@@ -471,16 +651,28 @@ export const raceEvents: RaceEventRecord[] = [
     name: "Ted Osius Memorial Twilight Regatta",
     location: "Annapolis, MD",
     dates: "2026-06-06",
-    status: "active",
+    status: "archived",
     sourceDocuments: [
       "SCC 2026 racing calendar",
       "YachtScoring event page 50643"
     ],
     courseGeometry: tedOsiusTwilight2026CourseGeometry
-  }
+  },
+  {
+    id: "2026-governors-cup-annapolis-to-st-marys-md",
+    year: 2026,
+    name: "Governor's Cup Yacht Race",
+    location: "Annapolis to St. Mary's City, MD",
+    dates: "2026-07-31",
+    status: "upcoming",
+    sourceDocuments: [
+      "Governor's Cup Yacht Race Sailing Instructions",
+    ],
+    courseGeometry: governorsCup2026CourseGeometry,
+  },
 ];
 
-export const activeRaceEventId = "2026-ted-osius-memorial-twilight-regatta-annapolis-md";
+export const activeRaceEventId = "2026-governors-cup-annapolis-to-st-marys-md";
 
 export function getRaceEvent(eventId: string): RaceEventRecord {
   const event = raceEvents.find((candidate) => candidate.id === eventId);
