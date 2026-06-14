@@ -2,8 +2,9 @@
 
 import dynamic from "next/dynamic";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
-import { useSyncExternalStore } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 import { useDisplayMode } from "@/components/display/DisplayModeProvider";
 import { AppPageHeader } from "@/components/layout/AppPageHeader";
 import CoursePreviewCard from "@/components/race/CoursePreviewCard";
@@ -52,6 +53,7 @@ const headerActions = (
 export default function Page() {
   const { effectiveMode } = useDisplayMode();
   const isDesktopLayout = effectiveMode === "desktop";
+  const router = useRouter();
   const draft = useSyncExternalStore(
     subscribeTacticalBoardStore,
     getStoredTacticalBoardDraft,
@@ -59,122 +61,13 @@ export default function Page() {
   );
   const courseData = useResolvedCourseData(draft.courseId);
 
-  if (isDesktopLayout) {
-    return (
-      <div className="grid min-h-screen grid-cols-[minmax(320px,_38%)_1fr] items-start gap-8 px-8 py-8">
-        {/* Left column: setup inputs */}
-        <div className="sticky top-8 flex max-h-[calc(100vh-4rem)] flex-col gap-5 overflow-y-auto pb-6">
-          {/* Bare title — matches home page desktop style */}
-          <div>
-            <div className="layline-kicker">Race Setup</div>
-            <h1 className="mt-2 text-4xl font-black tracking-tight text-[color:var(--text)]">
-              Build the opening picture.
-            </h1>
-            <div className="mt-4 flex flex-wrap gap-2">
-              <Link
-                href="/race/pre-race/export"
-                target="_blank"
-                rel="noreferrer"
-                className="layline-pill px-4 py-2 text-sm font-semibold text-[color:var(--favorable)] transition hover:opacity-80"
-              >
-                Export PDF →
-              </Link>
-              <Link
-                href="/race/live"
-                className="layline-pill px-4 py-2 text-sm font-semibold text-[color:var(--text)] transition hover:opacity-80"
-              >
-                Race Live →
-              </Link>
-              <Link
-                href="/race/pre-race/sail-selection"
-                className="layline-pill px-4 py-2 text-sm font-semibold text-[color:var(--muted)] transition hover:text-[color:var(--text)]"
-              >
-                Sail Selection →
-              </Link>
-            </div>
-          </div>
+  useEffect(() => {
+    if (isDesktopLayout) {
+      router.replace("/race/pre-race/course-read");
+    }
+  }, [isDesktopLayout, router]);
 
-          <PreRaceSetupPanel hideHeader />
-          <div className="h-px bg-[color:var(--divider)]" />
-          <PreRacePlanningInputsPanel hideHeader />
-        </div>
-
-        {/* Right column: intelligence read-out */}
-        <div className="space-y-8 pb-8">
-          <DesktopSection
-            id="course-read"
-            badge="Course Read"
-            title="Read the course and chart"
-          >
-            <div className="grid gap-4 xl:grid-cols-2">
-              <div id="conditions-map">
-                <RaceConditionsMap showCourseSelector={false} />
-              </div>
-              <CoursePreviewCard showControls={false} />
-            </div>
-          </DesktopSection>
-
-          <DesktopSection
-            id="sail-package"
-            badge="Sail Package"
-            title="Confirm the sail package"
-          >
-            <PreRaceSailPackageSummary selection={draft.confirmedSailSelection} />
-          </DesktopSection>
-
-          <DesktopSection
-            id="course-strategy"
-            badge="Strategy Intel"
-            title="Opening-leg strategy intel"
-          >
-            {draft.courseStrategyResult ? (
-              <CourseStrategyResultCard
-                result={draft.courseStrategyResult}
-                strategyNotes={draft.courseStrategy?.strategyNotes}
-                title="Saved course strategy"
-              />
-            ) : (
-              <div className="rounded-xl border border-dashed border-[color:var(--divider)] p-5 text-sm leading-6 text-[color:var(--text-soft)]">
-                No course strategy saved yet. Fill the strategy input block on the left, then this becomes the read-only strategy brief.
-              </div>
-            )}
-          </DesktopSection>
-
-          <DesktopSection
-            id="route-plan"
-            badge="Opening Bias"
-            title="Opening-bias intel"
-          >
-            <PreRaceOpeningBiasSummary draft={draft} />
-          </DesktopSection>
-
-          <DesktopSection
-            id="tactical-board"
-            badge="Tactical Snapshot"
-            title="Carry the launch picture forward"
-          >
-            <PreRaceTacticalSnapshot />
-          </DesktopSection>
-
-          <DesktopSection
-            id="leg-headings"
-            badge="Heading Reference"
-            title="Mark-to-mark heading chart"
-          >
-            <PreRaceLegHeadingChart />
-          </DesktopSection>
-
-          <DesktopSection
-            id="crew-lookout"
-            badge="Crew Brief"
-            title="Leg-by-leg lookout sheet"
-          >
-            <PreRaceLegLookoutSheet courseData={courseData} draft={draft} />
-          </DesktopSection>
-        </div>
-      </div>
-    );
-  }
+  if (isDesktopLayout) return null;
 
   return (
     <main className="mx-auto w-full max-w-5xl space-y-6 px-4 pb-8 pt-4">
@@ -269,23 +162,6 @@ export default function Page() {
         <PreRaceLegLookoutSheet courseData={courseData} draft={draft} />
       </PageSection>
     </main>
-  );
-}
-
-function DesktopSection(props: {
-  id?: string;
-  badge: string;
-  title: string;
-  children: ReactNode;
-}) {
-  return (
-    <section id={props.id} className="scroll-mt-8">
-      <div className="mb-4 flex items-center gap-3 border-b border-[color:var(--divider)] pb-3">
-        <span className="layline-kicker">{props.badge}</span>
-        <span className="flex-1 text-sm font-semibold text-[color:var(--text-soft)]">{props.title}</span>
-      </div>
-      {props.children}
-    </section>
   );
 }
 
