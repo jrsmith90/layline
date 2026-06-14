@@ -54,6 +54,8 @@ export type TacticalBoardDraft = {
   linePortEndBearingDeg: string;
   lineStarboardEndBearingDeg: string;
   downwindTrueWindAngleDeg: string;
+  /** Magnetic variation in degrees West (positive = West). Default 10.5 for Annapolis. */
+  magneticVariationDeg: string;
   windTrend: WindTrend;
   routeBias: TacticalBoardRouteBiasState;
   confirmedSailSelection: TacticalBoardConfirmedSailSelection | null;
@@ -538,6 +540,10 @@ function sanitizeDraft(input: Partial<TacticalBoardDraft> | null | undefined): T
       input?.downwindTrueWindAngleDeg,
       defaults.downwindTrueWindAngleDeg,
     ),
+    magneticVariationDeg: sanitizeText(
+      input?.magneticVariationDeg,
+      defaults.magneticVariationDeg,
+    ),
     windTrend: isWindTrend(input?.windTrend) ? input.windTrend : defaults.windTrend,
     routeBias: sanitizeRouteBiasState(input?.routeBias),
     confirmedSailSelection: sanitizeConfirmedSailSelection(input?.confirmedSailSelection),
@@ -649,6 +655,7 @@ export function buildTacticalBoardDraftDefaults(courseId: string): TacticalBoard
     linePortEndBearingDeg: "",
     lineStarboardEndBearingDeg: "",
     downwindTrueWindAngleDeg: "135",
+    magneticVariationDeg: "10.5",
     windTrend: "unknown",
     routeBias: createEmptyRouteBiasState(),
     confirmedSailSelection: null,

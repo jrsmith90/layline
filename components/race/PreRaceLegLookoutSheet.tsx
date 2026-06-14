@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import type { CourseSummary } from "@/data/race/getCourseData";
 import { buildPreRaceLegLookouts } from "@/lib/race/preRaceLegLookouts";
 import type { TacticalBoardDraft } from "@/lib/race/tacticalBoard/store";
+import { formatMagDeg, parseVariation } from "@/lib/magneticVariation";
 
 type PreRaceLegLookoutSheetProps = {
   courseData: CourseSummary;
@@ -28,6 +29,8 @@ export function PreRaceLegLookoutSheet({
     () => buildPreRaceLegLookouts({ courseData, draft }),
     [courseData, draft],
   );
+  const variation = parseVariation(draft.magneticVariationDeg);
+  const fmtMag = (v: number) => formatMagDeg(v, variation);
 
   const cardClass =
     tone === "print"
@@ -79,7 +82,7 @@ export function PreRaceLegLookoutSheet({
                   {lookout.fromLabel} to {lookout.toLabel}
                 </div>
                 <div className={`mt-1 ${metaClass}`}>
-                  {lookout.modeLabel} · {formatDegrees(lookout.bearingDeg)} · {formatDistance(lookout.distanceNm)}
+                  {lookout.modeLabel} · {fmtMag(lookout.bearingDeg)} · {formatDistance(lookout.distanceNm)}
                 </div>
               </div>
             </div>

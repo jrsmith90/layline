@@ -16,6 +16,8 @@ import { RaceRecorderPanel } from "@/components/race/RaceRecorderPanel";
 import { RoutingConstraintsList } from "@/components/race/RoutingConstraintsList";
 import { TackHistoryPanel } from "@/components/race/TackHistoryPanel";
 import { readJsonResponse } from "@/lib/readJsonResponse";
+import { formatMagDeg } from "@/lib/magneticVariation";
+import { useMagneticVariation } from "@/lib/race/useMagneticVariation";
 import {
   getStoredTrackerStateSnapshot,
   isRecentTrackerTransition,
@@ -266,8 +268,9 @@ function getCockpitAnswer(params: {
   result: MarkProgressResult | null;
   approachingMark: boolean;
   markId?: string;
+  fmtHdg: (v: number | null) => string;
 }) {
-  const { result, approachingMark, markId } = params;
+  const { result, approachingMark, markId, fmtHdg } = params;
 
   if (approachingMark) {
     return {
@@ -312,7 +315,7 @@ function getCockpitAnswer(params: {
       why: result.oppositeTackFetches
         ? "The opposite tack fetches the mark and this tack does not."
         : "Your heading has moved away from the learned tack angle, and the other tack aims closer to the mark.",
-      fix: `Tack cleanly to ${formatDeg(result.nextTackHeadingDeg)}, accelerate first, then re-check bearing.`,
+      fix: `Tack cleanly to ${fmtHdg(result.nextTackHeadingDeg)}, accelerate first, then re-check bearing.`,
     };
   }
 
@@ -323,7 +326,7 @@ function getCockpitAnswer(params: {
             result.minutesToTack == null
               ? ""
               : ` / ${Math.max(1, Math.round(result.minutesToTack))} min`
-          }, then tack to ${formatDeg(result.nextTackHeadingDeg)}.`
+          }, then tack to ${fmtHdg(result.nextTackHeadingDeg)}.`
         : "";
     const why =
       result.tackHeadingDeviationDeg != null && result.tackHeadingDeviationDeg >= 15
@@ -358,7 +361,7 @@ function getCockpitAnswer(params: {
       why: "Your COG is taking you away from the mark.",
       fix: result.oppositeHeadingErrorDeg != null && result.headingErrorDeg != null &&
         result.oppositeHeadingErrorDeg < result.headingErrorDeg
-        ? `Tack to ${formatDeg(result.nextTackHeadingDeg)} if clear. If not, bear away until VMG turns positive.`
+        ? `Tack to ${fmtHdg(result.nextTackHeadingDeg)} if clear. If not, bear away until VMG turns positive.`
         : "Bear away for speed and get COG back toward the mark.",
     };
   }
@@ -372,7 +375,7 @@ function getCockpitAnswer(params: {
         result.minutesToTack == null
           ? ""
           : ` / ${Math.max(1, Math.round(result.minutesToTack))} min`
-      }, then tack to ${formatDeg(result.nextTackHeadingDeg)}.`,
+      }, then tack to ${fmtHdg(result.nextTackHeadingDeg)}.`,
     };
   }
 
@@ -401,6 +404,8 @@ export default function RaceLiveCockpit() {
   const courseIds = useCourseIds();
   const { mode, isRaceMode } = useAppMode();
   const gps = usePhoneGps();
+  const variation = useMagneticVariation();
+  const fmtMag = (v: number | null | undefined) => formatMagDeg(v, variation);
   const trackerState = useSyncExternalStore(
     subscribeStoredTrackerState,
     getStoredTrackerStateSnapshot,
@@ -703,6 +708,7 @@ export default function RaceLiveCockpit() {
     result,
     approachingMark,
     markId: leg?.toMark,
+    fmtHdg: fmtMag,
   });
   const cockpitAnswer = getLegalityCockpitOverride(raceState.legality) ?? baseCockpitAnswer;
   const cockpitModeCopy = useMemo(
@@ -909,7 +915,7 @@ export default function RaceLiveCockpit() {
           <BigMetric label="Off Line" value={`${formatNumber(result?.degreesOffLaylineDeg ?? null, 0)} deg`} />
           <BigMetric
             label="Tack Hdg"
-            value={`${formatDeg(result?.currentTackHeadingDeg ?? null)} (${formatDeg(result?.nextTackHeadingDeg ?? null)})`}
+            value={`${fmtMag(result?.currentTackHeadingDeg)} (${fmtMag(result?.nextTackHeadingDeg)})`}
           />
           <BigMetric
             className="col-span-2 sm:col-span-1"
@@ -984,7 +990,7 @@ export default function RaceLiveCockpit() {
 
         <div className="mt-4 grid grid-cols-3 gap-2">
           <BigMetric label="Distance" value={`${formatNumber(result?.distanceToMarkNm ?? null, 2)} nm`} />
-          <BigMetric label="Bearing" value={formatDeg(result?.bearingToMarkDeg ?? null)} />
+          <BigMetric label="Bearing" value={fmtMag(result?.bearingToMarkDeg)} />
           <BigMetric label="VMG" value={`${formatNumber(result?.vmgToMarkKt ?? null, 1)} kt`} />
         </div>
         {recentTransition?.kind === "automatic" && (
@@ -1020,7 +1026,7 @@ export default function RaceLiveCockpit() {
             <div className="mt-3 grid grid-cols-3 gap-2">
               <BigMetric label="Wind" value={formatKt(windRead.windAvgKt)} />
               <BigMetric label="Gust" value={formatKt(windRead.windGustKt)} />
-              <BigMetric label="From" value={formatDeg(effectiveWindFrom)} />
+              <BigMetric label="From" value={fmtMag(effectiveWindFrom)} />
             </div>
 
             <button
@@ -1098,7 +1104,7 @@ export default function RaceLiveCockpit() {
         <div className="space-y-4">
           <section className="layline-panel p-4">
             <div className="grid grid-cols-3 gap-2">
-              <BigMetric label="COG" value={formatDeg(gps.cogDeg)} />
+              <BigMetric label="COG" value={fmtMag(gps.cogDeg)} />
               <BigMetric label="SOG" value={formatSpeedKt(gps.sogMps)} />
               <BigMetric label="Tack" value={`${Math.round(tackAngle)} deg`} />
             </div>

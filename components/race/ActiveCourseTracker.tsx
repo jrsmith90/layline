@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useAppMode } from "@/components/display/AppModeProvider";
+import { formatMagDeg } from "@/lib/magneticVariation";
+import { useMagneticVariation } from "@/lib/race/useMagneticVariation";
 import { formatCourseLabel } from "@/data/race/getCourseData";
 import { LiveInstrumentsPanel } from "@/components/gps/LiveInstrumentsPanel";
 import { LiveTacticalBoardCard } from "@/components/race/LiveTacticalBoardCard";
@@ -91,6 +93,8 @@ export default function ActiveCourseTracker() {
   const { mode, isLearningMode } = useAppMode();
   const courseIds = useCourseIds();
   const gps = usePhoneGps();
+  const variation = useMagneticVariation();
+  const fmtMag = (v: number | null | undefined) => formatMagDeg(v, variation);
   const [trackerState, setTrackerState] = useState(() => getStoredTrackerStateSnapshot());
   const courseId = trackerState.courseId;
   const courseData = useResolvedCourseData(courseId);
@@ -489,7 +493,7 @@ export default function ActiveCourseTracker() {
             </div>
             <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
               <Metric label="Distance" value={`${formatNumber(result.distanceToMarkNm, 2)} nm`} />
-              <Metric label="Bearing" value={formatDeg(result.bearingToMarkDeg)} />
+              <Metric label="Bearing" value={fmtMag(result.bearingToMarkDeg)} />
               <Metric label="VMG" value={`${formatNumber(result.vmgToMarkKt, 1)} kt`} />
               <Metric
                 label="X-track"
@@ -508,7 +512,7 @@ export default function ActiveCourseTracker() {
                 <div className="mt-2 text-xl font-black">
                   {result.currentTack ?? "--"}{" "}
                   {result.currentTackHeadingDeg != null
-                    ? `· ${formatDeg(result.currentTackHeadingDeg)}`
+                    ? `· ${fmtMag(result.currentTackHeadingDeg)}`
                     : ""}
                 </div>
                 <div className="mt-1 text-sm text-[color:var(--text-soft)]">
@@ -522,7 +526,7 @@ export default function ActiveCourseTracker() {
                 </div>
                 <div className="mt-2 text-xl font-black">
                   {result.oppositeTackHeadingDeg != null
-                    ? formatDeg(result.oppositeTackHeadingDeg)
+                    ? fmtMag(result.oppositeTackHeadingDeg)
                     : "--"}
                 </div>
                 <div className="mt-1 text-sm text-[color:var(--text-soft)]">

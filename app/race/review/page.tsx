@@ -64,6 +64,8 @@ import {
 } from "@/lib/raceSessionStore";
 import { useCourseCatalogVersion } from "@/lib/race/useCourseCatalogVersion";
 import type { GpsTrackPoint } from "@/lib/useGpsCourse";
+import { formatMagDeg } from "@/lib/magneticVariation";
+import { useMagneticVariation } from "@/lib/race/useMagneticVariation";
 
 const SessionReplayMap = dynamic(
   () => import("@/components/race/SessionReplayMap"),
@@ -481,6 +483,7 @@ function SessionReplayPanel({
   weatherSamples,
   initialFocusISO,
   hasCourseOverlay,
+  fmtMag,
   onArchiveOutsideWindow,
   onDeleteWindow,
   onRunReevaluation,
@@ -489,6 +492,7 @@ function SessionReplayPanel({
   weatherSamples: RaceWeatherSample[];
   initialFocusISO?: string | null;
   hasCourseOverlay: boolean;
+  fmtMag: (v: number | null) => string;
   onArchiveOutsideWindow: (startISO: string, endISO: string) => void;
   onDeleteWindow: (startISO: string, endISO: string) => void;
   onRunReevaluation: () => void;
@@ -746,7 +750,7 @@ function SessionReplayPanel({
 
       <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
         <Metric label="SOG" value={`${formatNumber(currentSogKt)} kt`} />
-        <Metric label="COG" value={formatDeg(currentPoint?.cogDeg ?? null)} />
+        <Metric label="COG" value={fmtMag(currentPoint?.cogDeg ?? null)} />
         <Metric
           label={windSummary ? `${windSummary.label} wind` : "Wind"}
           value={windSummary?.speedKt == null ? "--" : `${formatNumber(windSummary.speedKt)} kt`}
@@ -773,7 +777,7 @@ function SessionReplayPanel({
         {nearestWeather
           ? `Weather nearest this point was observed ${formatDateTime(nearestWeather.atISO)}`
           : "No weather sample is attached near this replay point yet."}
-        {windSummary?.directionDeg != null ? ` Wind direction was ${formatDeg(windSummary.directionDeg)} from.` : ""}
+        {windSummary?.directionDeg != null ? ` Wind direction was ${fmtMag(windSummary.directionDeg)} from.` : ""}
       </div>
 
       <div className="mt-3 flex flex-wrap gap-2 text-[10px] font-black uppercase tracking-[0.16em] text-[color:var(--muted)]">
@@ -1040,20 +1044,23 @@ function tacticalBoardSourceDetail(snapshot: TacticalBoardSnapshot) {
   return `${windCopy}${geometryCopy}`;
 }
 
-function getTacticalBoardReplayMetrics(snapshot: TacticalBoardSnapshot) {
+function getTacticalBoardReplayMetrics(
+  snapshot: TacticalBoardSnapshot,
+  fmtHdg: (v: number | null) => string,
+) {
   if (snapshot.liveContext.legMode === "downwind") {
     return [
-      { label: "Jibe", value: formatDeg(snapshot.board.downwind.jibeBearingDeg) },
-      { label: "Stbd Gybe", value: formatDeg(snapshot.board.downwind.starboardGybeHeadingDeg) },
-      { label: "Port Gybe", value: formatDeg(snapshot.board.downwind.portGybeHeadingDeg) },
+      { label: "Jibe", value: fmtHdg(snapshot.board.downwind.jibeBearingDeg) },
+      { label: "Stbd Gybe", value: fmtHdg(snapshot.board.downwind.starboardGybeHeadingDeg) },
+      { label: "Port Gybe", value: fmtHdg(snapshot.board.downwind.portGybeHeadingDeg) },
       { label: "Reach", value: formatTacticalBoardSide(snapshot.board.downwind.dominantReach) },
     ];
   }
 
   if (snapshot.liveContext.legMode === "upwind") {
     return [
-      { label: "Stbd Tack", value: formatDeg(snapshot.board.upwind.starboardTackHeadingDeg) },
-      { label: "Port Tack", value: formatDeg(snapshot.board.upwind.portTackHeadingDeg) },
+      { label: "Stbd Tack", value: fmtHdg(snapshot.board.upwind.starboardTackHeadingDeg) },
+      { label: "Port Tack", value: fmtHdg(snapshot.board.upwind.portTackHeadingDeg) },
       { label: "Mark Offset", value: formatSignedDeg(snapshot.board.upwind.windwardMarkOffsetDeg) },
       { label: "Favored Tack", value: formatTacticalBoardSide(snapshot.board.upwind.favoredTack) },
     ];
@@ -1063,7 +1070,7 @@ function getTacticalBoardReplayMetrics(snapshot: TacticalBoardSnapshot) {
     { label: "Shift", value: formatSignedDeg(snapshot.board.shift.deltaDeg) },
     { label: "Bias", value: formatSignedDeg(snapshot.board.startLine.biasDeg) },
     { label: "Favored End", value: formatTacticalBoardSide(snapshot.board.startLine.favoredEnd) },
-    { label: "Jibe", value: formatDeg(snapshot.board.downwind.jibeBearingDeg) },
+    { label: "Jibe", value: fmtHdg(snapshot.board.downwind.jibeBearingDeg) },
   ];
 }
 
@@ -1445,6 +1452,8 @@ function GpxImportPanel({
 
 export default function RaceReviewPage() {
   useCourseCatalogVersion();
+  const variation = useMagneticVariation();
+  const fmtMag = (v: number | null) => formatMagDeg(v, variation);
   const [, refresh] = useReducer((value: number) => value + 1, 0);
   const sessions = getRaceSessions();
   const mostRecent = getMostRecentRaceSession();
@@ -2013,7 +2022,7 @@ export default function RaceReviewPage() {
                         </div>
                         <div className="text-right text-xs text-[color:var(--muted)]">
                           <div>
-                            Hdg {zone.headingDeg == null ? "--" : `${Math.round(zone.headingDeg)} deg`}
+                            Hdg {fmtMag(zone.headingDeg ?? null)}
                           </div>
                           <div>
                             Layline{" "}
@@ -2145,6 +2154,7 @@ export default function RaceReviewPage() {
                   replayFocusRequest?.sessionId === session.id ? replayFocusRequest.atISO : null
                 }
                 hasCourseOverlay={reviewCourseData != null}
+                fmtMag={fmtMag}
                 onArchiveOutsideWindow={archiveOutsideReplayWindow}
                 onDeleteWindow={deleteReplayWindow}
                 onRunReevaluation={runReplayReevaluation}
@@ -2446,13 +2456,13 @@ export default function RaceReviewPage() {
                     <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-4">
                       <Metric
                         label="Baseline"
-                        value={formatDeg(selectedTacticalBoardSnapshot.board.shift.referenceFromDeg)}
+                        value={fmtMag(selectedTacticalBoardSnapshot.board.shift.referenceFromDeg)}
                       />
                       <Metric
                         label="Live Wind"
-                        value={formatDeg(selectedTacticalBoardSnapshot.board.shift.currentFromDeg)}
+                        value={fmtMag(selectedTacticalBoardSnapshot.board.shift.currentFromDeg)}
                       />
-                      {getTacticalBoardReplayMetrics(selectedTacticalBoardSnapshot)
+                      {getTacticalBoardReplayMetrics(selectedTacticalBoardSnapshot, fmtMag)
                         .slice(0, 2)
                         .map((metric) => (
                           <Metric key={metric.label} label={metric.label} value={metric.value} />
@@ -2460,7 +2470,7 @@ export default function RaceReviewPage() {
                     </div>
 
                     <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-4">
-                      {getTacticalBoardReplayMetrics(selectedTacticalBoardSnapshot)
+                      {getTacticalBoardReplayMetrics(selectedTacticalBoardSnapshot, fmtMag)
                         .slice(2)
                         .map((metric) => (
                           <Metric key={metric.label} label={metric.label} value={metric.value} />

@@ -23,6 +23,7 @@ import {
   subscribeTacticalBoardStore,
 } from "@/lib/race/tacticalBoard/store";
 import { useResolvedCourseData } from "@/lib/race/useCourseCatalogVersion";
+import { formatMagDeg, parseVariation } from "@/lib/magneticVariation";
 
 const DEFAULT_TACTICAL_BOARD_DRAFT = buildTacticalBoardDraftDefaults(getDefaultCourseId());
 
@@ -138,14 +139,16 @@ export function PreRaceTacticalSnapshot() {
   const firstMarkLabel = board.course.firstMark
     ? getMarkShortLabel(board.course.firstMark, board.course.summary.marks[board.course.firstMark])
     : "--";
+  const variation = parseVariation(draft.magneticVariationDeg);
+  const fmtMag = (v: number | null) => formatMagDeg(v, variation);
   const latestOpeningBiasAction = formatOpeningBiasAction(draft.routeBias.latestUpdate?.action);
 
   return (
     <section className="space-y-4">
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
         <Metric label="Board Status" value={getStatusCopy(status)} />
-        <Metric label="Baseline Wind" value={formatDeg(board.shift.referenceFromDeg)} />
-        <Metric label="Current Wind" value={formatDeg(board.shift.currentFromDeg)} />
+        <Metric label="Baseline Wind" value={fmtMag(board.shift.referenceFromDeg)} />
+        <Metric label="Current Wind" value={fmtMag(board.shift.currentFromDeg)} />
         <Metric label="First Mark" value={firstMarkLabel} />
         <Metric label="Shift Memory" value={formatSignedDeg(board.shift.deltaDeg)} />
       </div>
@@ -214,9 +217,9 @@ export function PreRaceTacticalSnapshot() {
             title="Upwind Targets"
           >
             <div className="grid gap-3 sm:grid-cols-2">
-              <Metric label="Starboard Tack" value={formatDeg(board.upwind.starboardTackHeadingDeg)} />
-              <Metric label="Port Tack" value={formatDeg(board.upwind.portTackHeadingDeg)} />
-              <Metric label="Mark Bearing" value={formatDeg(board.upwind.windwardMarkBearingDeg)} />
+              <Metric label="Starboard Tack" value={fmtMag(board.upwind.starboardTackHeadingDeg)} />
+              <Metric label="Port Tack" value={fmtMag(board.upwind.portTackHeadingDeg)} />
+              <Metric label="Mark Bearing" value={fmtMag(board.upwind.windwardMarkBearingDeg)} />
               <Metric label="Favored Tack" value={getSideCopy(board.upwind.favoredTack)} />
             </div>
           </SummaryCard>

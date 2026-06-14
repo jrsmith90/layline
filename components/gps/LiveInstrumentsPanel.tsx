@@ -2,6 +2,8 @@
 
 import { Download, Navigation, Trash2 } from "lucide-react";
 import { usePhoneGps } from "@/components/gps/PhoneGpsProvider";
+import { formatMagDeg } from "@/lib/magneticVariation";
+import { useMagneticVariation } from "@/lib/race/useMagneticVariation";
 
 type DecisionContext = "start" | "upwind" | "downwind" | "route" | "general";
 
@@ -84,6 +86,7 @@ export function LiveInstrumentsPanel({
   compact?: boolean;
 }) {
   const gps = usePhoneGps();
+  const variation = useMagneticVariation();
   const latestPoint = gps.track.at(-1);
 
   return (
@@ -128,7 +131,7 @@ export function LiveInstrumentsPanel({
             COG
           </div>
           <div className="mt-1 text-lg font-black text-[color:var(--text)]">
-            {formatCog(gps.cogDeg)}
+            {formatMagDeg(gps.cogDeg, variation)}
           </div>
         </div>
         <div className="rounded-xl border border-[color:var(--divider)] bg-black/20 p-3">

@@ -11,6 +11,8 @@ import { Navigation } from "lucide-react";
 import { useDisplayMode } from "@/components/display/DisplayModeProvider";
 import { useGpsCourse } from "@/lib/useGpsCourse";
 import { STORAGE_KEYS } from "@/lib/storageKeys";
+import { trueToMagnetic } from "@/lib/magneticVariation";
+import { useMagneticVariation } from "@/lib/race/useMagneticVariation";
 
 const GPS_ENABLED_KEY = STORAGE_KEYS.phoneGpsEnabled;
 const GPS_ENABLED_EVENT = "layline:phone-gps-enabled";
@@ -65,6 +67,7 @@ function formatSpeedKt(sogMps: number | null) {
 
 function FloatingGpsControl() {
   const gps = usePhoneGps();
+  const variation = useMagneticVariation();
   const { effectiveMode } = useDisplayMode();
   const speedKt = formatSpeedKt(gps.sogMps);
 
@@ -77,7 +80,7 @@ function FloatingGpsControl() {
           ? "Stale"
           : gps.cogDeg == null
           ? "Acquiring"
-            : `${Math.round(gps.cogDeg)} deg`
+            : `${Math.round(trueToMagnetic(gps.cogDeg, variation))}°M`
         : "Off";
 
   return (

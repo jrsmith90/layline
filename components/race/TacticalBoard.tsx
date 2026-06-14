@@ -43,6 +43,7 @@ import {
   subscribeTacticalBoardStore,
 } from "@/lib/race/tacticalBoard/store";
 import { getMarkShortLabel } from "@/lib/race/markLabels";
+import { formatMagDeg, parseVariation } from "@/lib/magneticVariation";
 
 const DEFAULT_TACTICAL_BOARD_DRAFT = buildTacticalBoardDraftDefaults(getDefaultCourseId());
 
@@ -212,6 +213,8 @@ export function TacticalBoardContent({
     () => DEFAULT_TACTICAL_BOARD_DRAFT,
   );
   const courseData = useResolvedCourseData(draft.courseId);
+  const variation = parseVariation(draft.magneticVariationDeg);
+  const fmtMag = (v: number | null) => formatMagDeg(v, variation);
   const routeBiasInputModel = getRouteBiasInputs(draft.courseId);
   const board = useMemo(
     () =>
@@ -297,12 +300,12 @@ export function TacticalBoardContent({
         >
           <HeroMetric
             label="Baseline Wind"
-            value={formatDeg(board.shift.referenceFromDeg)}
+            value={fmtMag(board.shift.referenceFromDeg)}
             help="This is your pre-race anchor wind direction. Use it as the normal picture of the course so you can spot whether the current wind has shifted away from your baseline."
           />
           <HeroMetric
             label="Current Wind"
-            value={formatDeg(board.shift.currentFromDeg)}
+            value={fmtMag(board.shift.currentFromDeg)}
             help="This is the wind direction you should use for immediate steering calls right now. If it changes, the target tack headings below should change with it."
           />
           <HeroMetric
@@ -312,7 +315,7 @@ export function TacticalBoardContent({
           />
           <HeroMetric
             label="Jibe Bearing"
-            value={formatDeg(board.downwind.jibeBearingDeg)}
+            value={fmtMag(board.downwind.jibeBearingDeg)}
             help="This is the downwind centerline, or the direction directly away from the wind. Use it as the downwind reference before deciding whether port or starboard gybe better points at the next mark."
           />
         </div>
@@ -440,6 +443,14 @@ export function TacticalBoardContent({
                 onChange={(value) =>
                   setTacticalBoardDraftField("downwindTrueWindAngleDeg", value)
                 }
+              />
+
+              <NumberInput
+                label="Mag. variation"
+                unit="°W"
+                value={draft.magneticVariationDeg}
+                help="Magnetic variation for your sailing area in degrees West. Annapolis is 10.5°W. This converts all displayed headings from true to magnetic."
+                onChange={(value) => setTacticalBoardDraftField("magneticVariationDeg", value)}
               />
 
               <AngleInput
@@ -914,12 +925,12 @@ export function TacticalBoardContent({
           <div className="grid gap-4 md:grid-cols-2">
             <HeadingCalloutCard
               tackLabel="Starboard Tack"
-              heading={formatDeg(board.upwind.starboardTackHeadingDeg)}
+              heading={fmtMag(board.upwind.starboardTackHeadingDeg)}
               description={`If the boat is on starboard tack sailing toward ${firstMarkTarget}, steer this heading as your starting target.`}
             />
             <HeadingCalloutCard
               tackLabel="Port Tack"
-              heading={formatDeg(board.upwind.portTackHeadingDeg)}
+              heading={fmtMag(board.upwind.portTackHeadingDeg)}
               description={`If the boat is on port tack sailing toward ${firstMarkTarget}, steer this heading as your starting target.`}
             />
           </div>
@@ -927,7 +938,7 @@ export function TacticalBoardContent({
           <div className="grid gap-3">
             <MetricCard
               label="Windward Mark Bearing"
-              value={formatDeg(board.upwind.windwardMarkBearingDeg)}
+              value={fmtMag(board.upwind.windwardMarkBearingDeg)}
               help="This is the actual direction to the next upwind mark. Comparing it with your tack headings tells you which tack points closer to the mark."
             />
             <MetricCard
@@ -968,22 +979,22 @@ export function TacticalBoardContent({
           <div className="mt-4 grid gap-3">
             <MetricCard
               label="Jibe Bearing"
-              value={formatDeg(board.downwind.jibeBearingDeg)}
+              value={fmtMag(board.downwind.jibeBearingDeg)}
               help="This is the direction directly downwind. Treat it as the centerline for the run before looking at which gybe better points toward the mark."
             />
             <MetricCard
               label="Starboard Gybe"
-              value={formatDeg(board.downwind.starboardGybeHeadingDeg)}
+              value={fmtMag(board.downwind.starboardGybeHeadingDeg)}
               help="This is your working heading when sailing downwind on starboard gybe."
             />
             <MetricCard
               label="Port Gybe"
-              value={formatDeg(board.downwind.portGybeHeadingDeg)}
+              value={fmtMag(board.downwind.portGybeHeadingDeg)}
               help="This is your working heading when sailing downwind on port gybe."
             />
             <MetricCard
               label="Run Mark"
-              value={formatDeg(board.downwind.downwindMarkBearingDeg)}
+              value={fmtMag(board.downwind.downwindMarkBearingDeg)}
               help="This is the direction to the downwind mark. Compare it with the gybe headings to see which side aims you better."
             />
             <MetricCard
@@ -1019,12 +1030,12 @@ export function TacticalBoardContent({
           <div className="mt-4 grid gap-3">
             <MetricCard
               label="Port-End Bearing"
-              value={formatDeg(board.startLine.portEndBearingDeg)}
+              value={fmtMag(board.startLine.portEndBearingDeg)}
               help="The direction from your position to the port end of the line."
             />
             <MetricCard
               label="Starboard-End Bearing"
-              value={formatDeg(board.startLine.starboardEndBearingDeg)}
+              value={fmtMag(board.startLine.starboardEndBearingDeg)}
               help="The direction from your position to the committee-boat end of the line."
             />
             <MetricCard

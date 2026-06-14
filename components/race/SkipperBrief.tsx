@@ -14,6 +14,7 @@ import {
   subscribeTacticalBoardStore,
 } from "@/lib/race/tacticalBoard/store";
 import { useResolvedCourseData } from "@/lib/race/useCourseCatalogVersion";
+import { formatMagDeg, parseVariation } from "@/lib/magneticVariation";
 
 const DEFAULT_DRAFT = buildTacticalBoardDraftDefaults(getDefaultCourseId());
 
@@ -84,6 +85,9 @@ export function SkipperBrief() {
   const keyRisks = draft.courseStrategyResult?.keyRisks ?? [];
   const strategyNotes = draft.courseStrategy?.strategyNotes ?? "";
 
+  const variation = parseVariation(draft.magneticVariationDeg);
+  const fmtMag = (v: number | null) => formatMagDeg(v, variation);
+
   const starboardHeading = board.upwind.starboardTackHeadingDeg;
   const portHeading = board.upwind.portTackHeadingDeg;
 
@@ -123,7 +127,7 @@ export function SkipperBrief() {
           </div>
           <div className="rounded-xl border border-white/10 bg-black/20 p-3">
             <div className="text-[10px] uppercase tracking-wide opacity-50">Mean wind</div>
-            <div className="mt-1 text-base font-bold">{fmt(parseNum(draft.meanWindDirectionDeg))}</div>
+            <div className="mt-1 text-base font-bold">{fmtMag(parseNum(draft.meanWindDirectionDeg))}</div>
           </div>
           <div className="rounded-xl border border-white/10 bg-black/20 p-3">
             <div className="text-[10px] uppercase tracking-wide opacity-50">Trend</div>
@@ -133,11 +137,11 @@ export function SkipperBrief() {
         <div className="grid grid-cols-2 gap-2">
           <div className="rounded-xl border border-sky-400/30 bg-sky-400/10 p-3">
             <div className="text-[10px] uppercase tracking-wide text-sky-300/70">Starboard hdg</div>
-            <div className="mt-1 text-base font-bold">{fmt(starboardHeading)}</div>
+            <div className="mt-1 text-base font-bold">{fmtMag(starboardHeading)}</div>
           </div>
           <div className="rounded-xl border border-purple-400/30 bg-purple-400/10 p-3">
             <div className="text-[10px] uppercase tracking-wide text-purple-300/70">Port hdg</div>
-            <div className="mt-1 text-base font-bold">{fmt(portHeading)}</div>
+            <div className="mt-1 text-base font-bold">{fmtMag(portHeading)}</div>
           </div>
         </div>
         {board.upwind.favoredTack !== "unknown" && (
@@ -163,11 +167,11 @@ export function SkipperBrief() {
           <div className="grid grid-cols-2 gap-2">
             <div className="rounded-xl border border-white/10 bg-black/20 p-3">
               <div className="text-[10px] uppercase tracking-wide opacity-50">Port end</div>
-              <div className="mt-1 text-sm font-bold">{fmt(board.startLine.portEndBearingDeg)}</div>
+              <div className="mt-1 text-sm font-bold">{fmtMag(board.startLine.portEndBearingDeg)}</div>
             </div>
             <div className="rounded-xl border border-white/10 bg-black/20 p-3">
               <div className="text-[10px] uppercase tracking-wide opacity-50">Starboard end</div>
-              <div className="mt-1 text-sm font-bold">{fmt(board.startLine.starboardEndBearingDeg)}</div>
+              <div className="mt-1 text-sm font-bold">{fmtMag(board.startLine.starboardEndBearingDeg)}</div>
             </div>
           </div>
         )}

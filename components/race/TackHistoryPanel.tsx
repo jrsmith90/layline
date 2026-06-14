@@ -1,6 +1,8 @@
 "use client";
 
 import type { TackRecord } from "@/lib/raceSessionStore";
+import { formatMagDeg } from "@/lib/magneticVariation";
+import { useMagneticVariation } from "@/lib/race/useMagneticVariation";
 
 type TackHistoryPanelProps = {
   records: TackRecord[];
@@ -34,6 +36,8 @@ export function TackHistoryPanel({
   currentTackAngleDeg,
   isRecording,
 }: TackHistoryPanelProps) {
+  const variation = useMagneticVariation();
+  const fmtMag = (v: number | null) => formatMagDeg(v, variation);
   const latest = records.at(-1) ?? null;
   const recentRecords = records.slice(-6).reverse();
 
@@ -63,7 +67,7 @@ export function TackHistoryPanel({
       {latest ? (
         <div className="mt-3 rounded-xl border border-[color:var(--divider)] bg-black/20 p-3 text-xs leading-5 text-[color:var(--text-soft)]">
           Last tack: {formatDeg(latest.halfAngleDeg)} half-angle, {formatKt(latest.sogKt)},{" "}
-          wind {formatDeg(latest.windFromDeg)}, {latest.confidence} confidence.
+          wind {fmtMag(latest.windFromDeg)}, {latest.confidence} confidence.
         </div>
       ) : null}
 
@@ -85,7 +89,7 @@ export function TackHistoryPanel({
                   <td className="py-2 pr-3 font-bold">{formatTime(record.atISO)}</td>
                   <td className="py-2 pr-3">{formatDeg(record.halfAngleDeg)}</td>
                   <td className="py-2 pr-3">{formatKt(record.sogKt)}</td>
-                  <td className="py-2 pr-3">{formatDeg(record.windFromDeg)}</td>
+                  <td className="py-2 pr-3">{fmtMag(record.windFromDeg)}</td>
                   <td className="py-2 pr-3">{formatPosition(record)}</td>
                 </tr>
               ))}

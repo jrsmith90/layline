@@ -6,6 +6,8 @@ import startUpwindLogic from "@/data/logic/startUpwindLogic";
 import { LiveInstrumentsPanel } from "@/components/gps/LiveInstrumentsPanel";
 import { usePhoneGps } from "@/components/gps/PhoneGpsProvider";
 import { readJsonResponse } from "@/lib/readJsonResponse";
+import { formatMagDeg } from "@/lib/magneticVariation";
+import { useMagneticVariation } from "@/lib/race/useMagneticVariation";
 
 type ForwardEscape = "YES" | "MAYBE" | "NO";
 type WindwardThreat = "NONE" | "PRESENT" | "CONTROLLING";
@@ -621,6 +623,7 @@ function getStartWhy(params: {
 
 export default function StartPage() {
   const gps = usePhoneGps();
+  const variation = useMagneticVariation();
   const logic = startUpwindLogic;
   const [forwardEscapeQuestion, windwardThreatQuestion, leewardPressureQuestion] =
     logic.start.laneQuestions;
@@ -974,7 +977,7 @@ export default function StartPage() {
                 Direction
               </div>
               <div className="mt-1 text-sm font-semibold">
-                {formatDeg(selectedLiveWind.windDirectionDeg)}
+                {formatMagDeg(selectedLiveWind.windDirectionDeg, variation)}
               </div>
             </div>
             <div className="rounded-xl border border-white/10 bg-white/5 p-3">

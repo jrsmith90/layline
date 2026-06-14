@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { TimerReset } from "lucide-react";
 import { usePhoneGps } from "@/components/gps/PhoneGpsProvider";
+import { formatMagDeg } from "@/lib/magneticVariation";
+import { useMagneticVariation } from "@/lib/race/useMagneticVariation";
 import {
   calculateTackCalibration,
   detectAutomaticTackCalibrations,
@@ -32,6 +34,8 @@ export function TackCalibrationPanel({
   onUseHalfAngle: (halfAngleDeg: number) => void;
 }) {
   const gps = usePhoneGps();
+  const variation = useMagneticVariation();
+  const fmtMag = (v: number) => formatMagDeg(v, variation);
   const [startedAtMs, setStartedAtMs] = useState<number | null>(null);
   const [nowMs, setNowMs] = useState(() => Date.now());
   const [results, setResults] = useState<TackCalibrationResult[]>(readTackCalibrations);
@@ -163,8 +167,8 @@ export function TackCalibrationPanel({
 
       {latestResult && (
         <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
-          <Metric label="Before" value={formatDeg(latestResult.beforeCogDeg)} />
-          <Metric label="After" value={formatDeg(latestResult.afterCogDeg)} />
+          <Metric label="Before" value={fmtMag(latestResult.beforeCogDeg)} />
+          <Metric label="After" value={fmtMag(latestResult.afterCogDeg)} />
           <Metric label="Through" value={formatDeg(latestResult.tackThroughDeg)} />
           <Metric label="Half" value={formatDeg(latestResult.halfAngleDeg)} />
         </div>

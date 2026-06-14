@@ -30,6 +30,7 @@ import {
   getStoredTacticalBoardDraft,
   subscribeTacticalBoardStore,
 } from "@/lib/race/tacticalBoard/store";
+import { formatMagDeg, parseVariation } from "@/lib/magneticVariation";
 import {
   getConstraintActionCopy,
   getConstraintHeadline,
@@ -183,6 +184,8 @@ export function PreRaceExportDocument() {
     () => DEFAULT_TACTICAL_BOARD_DRAFT,
   );
   const courseData = useMemo(() => getCourseData(draft.courseId), [draft.courseId]);
+  const variation = parseVariation(draft.magneticVariationDeg);
+  const fmtMag = (v: number | null | undefined) => formatMagDeg(v, variation);
   const generatedAt = useMemo(() => new Date(), []);
   const plannedStartLabel = formatPlannedRaceStartLabel(draft.raceStartDate, draft.raceStartTime);
   const tackAngleDeg = readNumber(draft.tackAngleDeg) ?? 42;
@@ -291,7 +294,7 @@ export function PreRaceExportDocument() {
             />
             <MetricCard
               label="First Leg Bearing"
-              value={formatDegrees(courseData.firstLeg?.bearingDeg)}
+              value={fmtMag(courseData.firstLeg?.bearingDeg)}
             />
             <MetricCard
               label="Total Distance"
@@ -312,11 +315,11 @@ export function PreRaceExportDocument() {
               <MetricCard label="Tack Angle" value={formatDegrees(tackAngleDeg)} />
               <MetricCard
                 label="Mean Wind Dir"
-                value={formatDegrees(readNumber(draft.meanWindDirectionDeg))}
+                value={fmtMag(readNumber(draft.meanWindDirectionDeg))}
               />
               <MetricCard
                 label="Current Wind Dir"
-                value={formatDegrees(readNumber(draft.currentWindDirectionDeg))}
+                value={fmtMag(readNumber(draft.currentWindDirectionDeg))}
               />
             </div>
           </SectionCard>
@@ -512,7 +515,7 @@ export function PreRaceExportDocument() {
                   />
                   <MetricCard
                     label="Wind At Start"
-                    value={`${formatDegrees(originalRouteBiasAnswers.windDirectionDeg)} · ${originalRouteBiasAnswers.windSpeedKt.toFixed(1)} kt`}
+                    value={`${fmtMag(originalRouteBiasAnswers.windDirectionDeg)} · ${originalRouteBiasAnswers.windSpeedKt.toFixed(1)} kt`}
                   />
                 </div>
 
@@ -615,7 +618,7 @@ export function PreRaceExportDocument() {
                 <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                   <MetricCard
                     label="Opening Bearing"
-                    value={formatDegrees(courseStrategyAnswers.openingLegBearingDeg)}
+                    value={fmtMag(courseStrategyAnswers.openingLegBearingDeg)}
                   />
                   <MetricCard
                     label="First Mark Distance"
@@ -692,12 +695,10 @@ export function PreRaceExportDocument() {
                             {zone.label}
                           </td>
                           <td className="px-4 py-3 text-sm text-slate-700">
-                            {formatDegrees(zone.headingDeg)}
+                            {fmtMag(zone.headingDeg)}
                           </td>
                           <td className="px-4 py-3 text-sm text-slate-700">
-                            {roundUpLaylineHeadingDeg(zone.laylineHeadingDeg) == null
-                              ? "--"
-                              : `${roundUpLaylineHeadingDeg(zone.laylineHeadingDeg)} deg`}
+                            {fmtMag(roundUpLaylineHeadingDeg(zone.laylineHeadingDeg))}
                           </td>
                           <td className="px-4 py-3 text-sm text-slate-700">
                             {formatSignedRisk(zone.windShiftRisk)}
@@ -775,13 +776,13 @@ export function PreRaceExportDocument() {
                         <td className="px-4 py-3 text-sm text-slate-700">{row.from}</td>
                         <td className="px-4 py-3 text-sm text-slate-700">{row.to}</td>
                         <td className="px-4 py-3 text-sm text-slate-700">
-                          {formatDegrees(row.bearingDeg)}
+                          {fmtMag(row.bearingDeg)}
                         </td>
                         <td className="px-4 py-3 text-sm text-slate-700">
-                          {formatDegrees(row.portHeadingDeg)}
+                          {fmtMag(row.portHeadingDeg)}
                         </td>
                         <td className="px-4 py-3 text-sm text-slate-700">
-                          {formatDegrees(row.starboardHeadingDeg)}
+                          {fmtMag(row.starboardHeadingDeg)}
                         </td>
                         <td className="px-4 py-3 text-sm text-slate-600">
                           {formatDistance(row.distanceNm)}

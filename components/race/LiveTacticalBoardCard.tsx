@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useSyncExternalStore } from "react";
+import { formatMagDeg, parseVariation } from "@/lib/magneticVariation";
 import { Route, Sailboat, Wind } from "lucide-react";
 import { useAppMode } from "@/components/display/AppModeProvider";
 import type { TacticalUpdateAction } from "@/lib/race/checkPlanValidity";
@@ -414,6 +415,8 @@ export function LiveTacticalBoardCard({ raceState }: { raceState: RaceState }) {
     () => deriveTacticalBoardFromRaceState({ raceState, draft }),
     [draft, raceState],
   );
+  const variation = parseVariation(draft.magneticVariationDeg);
+  const fmtMag = (v: number | null | undefined) => formatMagDeg(v, variation);
   const board = liveBoard.board;
   const status = selectTacticalBoardStatus(board);
   const headline = getPrimaryHeadline(liveBoard, draft, raceState.course.safeLegIndex);
@@ -430,25 +433,25 @@ export function LiveTacticalBoardCard({ raceState }: { raceState: RaceState }) {
   const metrics = useMemo(() => {
     if (liveBoard.legMode === "downwind") {
       return [
-        { label: "Baseline", value: formatDeg(board.shift.referenceFromDeg) },
-        { label: "Live Wind", value: formatDeg(board.shift.currentFromDeg) },
-        { label: "Jibe", value: formatDeg(board.downwind.jibeBearingDeg) },
+        { label: "Baseline", value: fmtMag(board.shift.referenceFromDeg) },
+        { label: "Live Wind", value: fmtMag(board.shift.currentFromDeg) },
+        { label: "Jibe", value: fmtMag(board.downwind.jibeBearingDeg) },
         { label: "Favored", value: formatSide(board.downwind.dominantReach) },
       ];
     }
 
     if (liveBoard.legMode === "upwind") {
       return [
-        { label: "Mean Wind", value: formatDeg(board.shift.referenceFromDeg) },
-        { label: "Live Wind", value: formatDeg(board.shift.currentFromDeg) },
-        { label: "Stbd Tack", value: formatDeg(board.upwind.starboardTackHeadingDeg) },
-        { label: "Port Tack", value: formatDeg(board.upwind.portTackHeadingDeg) },
+        { label: "Mean Wind", value: fmtMag(board.shift.referenceFromDeg) },
+        { label: "Live Wind", value: fmtMag(board.shift.currentFromDeg) },
+        { label: "Stbd Tack", value: fmtMag(board.upwind.starboardTackHeadingDeg) },
+        { label: "Port Tack", value: fmtMag(board.upwind.portTackHeadingDeg) },
       ];
     }
 
     return [
-      { label: "Mean Wind", value: formatDeg(board.shift.referenceFromDeg) },
-      { label: "Live Wind", value: formatDeg(board.shift.currentFromDeg) },
+      { label: "Mean Wind", value: fmtMag(board.shift.referenceFromDeg) },
+      { label: "Live Wind", value: fmtMag(board.shift.currentFromDeg) },
       { label: "Shift", value: formatSignedDeg(board.shift.deltaDeg) },
       { label: "Favored End", value: formatSide(board.startLine.favoredEnd) },
     ];
