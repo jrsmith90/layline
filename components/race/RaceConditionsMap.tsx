@@ -328,7 +328,7 @@ export default function RaceConditionsMap({
   );
   const [payload, setPayload] = useState<TideCurrentPayload | null>(null);
   const [windPayload, setWindPayload] = useState<LiveWeatherPayload | null>(null);
-  const [snapshotIndex, setSnapshotIndex] = useState(4);
+  const [snapshotIndex, setSnapshotIndex] = useState(24);
   const isMapClientReady = useSyncExternalStore(
     subscribeNever,
     () => true,

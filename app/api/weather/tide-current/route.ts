@@ -70,7 +70,7 @@ const CURRENT_STATIONS: CurrentStationConfig[] = [
   },
 ];
 
-const SNAPSHOT_MINUTES = Array.from({ length: 25 }, (_, index) => 12 * 60 + index * 30);
+const SNAPSHOT_MINUTES = Array.from({ length: 49 }, (_, i) => i * 30);
 
 function formatApiDate(date: string) {
   return date.replaceAll("-", "");
