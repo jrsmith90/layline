@@ -49,20 +49,17 @@ export default function HomePage() {
         </div>
 
         {/* Nav tiles — spread across top */}
-        <div className="grid grid-cols-4 gap-3">
+        <div className="flex flex-wrap gap-1">
           {navItems.map((item) => {
             const Icon = item.icon;
             return (
               <Link
                 key={item.href}
                 href={item.href}
-                className="layline-action group transition active:scale-[0.99]"
+                className="group flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold text-[color:var(--muted)] transition-colors hover:bg-[color:var(--panel)] hover:text-[color:var(--text)] active:scale-[0.98]"
               >
-                <Icon size={15} strokeWidth={2.3} className="shrink-0 text-[color:var(--muted)]" />
-                <span className="text-sm font-black text-[color:var(--text)]">{item.label}</span>
-                <span className="ml-auto text-sm font-black text-[color:var(--muted)] transition group-hover:text-[color:var(--text)]">
-                  →
-                </span>
+                <Icon size={15} strokeWidth={2.3} className="shrink-0" />
+                {item.label}
               </Link>
             );
           })}
@@ -122,20 +119,17 @@ export default function HomePage() {
       </div>
 
       {/* Nav tiles — spread across top */}
-      <section className={["grid gap-2", isIpadLayout ? "grid-cols-4" : "grid-cols-2"].join(" ")}>
+      <section className="flex flex-wrap gap-1">
         {navItems.map((item) => {
           const Icon = item.icon;
           return (
             <Link
               key={item.href}
               href={item.href}
-              className="layline-action group transition active:scale-[0.99]"
+              className="group flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold text-[color:var(--muted)] transition-colors hover:bg-[color:var(--panel)] hover:text-[color:var(--text)] active:scale-[0.98]"
             >
-              <Icon size={14} strokeWidth={2.3} className="shrink-0 text-[color:var(--muted)]" />
-              <span className="text-sm font-black text-[color:var(--text)]">{item.label}</span>
-              <span className="ml-auto text-sm font-black text-[color:var(--muted)] transition group-hover:text-[color:var(--text)]">
-                →
-              </span>
+              <Icon size={14} strokeWidth={2.3} className="shrink-0" />
+              {item.label}
             </Link>
           );
         })}
