@@ -7,11 +7,14 @@ import {
   Anchor,
   BookOpen,
   Clipboard,
+  Crosshair,
   Flag,
   Home,
   Layers,
   Library,
   Navigation,
+  SlidersHorizontal,
+  Wrench,
 } from "lucide-react";
 import { useDisplayMode } from "@/components/display/DisplayModeProvider";
 
@@ -25,6 +28,9 @@ const navItems = [
   { href: "/start", label: "Start", icon: Flag, exact: false },
   { href: "/race/map", label: "Race Map", icon: Anchor, exact: false },
   { href: "/course-library", label: "Course Library", icon: Library, exact: false },
+  { href: "/trim", label: "Trim", icon: SlidersHorizontal, exact: false },
+  { href: "/tactics", label: "Tactics", icon: Crosshair, exact: false },
+  { href: "/troubleshoot", label: "Troubleshoot", icon: Wrench, exact: false },
 ];
 
 export function AppSidebar() {

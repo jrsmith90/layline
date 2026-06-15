@@ -4,6 +4,7 @@ import { DisplayModeProvider } from "@/components/display/DisplayModeProvider";
 import { PhoneGpsProvider } from "@/components/gps/PhoneGpsProvider";
 import { AppNavigationButtons } from "@/components/navigation/AppNavigationButtons";
 import { AppSidebar } from "@/components/navigation/AppSidebar";
+import { AppTopSubNav } from "@/components/navigation/AppTopSubNav";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -31,6 +32,7 @@ export default function RootLayout({
                 <AppSidebar />
                 <div className="flex min-h-screen flex-1 flex-col overflow-x-hidden pb-24">
                   <AppNavigationButtons />
+                  <AppTopSubNav />
                   {children}
                 </div>
               </div>
