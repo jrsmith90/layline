@@ -1,34 +1,31 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
+import {
+  Activity,
+  Anchor,
+  BookOpen,
+  Clipboard,
+  Flag,
+  Layers,
+  Library,
+  Navigation,
+} from "lucide-react";
 import {
   DisplayModeControl,
   useDisplayMode,
 } from "@/components/display/DisplayModeProvider";
 import { useAppMode } from "@/components/display/AppModeProvider";
-import { WorkflowQuickLinks } from "@/components/navigation/WorkflowQuickLinks";
 
-const primaryFlow = [
-  { href: "/race/pre-race", label: "Pre-Race" },
-  { href: "/race/live", label: "Race Live" },
-  { href: "/race/review", label: "Review" },
-  { href: "/library", label: "Library" },
-];
-
-const quickTools = [
-  { href: "/race/brief", label: "Skipper Brief" },
-  { href: "/race/pre-race#tactical-board", label: "Tactical Board" },
-  { href: "/start", label: "Start" },
-  { href: "/trim", label: "Trim" },
-];
-
-// Links that the desktop sidebar does not already show
-const desktopExtras = [
-  { href: "/library", label: "Library" },
-  { href: "/race/brief", label: "Skipper Brief" },
-  { href: "/trim", label: "Trim" },
-  { href: "/weather/current", label: "Weather" },
+const navItems = [
+  { href: "/race/pre-race", label: "Pre-Race", icon: Clipboard },
+  { href: "/race/live", label: "Race Live", icon: Activity },
+  { href: "/race/tactical-board", label: "Tactical Board", icon: Layers },
+  { href: "/race/tracker", label: "Course Tracker", icon: Navigation },
+  { href: "/race/review", label: "Review", icon: BookOpen },
+  { href: "/start", label: "Start", icon: Flag },
+  { href: "/race/map", label: "Race Map", icon: Anchor },
+  { href: "/course-library", label: "Course Library", icon: Library },
 ];
 
 export default function HomePage() {
@@ -41,7 +38,6 @@ export default function HomePage() {
   if (isDesktopLayout) {
     return (
       <main className="flex min-h-screen flex-col gap-8 px-10 py-10">
-        {/* Title */}
         <div>
           <div className="layline-kicker">Race Day Dashboard</div>
           <h1 className="mt-2 text-5xl font-black tracking-tight text-[color:var(--text)]">
@@ -52,7 +48,27 @@ export default function HomePage() {
           </p>
         </div>
 
-        {/* Controls row */}
+        {/* Nav tiles — spread across top */}
+        <div className="grid grid-cols-4 gap-3">
+          {navItems.map((item) => {
+            const Icon = item.icon;
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className="layline-action group transition active:scale-[0.99]"
+              >
+                <Icon size={15} strokeWidth={2.3} className="shrink-0 text-[color:var(--muted)]" />
+                <span className="text-sm font-black text-[color:var(--text)]">{item.label}</span>
+                <span className="ml-auto text-sm font-black text-[color:var(--muted)] transition group-hover:text-[color:var(--text)]">
+                  →
+                </span>
+              </Link>
+            );
+          })}
+        </div>
+
+        {/* Controls */}
         <div className="grid max-w-3xl grid-cols-2 gap-5">
           <div className="layline-panel p-5">
             <div className="layline-kicker">Mode</div>
@@ -86,22 +102,6 @@ export default function HomePage() {
             <DisplayModeControl />
           </div>
         </div>
-
-        {/* Extra quick links not covered by the sidebar */}
-        <div>
-          <div className="layline-kicker mb-3">Quick Access</div>
-          <div className="flex flex-wrap gap-3">
-            {desktopExtras.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className="layline-pill px-5 py-3 text-sm font-semibold text-[color:var(--text)] transition hover:text-[color:var(--favorable)] active:scale-[0.98]"
-              >
-                {item.label} →
-              </Link>
-            ))}
-          </div>
-        </div>
       </main>
     );
   }
@@ -113,37 +113,32 @@ export default function HomePage() {
         isIpadLayout ? "max-w-5xl" : "max-w-md",
       ].join(" ")}
     >
-      {/* Hero */}
-      <section className="layline-panel overflow-hidden p-0">
-        <div className={["grid gap-0", isIpadLayout ? "md:grid-cols-2" : ""].join(" ")}>
-          <div className="flex flex-col justify-between p-5">
-            <div>
-              <div className="layline-kicker">Race Day Dashboard</div>
-              <h1 className="mt-2 text-3xl font-black tracking-tight text-[color:var(--text)]">
-                Choose the next lane.
-              </h1>
-            </div>
-            <div className="mt-4 flex flex-wrap gap-2">
-              <span className="layline-chip text-[color:var(--text)]">
-                {isRaceMode ? "Race Mode" : "Learning Mode"}
-              </span>
-              <span className="layline-chip text-[color:var(--text)]">
-                Display · {effectiveMode}
-              </span>
-            </div>
-          </div>
+      {/* Header */}
+      <div className="px-1">
+        <div className="layline-kicker">Race Day Dashboard</div>
+        <h1 className="mt-1 text-2xl font-black tracking-tight text-[color:var(--text)]">
+          Choose the next lane.
+        </h1>
+      </div>
 
-          <div className="border-t border-[color:var(--divider)] p-3 md:border-l md:border-t-0">
-            <Image
-              src="/laylinemain.png"
-              alt="Layline Sail Smarter"
-              width={1536}
-              height={1024}
-              priority
-              className="h-auto w-full rounded-xl"
-            />
-          </div>
-        </div>
+      {/* Nav tiles — spread across top */}
+      <section className={["grid gap-2", isIpadLayout ? "grid-cols-4" : "grid-cols-2"].join(" ")}>
+        {navItems.map((item) => {
+          const Icon = item.icon;
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className="layline-action group transition active:scale-[0.99]"
+            >
+              <Icon size={14} strokeWidth={2.3} className="shrink-0 text-[color:var(--muted)]" />
+              <span className="text-sm font-black text-[color:var(--text)]">{item.label}</span>
+              <span className="ml-auto text-sm font-black text-[color:var(--muted)] transition group-hover:text-[color:var(--text)]">
+                →
+              </span>
+            </Link>
+          );
+        })}
       </section>
 
       {/* Mode + display controls */}
@@ -183,9 +178,6 @@ export default function HomePage() {
           </div>
         </div>
       </section>
-
-      <WorkflowQuickLinks title="Primary Workflow" items={primaryFlow} />
-      <WorkflowQuickLinks title="Quick Tools" items={quickTools} />
     </main>
   );
 }
