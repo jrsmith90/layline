@@ -10,6 +10,7 @@ import {
   Flag,
   Home,
   Layers,
+  Library,
   Navigation,
 } from "lucide-react";
 import { useDisplayMode } from "@/components/display/DisplayModeProvider";
@@ -23,6 +24,7 @@ const navItems = [
   { href: "/race/review", label: "Review", icon: BookOpen, exact: false },
   { href: "/start", label: "Start", icon: Flag, exact: false },
   { href: "/race/map", label: "Race Map", icon: Anchor, exact: false },
+  { href: "/course-library", label: "Course Library", icon: Library, exact: false },
 ];
 
 export function AppSidebar() {

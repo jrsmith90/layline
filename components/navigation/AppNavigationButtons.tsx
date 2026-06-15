@@ -21,6 +21,7 @@ const routeTitles = [
   { prefix: "/troubleshoot", title: "Troubleshoot" },
   { prefix: "/notes", title: "After Action Review" },
   { prefix: "/logs", title: "After Action Review" },
+  { prefix: "/course-library", title: "Course Library" },
 ];
 
 export function AppNavigationButtons() {

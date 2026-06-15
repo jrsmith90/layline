@@ -12,6 +12,7 @@ export const STORAGE_KEYS = {
   phoneGpsEnabled: "layline-phone-gps-enabled",
   logs: "layline-logs-v1",
   pendingLogId: "layline-pending-log-id-v1",
+  courseLibrary: "layline-course-library-v1",
 } as const;
 
 export type StorageKey = (typeof STORAGE_KEYS)[keyof typeof STORAGE_KEYS];
