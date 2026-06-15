@@ -8,16 +8,6 @@ type SubNavItem = { href: string; label: string; exact?: boolean };
 
 const sections: { match: string; title: string; items: SubNavItem[] }[] = [
   {
-    match: "/race/pre-race",
-    title: "Pre-Race",
-    items: [
-      { href: "/race/pre-race", label: "Overview", exact: true },
-      { href: "/race/pre-race/sail-selection", label: "Sail Selection" },
-      { href: "/race/brief", label: "Skipper Brief" },
-      { href: "/race/pre-race/export", label: "Export" },
-    ],
-  },
-  {
     match: "/race/review",
     title: "Review",
     items: [

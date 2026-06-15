@@ -833,7 +833,39 @@ export default function RaceLiveCockpit() {
 
   if (isDesktopLayout) {
     return (
-      <div className="flex flex-col gap-5 px-6 py-5 pb-10">
+      <div className="flex min-h-screen flex-col">
+        <header className="sticky top-0 z-10 border-b border-[color:var(--divider)] bg-[color:var(--bg)] px-8 py-3">
+          <div className="flex items-center gap-8">
+            <div className="shrink-0">
+              <div className="layline-kicker">Race Live</div>
+              <div className="mt-0.5 text-[0.95rem] font-black leading-tight text-[color:var(--text)]">
+                {formatCourseLabel(courseId)} · Leg {safeLegIndex + 1}
+              </div>
+            </div>
+            <div className="flex-1" />
+            <div className="flex shrink-0 items-center gap-2">
+              <Link
+                href="/race/tactical-board"
+                className="layline-pill px-3 py-1.5 text-[0.7rem] font-bold uppercase tracking-[0.1em] text-[color:var(--text-soft)] transition hover:opacity-80"
+              >
+                Tactical Board
+              </Link>
+              <Link
+                href="/race/pre-race"
+                className="layline-pill px-3 py-1.5 text-[0.7rem] font-bold uppercase tracking-[0.1em] text-[color:var(--favorable)] transition hover:opacity-80"
+              >
+                Pre-Race
+              </Link>
+              <Link
+                href="/race/review"
+                className="layline-pill px-3 py-1.5 text-[0.7rem] font-bold uppercase tracking-[0.1em] text-[color:var(--text-soft)] transition hover:opacity-80"
+              >
+                Review
+              </Link>
+            </div>
+          </div>
+        </header>
+        <div className="flex flex-1 flex-col gap-5 px-8 py-8 pb-10">
         {/* Main 2-column: cockpit call left, context right */}
         <div className="grid grid-cols-[minmax(0,_9fr)_minmax(0,_11fr)] items-start gap-5">
 
@@ -1065,6 +1097,7 @@ export default function RaceLiveCockpit() {
             <Flag size={13} />
             {calibrations.length} tack samples
           </span>
+        </div>
         </div>
       </div>
     );
