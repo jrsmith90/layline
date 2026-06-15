@@ -65,14 +65,14 @@ export default function HomePage() {
           })}
         </div>
 
-        {/* Controls */}
-        <div className="grid max-w-3xl grid-cols-2 gap-5">
-          <div className="layline-panel p-5">
-            <div className="layline-kicker">Mode</div>
-            <div className="mt-3 flex items-center justify-between gap-3">
-              <div className="text-base font-black text-[color:var(--text)]">
+        {/* Controls — flat, no panel cards */}
+        <div className="flex flex-wrap items-start gap-10">
+          <div>
+            <div className="layline-kicker mb-3">Mode</div>
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-semibold text-[color:var(--text)]">
                 {isRaceMode ? "Race Mode" : "Learning Mode"}
-              </div>
+              </span>
               <button
                 onClick={toggleMode}
                 className="layline-pill relative flex w-36 items-center justify-between p-1 text-xs font-bold uppercase tracking-wide transition active:scale-[0.98]"
@@ -95,7 +95,7 @@ export default function HomePage() {
             </div>
           </div>
 
-          <div className="layline-panel p-5">
+          <div className="max-w-sm flex-1">
             <DisplayModeControl />
           </div>
         </div>
@@ -135,14 +135,14 @@ export default function HomePage() {
         })}
       </section>
 
-      {/* Mode + display controls */}
-      <section className={["grid gap-3", isIpadLayout ? "grid-cols-2" : ""].join(" ")}>
-        <div className="layline-panel p-4">
-          <div className="layline-kicker">Mode</div>
-          <div className="mt-2 flex items-center justify-between gap-3">
-            <div className="text-base font-black text-[color:var(--text)]">
+      {/* Mode + display controls — flat, no panel cards */}
+      <section className={["flex gap-6", isIpadLayout ? "flex-row items-start" : "flex-col"].join(" ")}>
+        <div>
+          <div className="layline-kicker mb-3">Mode</div>
+          <div className="flex items-center gap-3">
+            <span className="text-sm font-semibold text-[color:var(--text)]">
               {isRaceMode ? "Race Mode" : "Learning Mode"}
-            </div>
+            </span>
             <button
               onClick={toggleMode}
               className="layline-pill relative flex w-40 items-center justify-between p-1 text-xs font-bold uppercase tracking-wide transition active:scale-[0.98]"
@@ -165,11 +165,8 @@ export default function HomePage() {
           </div>
         </div>
 
-        <div className="layline-panel p-4">
-          <div className="layline-kicker">Display</div>
-          <div className="mt-4">
-            <DisplayModeControl />
-          </div>
+        <div className={isIpadLayout ? "flex-1" : ""}>
+          <DisplayModeControl />
         </div>
       </section>
     </main>
