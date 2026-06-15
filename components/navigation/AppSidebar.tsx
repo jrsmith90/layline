@@ -10,13 +10,24 @@ import {
   Crosshair,
   Flag,
   Home,
+  Laptop,
   Layers,
   Library,
+  MonitorSmartphone,
   Navigation,
   SlidersHorizontal,
+  Smartphone,
+  Tablet,
   Wrench,
 } from "lucide-react";
 import { useDisplayMode } from "@/components/display/DisplayModeProvider";
+
+const displayOptions = [
+  { mode: "auto" as const, label: "Auto", icon: MonitorSmartphone },
+  { mode: "phone" as const, label: "Phone", icon: Smartphone },
+  { mode: "ipad" as const, label: "iPad", icon: Tablet },
+  { mode: "desktop" as const, label: "Desk", icon: Laptop },
+];
 
 const navItems = [
   { href: "/", label: "Home", icon: Home, exact: true },
@@ -34,7 +45,7 @@ const navItems = [
 ];
 
 export function AppSidebar() {
-  const { effectiveMode } = useDisplayMode();
+  const { effectiveMode, mode, setMode } = useDisplayMode();
   const pathname = usePathname();
 
   if (effectiveMode !== "desktop") return null;
@@ -73,8 +84,27 @@ export function AppSidebar() {
         })}
       </nav>
 
-      <div className="border-t border-[color:var(--divider)] px-5 py-4">
-        <div className="text-[10px] font-semibold uppercase tracking-wide text-[color:var(--muted)]">
+      <div className="border-t border-[color:var(--divider)] px-3 py-3">
+        <div className="layline-kicker mb-2">Display</div>
+        <div className="grid grid-cols-4 gap-1">
+          {displayOptions.map(({ mode: m, label, icon: Icon }) => (
+            <button
+              key={m}
+              type="button"
+              onClick={() => setMode(m)}
+              className={[
+                "flex flex-col items-center gap-1 rounded-lg py-2 text-center transition active:scale-[0.97]",
+                mode === m
+                  ? "bg-[color:var(--panel-soft)] text-[color:var(--text)]"
+                  : "text-[color:var(--muted)] hover:bg-[color:var(--panel)] hover:text-[color:var(--text)]",
+              ].join(" ")}
+            >
+              <Icon size={14} strokeWidth={2.3} />
+              <span className="text-[0.6rem] font-bold uppercase tracking-wide leading-none">{label}</span>
+            </button>
+          ))}
+        </div>
+        <div className="mt-3 border-t border-[color:var(--divider)] pt-3 text-[10px] font-semibold uppercase tracking-wide text-[color:var(--muted)]">
           Annapolis · Bay Racing
         </div>
       </div>
