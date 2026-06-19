@@ -21,6 +21,7 @@ import {
   subscribeTacticalBoardStore,
 } from "@/lib/race/tacticalBoard/store";
 import { useResolvedCourseData } from "@/lib/race/useCourseCatalogVersion";
+import type { DamReleaseLevel, DamReleasePayload } from "@/app/api/weather/dam-release/route";
 
 type HiloEvent = {
   minute: number;
@@ -81,6 +82,64 @@ const X_LABELS: Record<number, string> = {
 };
 
 const DEFAULT = buildTacticalBoardDraftDefaults(getDefaultCourseId());
+
+const DAM_LEVEL_STYLES: Record<DamReleaseLevel, { badge: string; dot: string }> = {
+  normal:   { badge: "border-[#2a4a5a] bg-[#0d1e29] text-[#7a9ea8]",  dot: "#7a9ea8" },
+  elevated: { badge: "border-[#4a3a00] bg-[#1e1800] text-[#d9b26b]",  dot: "#d9b26b" },
+  high:     { badge: "border-[#5a2a00] bg-[#220f00] text-[#f97316]",  dot: "#f97316" },
+  flood:    { badge: "border-[#5a1a1a] bg-[#1e0808] text-[#f87171]",  dot: "#f87171" },
+};
+
+function formatCfs(cfs: number): string {
+  return cfs >= 1000 ? `${Math.round(cfs / 1000)}k` : `${cfs}`;
+}
+
+function ConowingoStrip({ dam }: { dam: DamReleasePayload }) {
+  const { level, peakCfs, note } = dam.currentInfluence;
+  const prev = dam.previousDayDischarge;
+  const raceDay = dam.raceDayDischarge;
+  const styles = DAM_LEVEL_STYLES[level];
+  const levelLabel = level.charAt(0).toUpperCase() + level.slice(1);
+
+  return (
+    <div className="mb-3 rounded border border-[color:var(--divider)] bg-[#0a1a22] px-3 py-2.5">
+      <div className="flex flex-wrap items-start gap-x-4 gap-y-1.5">
+        <div className="flex items-center gap-2 shrink-0">
+          <span className="text-[10px] font-semibold uppercase tracking-widest text-[#4a7a8a]">
+            Conowingo Dam
+          </span>
+          <span
+            className={`rounded border px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${styles.badge}`}
+          >
+            {levelLabel}
+          </span>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[#7a9ea8]">
+          {prev && (
+            <span>
+              <span className="text-[#4a7a8a]">Prev day peak:</span>{" "}
+              <span className="font-semibold text-[#cddde0]">{formatCfs(prev.peakCfs)} CFS</span>
+              {" "}avg <span className="font-semibold text-[#cddde0]">{formatCfs(prev.avgCfs)} CFS</span>
+            </span>
+          )}
+          {raceDay && (
+            <span>
+              <span className="text-[#4a7a8a]">Race day:</span>{" "}
+              <span className="font-semibold text-[#cddde0]">{formatCfs(raceDay.peakCfs)} CFS</span>
+              {" "}peak
+            </span>
+          )}
+          {!prev && peakCfs === 0 && (
+            <span className="text-[#4a7a8a]">No release data for previous day.</span>
+          )}
+        </div>
+      </div>
+
+      <p className="mt-1.5 text-[11px] leading-snug text-[#7a9ea8]">{note}</p>
+    </div>
+  );
+}
 
 function shiftDate(dateStr: string, days: number): string {
   const [y, mo, d] = dateStr.split("-").map(Number);
@@ -187,6 +246,7 @@ export default function TideCurrentChart() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [hiddenSeries, setHiddenSeries] = useState<Set<string>>(new Set());
+  const [damPayload, setDamPayload] = useState<DamReleasePayload | null>(null);
 
   // Reset to race date when the course changes
   useEffect(() => {
@@ -222,6 +282,17 @@ export default function TideCurrentChart() {
 
     return () => { cancelled = true; };
   }, [selectedDate, courseData.raceDate, courseData.eventId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`/api/weather/dam-release?date=${selectedDate}`)
+      .then((r) => r.json())
+      .then((data: DamReleasePayload) => {
+        if (!cancelled && !data.error) setDamPayload(data);
+      })
+      .catch(() => { /* non-critical, silently skip */ });
+    return () => { cancelled = true; };
+  }, [selectedDate]);
 
   const chartData = useMemo(() => (payload ? buildChartData(payload) : []), [payload]);
   const hiloLines = useMemo(() => payload?.tide.hilo ?? [], [payload]);
@@ -305,6 +376,9 @@ export default function TideCurrentChart() {
           ))}
         </div>
       </div>
+
+      {/* Conowingo dam release context */}
+      {damPayload && <ConowingoStrip dam={damPayload} />}
 
       {/* Legend hint */}
       <p className="mb-2 text-xs text-[#7a9ea8]">
