@@ -104,6 +104,22 @@ export type PointForecastPayload = {
 
 type CurrentDirection = "flood" | "ebb" | "slack" | "unknown";
 
+type DamReleaseLevel = "normal" | "elevated" | "high" | "flood";
+export type DamReleaseInfluence = {
+  level: DamReleaseLevel;
+  peakCfs: number;
+  note: string;
+  releaseEvent?: {
+    detected: boolean;
+    peakCfs: number | null;
+    peakTimeLabel: string | null;
+    spikeMultiple: number | null;
+    dropOffPct: number | null;
+    decayStatus: "still_elevated" | "dropping" | "recovered" | null;
+    impactWindowLabel: string | null;
+  } | null;
+};
+
 export type CurrentStationSnapshot = {
   stationId: string;
   label: string;
@@ -571,6 +587,7 @@ export function buildCurrentImpactDecision(params: {
   courseData: CourseSummary;
   tideCurrent: TideCurrentPayload | null;
   windDirectionDeg?: number | null;
+  damRelease?: DamReleaseInfluence | null;
 }): CurrentImpactDecision {
   const station = pickNearestCurrentStation(params.courseData, params.tideCurrent);
   const tideStage = params.tideCurrent?.tide.stage ?? null;
@@ -617,7 +634,7 @@ export function buildCurrentImpactDecision(params: {
   });
 
   const speed = station.speedKt;
-  const level: CurrentEffectLevel =
+  let level: CurrentEffectLevel =
     station.direction === "unknown"
       ? "unknown"
       : speed >= 1.2 || assessment.edgeStrength === "strong"
@@ -628,16 +645,63 @@ export function buildCurrentImpactDecision(params: {
             ? "low"
             : "unknown";
 
+  // Dam release modifier: Conowingo releases (hydroelectric peaking) create a freshwater
+  // pulse that reaches Annapolis ~10-24h after the dam event. NOAA harmonic predictions
+  // don't account for this — ebb runs stronger, flood runs weaker, than NOAA shows.
+  const dam = params.damRelease;
+  const ev = dam?.releaseEvent;
+  const isEbb = station.direction === "ebb";
+  const damReasoning: string[] = [];
+
+  if (dam && dam.level !== "normal") {
+    const k = Math.round(dam.peakCfs / 1000);
+    const mult = ev?.spikeMultiple;
+    const multLabel = mult != null ? ` (${mult}x baseline)` : "";
+    const windowLabel = ev?.impactWindowLabel ? `, pulse arrives ~${ev.impactWindowLabel}` : "";
+    const decayLabel =
+      ev?.decayStatus === "recovered"
+        ? ", fully recovered before race day"
+        : ev?.decayStatus === "dropping"
+          ? `, ${ev.dropOffPct ?? "?"}% drop from peak`
+          : "";
+    const eventLabel = ev?.detected
+      ? `Release event: peaked ${k}k CFS${multLabel} at ${ev.peakTimeLabel ?? ""}${decayLabel}${windowLabel}.`
+      : `Discharge elevated to ~${k}k CFS yesterday.`;
+
+    if (isEbb) {
+      if (dam.level === "elevated") {
+        if (level === "low") level = "medium";
+        damReasoning.push(
+          `Conowingo Dam: ${eventLabel} Ebb may run slightly stronger than NOAA predicts.`,
+        );
+      } else if (dam.level === "high") {
+        if (level === "low" || level === "medium") level = "high";
+        damReasoning.push(
+          `Conowingo Dam: ${eventLabel} Ebb likely 10–25% stronger than NOAA predicts — river/shoal side advantaged.`,
+        );
+      } else if (dam.level === "flood") {
+        level = "high";
+        damReasoning.push(
+          `Conowingo Dam: ${eventLabel} Ebb will significantly exceed NOAA. May suppress flood and shift current timing.`,
+        );
+      }
+    } else if (station.direction === "flood") {
+      // Freshwater push weakens flood — note only for significant releases
+      if (dam.level === "high" || dam.level === "flood") {
+        damReasoning.push(
+          `Conowingo Dam: ${eventLabel} Flood may be weaker than NOAA predicts — freshwater push suppresses incoming tide.`,
+        );
+      }
+    }
+  }
+
   const hasMeaningfulEffect = level === "high" || level === "medium";
+  const baseDirectionLabel = directionLabel(station.direction);
   const summary =
     level === "high"
-      ? `Current is likely to matter on the first leg near ${station.label}: ${directionLabel(
-          station.direction,
-        )} flow around ${station.speedKt.toFixed(1)} kt.`
+      ? `Current is likely to matter on the first leg near ${station.label}: ${baseDirectionLabel} flow around ${station.speedKt.toFixed(1)} kt.${damReasoning.length > 0 ? " " + damReasoning[0] : ""}`
       : level === "medium"
-        ? `Current could shape lanes and water texture near ${station.label}: ${directionLabel(
-            station.direction,
-          )} flow around ${station.speedKt.toFixed(1)} kt.`
+        ? `Current could shape lanes and water texture near ${station.label}: ${baseDirectionLabel} flow around ${station.speedKt.toFixed(1)} kt.${damReasoning.length > 0 ? " " + damReasoning[0] : ""}`
         : level === "low"
           ? `Current looks minor right now near ${station.label}, so pressure and angle should carry more weight.`
           : `Current effect is still unclear near ${station.label}.`;
@@ -646,7 +710,7 @@ export function buildCurrentImpactDecision(params: {
     level,
     hasMeaningfulEffect,
     summary,
-    reasoning: assessment.reasoning.slice(0, 3),
+    reasoning: [...assessment.reasoning.slice(0, 3), ...damReasoning],
     betterWaterSide: assessment.betterWaterSide,
     stationLabel: station.label,
     stationDisplayTime: station.displayTime,

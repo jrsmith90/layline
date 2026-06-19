@@ -23,6 +23,7 @@ import {
   getSuggestedRiskMode,
   type ConfirmedSailSelectionSummary,
   type CurrentImpactDecision,
+  type DamReleaseInfluence,
   type ForecastDecision,
   type LiveWeatherPayload,
   type PointForecastPayload,
@@ -60,6 +61,7 @@ export function usePreRaceCoachAssist(params: UsePreRaceCoachAssistParams) {
   const [forecast, setForecast] = useState<PointForecastPayload | null>(null);
   const [forecastError, setForecastError] = useState<string | null>(null);
   const [forecastLoading, setForecastLoading] = useState(true);
+  const [damRelease, setDamRelease] = useState<DamReleaseInfluence | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -200,6 +202,19 @@ export function usePreRaceCoachAssist(params: UsePreRaceCoachAssistParams) {
     };
   }, [params.courseData]);
 
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`/api/weather/dam-release?date=${plannedRaceStartDate}`, { cache: "no-store" })
+      .then((r) => r.json())
+      .then((data: { currentInfluence?: DamReleaseInfluence; error?: string }) => {
+        if (!cancelled && !data.error && data.currentInfluence) {
+          setDamRelease(data.currentInfluence);
+        }
+      })
+      .catch(() => { /* non-critical */ });
+    return () => { cancelled = true; };
+  }, [plannedRaceStartDate]);
+
   const courseWindRead = useMemo(
     () => getCourseWindRead(params.courseId, liveWeather),
     [liveWeather, params.courseId],
@@ -223,8 +238,9 @@ export function usePreRaceCoachAssist(params: UsePreRaceCoachAssistParams) {
         courseData: params.courseData,
         tideCurrent,
         windDirectionDeg: forecastDecision.recommendedWindDirectionDeg,
+        damRelease,
       }),
-    [forecastDecision.recommendedWindDirectionDeg, params.courseData, tideCurrent],
+    [damRelease, forecastDecision.recommendedWindDirectionDeg, params.courseData, tideCurrent],
   );
 
   const suggestedRiskMode = useMemo<RiskMode>(

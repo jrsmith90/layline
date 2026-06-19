@@ -94,48 +94,72 @@ function formatCfs(cfs: number): string {
   return cfs >= 1000 ? `${Math.round(cfs / 1000)}k` : `${cfs}`;
 }
 
+function decayLabel(status: string | null): string {
+  if (status === "recovered") return "fully recovered";
+  if (status === "dropping") return "dropping";
+  if (status === "still_elevated") return "still elevated";
+  return "";
+}
+
 function ConowingoStrip({ dam }: { dam: DamReleasePayload }) {
-  const { level, peakCfs, note } = dam.currentInfluence;
-  const prev = dam.previousDayDischarge;
-  const raceDay = dam.raceDayDischarge;
+  const { level, note } = dam.currentInfluence;
+  const ev = dam.releaseEvent;
   const styles = DAM_LEVEL_STYLES[level];
   const levelLabel = level.charAt(0).toUpperCase() + level.slice(1);
 
   return (
     <div className="mb-3 rounded border border-[color:var(--divider)] bg-[#0a1a22] px-3 py-2.5">
-      <div className="flex flex-wrap items-start gap-x-4 gap-y-1.5">
-        <div className="flex items-center gap-2 shrink-0">
-          <span className="text-[10px] font-semibold uppercase tracking-widest text-[#4a7a8a]">
-            Conowingo Dam
-          </span>
-          <span
-            className={`rounded border px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${styles.badge}`}
-          >
-            {levelLabel}
-          </span>
-        </div>
+      {/* Header row */}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+        <span className="text-[10px] font-semibold uppercase tracking-widest text-[#4a7a8a] shrink-0">
+          Conowingo Dam
+        </span>
+        <span
+          className={`rounded border px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide shrink-0 ${styles.badge}`}
+        >
+          {ev?.detected ? "Release detected" : levelLabel}
+        </span>
 
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[#7a9ea8]">
-          {prev && (
+        {ev?.detected ? (
+          /* Event shape row */
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
             <span>
-              <span className="text-[#4a7a8a]">Prev day peak:</span>{" "}
-              <span className="font-semibold text-[#cddde0]">{formatCfs(prev.peakCfs)} CFS</span>
-              {" "}avg <span className="font-semibold text-[#cddde0]">{formatCfs(prev.avgCfs)} CFS</span>
+              <span className="text-[#4a7a8a]">Peak:</span>{" "}
+              <span className="font-semibold text-[#cddde0]">{formatCfs(ev.peakCfs ?? 0)} CFS</span>
+              {ev.spikeMultiple != null && (
+                <span className="text-[#4a7a8a]"> ({ev.spikeMultiple}× baseline)</span>
+              )}
+              {ev.peakTimeLabel && (
+                <span className="text-[#4a7a8a]"> at {ev.peakTimeLabel}</span>
+              )}
             </span>
-          )}
-          {raceDay && (
-            <span>
-              <span className="text-[#4a7a8a]">Race day:</span>{" "}
-              <span className="font-semibold text-[#cddde0]">{formatCfs(raceDay.peakCfs)} CFS</span>
-              {" "}peak
-            </span>
-          )}
-          {!prev && peakCfs === 0 && (
-            <span className="text-[#4a7a8a]">No release data for previous day.</span>
-          )}
-        </div>
+
+            {ev.dropOffPct != null && (
+              <span>
+                <span className="text-[#4a7a8a]">Drop-off:</span>{" "}
+                <span className="font-semibold text-[#cddde0]">{ev.dropOffPct}%</span>
+                {ev.decayStatus && (
+                  <span className="text-[#4a7a8a]"> — {decayLabel(ev.decayStatus)}</span>
+                )}
+              </span>
+            )}
+
+            {ev.impactWindowLabel && (
+              <span>
+                <span className="text-[#4a7a8a]">Pulse at Annapolis:</span>{" "}
+                <span className="font-semibold text-[#cddde0]">{ev.impactWindowLabel}</span>
+              </span>
+            )}
+          </div>
+        ) : (
+          /* No release — just show that it's normal */
+          <span className="text-xs text-[#4a7a8a]">
+            No release event detected — trickle-through only
+          </span>
+        )}
       </div>
 
+      {/* Impact note */}
       <p className="mt-1.5 text-[11px] leading-snug text-[#7a9ea8]">{note}</p>
     </div>
   );
