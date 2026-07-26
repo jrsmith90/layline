@@ -1,37 +1,37 @@
 @import "tailwindcss";
 
-/* Layline Flat Dark Palette */
+/* Layline Light Palette */
 :root {
   /* Core surfaces */
-  --bg: #0a1a22;
-  --bg-deep: #081520;
-  --panel: #112230;
-  --panel-soft: #162d3c;
-  --panel-muted: #0d1e29;
-  --divider: #1e3a48;
+  --bg: #f0f4f5;
+  --bg-deep: #e4eaec;
+  --panel: #ffffff;
+  --panel-soft: #f4f8f9;
+  --panel-muted: #edf2f3;
+  --divider: #c8d4d8;
 
   /* Text */
-  --text: #f0f4f4;
-  --text-soft: #cddde0;
-  --muted: #7a9ea8;
+  --text: #1a2a30;
+  --text-soft: #3a5460;
+  --muted: #5a7a84;
 
   /* Tactical state colors */
-  --favorable: #65c4b8;
-  --warning: #d9b26b;
-  --unfavorable: #d2725c;
+  --favorable: #1a8a7e;
+  --warning: #b07830;
+  --unfavorable: #c04040;
 
   /* Legacy / utility accents */
-  --blue: #78b8c9;
-  --amber: #d9b26b;
-  --red: #d2725c;
-  --green: #65c4b8;
-  --advisory: #8cc8d6;
-  --teal: #65c4b8;
+  --blue: #2878a0;
+  --amber: #b07830;
+  --red: #c04040;
+  --green: #1a8a7e;
+  --advisory: #2878a0;
+  --teal: #1a8a7e;
 
   /* Shape + depth */
   --radius-card: 12px;
   --radius-pill: 999px;
-  --shadow-panel: 0 4px 20px rgba(1, 10, 16, 0.4);
+  --shadow-panel: 0 4px 20px rgba(0, 0, 0, 0.08);
   --shadow-inset: none;
 }
 

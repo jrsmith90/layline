@@ -57,6 +57,15 @@ const sections: { match: string; title: string; items: SubNavItem[] }[] = [
       { href: "/troubleshoot/pinching", label: "Pinching" },
     ],
   },
+  {
+    match: "/settings",
+    title: "Settings",
+    items: [
+      { href: "/settings", label: "Overview", exact: true },
+      { href: "/settings/boat-data", label: "Boat Data Connection" },
+      { href: "/instruments", label: "Instruments" },
+    ],
+  },
 ];
 
 export function AppTopSubNav() {

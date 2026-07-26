@@ -7,6 +7,7 @@ import type { GpsTrackPoint } from "@/lib/useGpsCourse";
 import { getDefaultCourseId } from "@/data/race/getCourseData";
 import {
   addManualRaceNote,
+  appendRaceBoatDataSample,
   appendRaceDecision,
   appendRaceGpsSamples,
   appendRaceStateSnapshot,
@@ -32,6 +33,7 @@ import {
   type TacticalBoardSnapshotCaptureInput,
   type RaceWeatherSample,
 } from "@/lib/raceSessionStore";
+import { useBoatDataSnapshot } from "@/lib/boat-data/store";
 import { buildCourseStrategyRecord } from "@/lib/race/courseStrategy/sessionRecord";
 import { buildOpeningBiasRecord } from "@/lib/race/openingBias";
 import { getLogs } from "@/lib/logStore";
@@ -88,6 +90,7 @@ type RaceRecorderPanelProps = {
 };
 
 const RACE_STATE_SNAPSHOT_INTERVAL_MS = 15_000;
+const BOAT_DATA_SAMPLE_INTERVAL_MS = 5_000;
 const DEFAULT_TACTICAL_BOARD_DRAFT = buildTacticalBoardDraftDefaults(getDefaultCourseId());
 
 function formatTime(iso?: string) {
@@ -182,6 +185,8 @@ export function RaceRecorderPanel({
   const latestTacticalBoardCaptureRef = useRef<TacticalBoardSnapshotCaptureInput | null>(
     tacticalBoardCapture ?? null,
   );
+  const boatDataSnapshot = useBoatDataSnapshot();
+  const latestBoatDataSnapshotRef = useRef(boatDataSnapshot);
   const activeSession = useSyncExternalStore(
     subscribeRaceSessionStore,
     getActiveRaceSession,
@@ -206,6 +211,10 @@ export function RaceRecorderPanel({
   );
 
   useEffect(() => subscribeRaceSessionStore(() => refresh()), []);
+
+  useEffect(() => {
+    latestBoatDataSnapshotRef.current = boatDataSnapshot;
+  }, [boatDataSnapshot]);
 
   useEffect(() => {
     let cancelled = false;
@@ -360,6 +369,27 @@ export function RaceRecorderPanel({
       captureRaceState,
       RACE_STATE_SNAPSHOT_INTERVAL_MS,
     );
+
+    return () => window.clearInterval(interval);
+  }, [effectiveSessionId, session?.status]);
+
+  useEffect(() => {
+    if (!effectiveSessionId || session?.status !== "active") return;
+
+    const activeSessionId = effectiveSessionId;
+
+    function captureBoatData() {
+      const current = latestBoatDataSnapshotRef.current;
+      if (current.connection.mode === "none") return;
+
+      appendRaceBoatDataSample(activeSessionId, {
+        atISO: new Date().toISOString(),
+        snapshot: current,
+      });
+    }
+
+    captureBoatData();
+    const interval = window.setInterval(captureBoatData, BOAT_DATA_SAMPLE_INTERVAL_MS);
 
     return () => window.clearInterval(interval);
   }, [effectiveSessionId, session?.status]);

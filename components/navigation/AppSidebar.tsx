@@ -9,12 +9,14 @@ import {
   Clipboard,
   Crosshair,
   Flag,
+  Gauge,
   Home,
   Laptop,
   Layers,
   Library,
   MonitorSmartphone,
   Navigation,
+  Settings,
   SlidersHorizontal,
   Smartphone,
   Tablet,
@@ -42,6 +44,8 @@ const navItems = [
   { href: "/trim", label: "Trim", icon: SlidersHorizontal, exact: false },
   { href: "/tactics", label: "Tactics", icon: Crosshair, exact: false },
   { href: "/troubleshoot", label: "Troubleshoot", icon: Wrench, exact: false },
+  { href: "/instruments", label: "Instruments", icon: Gauge, exact: false },
+  { href: "/settings", label: "Settings", icon: Settings, exact: false },
 ];
 
 export function AppSidebar() {

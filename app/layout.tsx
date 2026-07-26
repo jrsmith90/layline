@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { AppModeProvider } from "@/components/display/AppModeProvider";
 import { DisplayModeProvider } from "@/components/display/DisplayModeProvider";
 import { PhoneGpsProvider } from "@/components/gps/PhoneGpsProvider";
+import { BoatDataConnectionProvider } from "@/components/boat-data/BoatDataConnectionProvider";
 import { AppNavigationButtons } from "@/components/navigation/AppNavigationButtons";
 import { AppSidebar } from "@/components/navigation/AppSidebar";
 import { AppTopSubNav } from "@/components/navigation/AppTopSubNav";
@@ -14,7 +15,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0B1F33",
+  themeColor: "#e4eaec",
 };
 
 export default function RootLayout({
@@ -28,14 +29,16 @@ export default function RootLayout({
         <AppModeProvider>
           <DisplayModeProvider>
             <PhoneGpsProvider>
-              <div className="flex min-h-screen overflow-x-hidden">
-                <AppSidebar />
-                <div className="flex min-h-screen flex-1 flex-col overflow-x-hidden pb-24">
-                  <AppNavigationButtons />
-                  <AppTopSubNav />
-                  {children}
+              <BoatDataConnectionProvider>
+                <div className="flex min-h-screen overflow-x-hidden">
+                  <AppSidebar />
+                  <div className="flex min-h-screen flex-1 flex-col overflow-x-hidden pb-24">
+                    <AppNavigationButtons />
+                    <AppTopSubNav />
+                    {children}
+                  </div>
                 </div>
-              </div>
+              </BoatDataConnectionProvider>
             </PhoneGpsProvider>
           </DisplayModeProvider>
         </AppModeProvider>

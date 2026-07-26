@@ -13,6 +13,7 @@ import type {
 import type { DerivedLiveTacticalBoard } from "@/lib/race/tacticalBoard/deriveTacticalBoardFromRaceState";
 import type { TacticalBoardSnapshot } from "@/lib/race/tacticalBoard/types";
 import type { GpsTrackPoint } from "@/lib/useGpsCourse";
+import type { BoatDataSnapshot } from "@/lib/boat-data/types";
 import type { LaylineLog } from "@/lib/logStore";
 import { getLogs } from "@/lib/logStore";
 import type { OpeningBiasRecord } from "@/lib/race/openingBias";
@@ -116,6 +117,12 @@ export type RaceSession = {
   trimLogs: LaylineLog[];
   tackCalibrations: TackCalibrationResult[];
   tackRecords: TackRecord[];
+  boatDataSamples: RaceBoatDataSample[];
+};
+
+export type RaceBoatDataSample = {
+  atISO: string;
+  snapshot: BoatDataSnapshot;
 };
 
 export type RaceStateSnapshotCaptureInput = {
@@ -168,6 +175,7 @@ const TRACKER_KEY = STORAGE_KEYS.activeCourseTracker;
 const REPOSITORY_ENDPOINT = "/api/race-sessions";
 const MAX_RACE_STATE_SNAPSHOTS = 720;
 const MAX_TACTICAL_BOARD_SNAPSHOTS = 720;
+const MAX_BOAT_DATA_SAMPLES = 720;
 const RACE_STATE_SNAPSHOT_DEDUPE_MS = 5000;
 const TACTICAL_BOARD_SNAPSHOT_DEDUPE_MS = 5000;
 
@@ -289,6 +297,7 @@ function normalizeRaceSession(session: RaceSession): RaceSession {
       ? session.tackCalibrations
       : [],
     tackRecords: Array.isArray(session.tackRecords) ? session.tackRecords : [],
+    boatDataSamples: Array.isArray(session.boatDataSamples) ? session.boatDataSamples : [],
     updatedAtISO:
       typeof session.updatedAtISO === "string"
         ? session.updatedAtISO
@@ -343,6 +352,11 @@ function mergeRaceSession(existing: RaceSession, incoming: RaceSession): RaceSes
       (leftSnapshot, rightSnapshot) =>
         leftSnapshot.capturedAtISO.localeCompare(rightSnapshot.capturedAtISO),
     ).slice(-MAX_RACE_STATE_SNAPSHOTS),
+    boatDataSamples: uniqueByKey(
+      [...secondary.boatDataSamples, ...primary.boatDataSamples],
+      (sample) => sample.atISO,
+      (leftSample, rightSample) => leftSample.atISO.localeCompare(rightSample.atISO),
+    ).slice(-MAX_BOAT_DATA_SAMPLES),
     tacticalBoardSnapshots: uniqueByKey(
       [...secondary.tacticalBoardSnapshots, ...primary.tacticalBoardSnapshots],
       (snapshot) => snapshot.capturedAtISO,
@@ -1094,6 +1108,7 @@ export function importRaceSession(input: ImportRaceSessionInput) {
     trimLogs: [],
     tackCalibrations,
     tackRecords,
+    boatDataSamples: [],
   };
 
   const snapshot = getCachedSnapshot();
@@ -1133,6 +1148,7 @@ export function startRaceSession(input: {
     trimLogs: [],
     tackCalibrations: [],
     tackRecords: [],
+    boatDataSamples: [],
   };
 
   const snapshot = getCachedSnapshot();
@@ -1408,6 +1424,21 @@ export function appendRaceWeatherSample(id: string, sample: RaceWeatherSample) {
   return updated;
 }
 
+export function appendRaceBoatDataSample(id: string, sample: RaceBoatDataSample) {
+  const session = getRaceSession(id);
+  if (!session) return session;
+
+  const exists = session.boatDataSamples.some((candidate) => candidate.atISO === sample.atISO);
+  if (exists) return session;
+
+  const updated: RaceSession = {
+    ...session,
+    boatDataSamples: [...session.boatDataSamples, sample].slice(-MAX_BOAT_DATA_SAMPLES),
+  };
+  upsertRaceSession(updated);
+  return updated;
+}
+
 export function appendRaceDecision(
   id: string,
   decision: Omit<RaceDecisionRecord, "id" | "atISO"> & { id?: string; atISO?: string },
@@ -1636,6 +1667,7 @@ export async function recoverTodayRaceSession(): Promise<RecoverTodayRaceSession
       trimLogs: [],
       tackCalibrations: [],
       tackRecords: [],
+      boatDataSamples: [],
     };
 
   upsertRaceSession(session);

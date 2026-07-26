@@ -13,6 +13,10 @@ export const STORAGE_KEYS = {
   logs: "layline-logs-v1",
   pendingLogId: "layline-pending-log-id-v1",
   courseLibrary: "layline-course-library-v1",
+  boatDataConnectionConfig: "layline-boat-data-connection-config-v1",
+  boatDataPathMappingOverrides: "layline-boat-data-path-mapping-overrides-v1",
+  boatDataSourcePriority: "layline-boat-data-source-priority-v1",
+  instrumentDashboardLayout: "layline-instrument-dashboard-layout-v1",
 } as const;
 
 export type StorageKey = (typeof STORAGE_KEYS)[keyof typeof STORAGE_KEYS];
