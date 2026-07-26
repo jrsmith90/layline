@@ -16,6 +16,7 @@ function generateId(): string {
   return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
+// Always returns a fresh, independently-owned object — safe for callers to mutate in place.
 function readStore(): CourseLibraryStore {
   if (typeof window === "undefined") return { entries: [] };
   try {
@@ -41,6 +42,20 @@ function writeStore(store: CourseLibraryStore): void {
   localStorage.setItem(STORAGE_KEYS.courseLibrary, JSON.stringify(store));
 }
 
+// Snapshot cache for getCourseLibraryEntries — useSyncExternalStore requires getSnapshot
+// to return the same reference between calls unless the underlying data actually changed.
+let cachedRaw: string | null = null;
+let cachedEntries: CourseLibraryEntry[] = [];
+
+function getEntriesSnapshot(): CourseLibraryEntry[] {
+  if (typeof window === "undefined") return cachedEntries;
+  const raw = localStorage.getItem(STORAGE_KEYS.courseLibrary);
+  if (raw === cachedRaw) return cachedEntries;
+  cachedRaw = raw;
+  cachedEntries = readStore().entries;
+  return cachedEntries;
+}
+
 type Listener = () => void;
 const listeners = new Set<Listener>();
 
@@ -56,7 +71,7 @@ export function subscribeCourseLibraryStore(listener: Listener): () => void {
 }
 
 export function getCourseLibraryEntries(): CourseLibraryEntry[] {
-  return readStore().entries;
+  return getEntriesSnapshot();
 }
 
 export function getCourseLibraryEntry(id: string): CourseLibraryEntry | null {
