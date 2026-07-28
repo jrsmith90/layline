@@ -1,0 +1,9 @@
+Station ID,Name,Waypoint,Max |r|,Lag at Max (hr),r_partial (wind ctrl),Δ kt per 50k cfs,Note
+ACT4976,"Tolly Point, 1.6 mi. east of",Start,0.033,10,0.025,0.014,
+ACT4916,"Sharp Island Lt., 3.4 mi. west of",Black Walnut,0.032,8,0.025,0.009,
+ACT4901,"Plum Point, 1.4 mi. ESE of",Gooses Reef,0.035,8,0.027,0.01,
+ACT4891,"James Island, 3.4 mi. west of",James Island N,0.032,223,0.027,0.009,
+CHB0304,"James Island, 1.6 n.mi. SW of",James Island S,-0.026,156,-0.025,-0.013,
+ACT4866,"Cove Point, 2.7 n.mi. east of",Cove Point,0.033,7,0.026,0.014,
+ACT4826,"Point No Point, 2.8 n.mi. east of",Point No Point,-0.032,240,-0.026,-0.01,
+ACT4806,Point Lookout approach,Point Lookout,0.029,7,0.022,0.011,
