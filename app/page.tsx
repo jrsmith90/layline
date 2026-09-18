@@ -7,6 +7,7 @@ import {
   ArrowRight,
   BookOpen,
   Clipboard,
+  CloudSun,
   Flag,
   Layers,
   Library,
@@ -37,6 +38,7 @@ const secondaryLinks = [
   { href: "/race/review", label: "Review", icon: BookOpen },
   { href: "/race/map", label: "Race Map", icon: Anchor },
   { href: "/course-library", label: "Course Library", icon: Library },
+  { href: "/weather", label: "Weather", icon: CloudSun },
   { href: "/trim", label: "Trim", icon: SlidersHorizontal },
 ];
 
@@ -320,6 +322,7 @@ export default function HomePage() {
           { href: "/start", label: "Start", icon: Flag },
           { href: "/race/map", label: "Race Map", icon: Anchor },
           { href: "/course-library", label: "Course Library", icon: Library },
+          { href: "/weather", label: "Weather", icon: CloudSun },
         ].map((item) => {
           const Icon = item.icon;
           return (

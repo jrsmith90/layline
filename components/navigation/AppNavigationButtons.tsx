@@ -14,7 +14,7 @@ const routeTitles = [
   { prefix: "/race/tracker", title: "Course Tracker" },
   { prefix: "/race/review", title: "After Action Review" },
   { prefix: "/race/map", title: "Race Map" },
-  { prefix: "/weather/current", title: "Current Weather" },
+  { prefix: "/weather", title: "Weather & Conditions" },
   { prefix: "/start", title: "Start" },
   { prefix: "/tactics", title: "Tactics" },
   { prefix: "/trim", title: "Trim" },

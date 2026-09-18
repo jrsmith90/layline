@@ -55,6 +55,11 @@ export function WeatherCourseImpactPanel() {
     getStoredTacticalBoardDraft,
     () => DEFAULT_DRAFT,
   );
+
+  return <WaterOutlookPanel date={draft.raceStartDate} time={draft.raceStartTime} />;
+}
+
+export function WaterOutlookPanel({ date, time }: { date: string; time: string }) {
   const [outlook, setOutlook] = useState<WaterOutlook>({
     tide: null,
     stations: [],
@@ -63,10 +68,10 @@ export function WeatherCourseImpactPanel() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!draft.raceStartDate || !draft.raceStartTime) return;
+    if (!date || !time) return;
 
     const controller = new AbortController();
-    fetch(`/api/weather/tide-current?date=${draft.raceStartDate}&time=${draft.raceStartTime}`, {
+    fetch(`/api/weather/tide-current?date=${date}&time=${time}`, {
       signal: controller.signal,
     })
       .then(async (response) => {
@@ -97,7 +102,7 @@ export function WeatherCourseImpactPanel() {
       });
 
     return () => controller.abort();
-  }, [draft.raceStartDate, draft.raceStartTime]);
+  }, [date, time]);
 
   return (
     <section className="layline-panel bg-[color:var(--panel)] p-5">
@@ -113,7 +118,7 @@ export function WeatherCourseImpactPanel() {
           </p>
         </div>
         <div className="text-right text-xs text-[color:var(--muted)]">
-          {draft.raceStartDate} · {draft.raceStartTime}
+          {date} · {time}
         </div>
       </div>
 
