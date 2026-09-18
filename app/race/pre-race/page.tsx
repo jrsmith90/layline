@@ -16,6 +16,7 @@ import { PreRacePlanningInputsPanel } from "@/components/race/PreRacePlanningInp
 import { PreRaceSailPackageSummary } from "@/components/race/PreRaceSailPackageSummary";
 import { PreRaceSetupPanel } from "@/components/race/PreRaceSetupPanel";
 import { PreRaceTacticalSnapshot } from "@/components/race/PreRaceTacticalSnapshot";
+import { WeatherCourseImpactPanel } from "@/components/race/WeatherCourseImpactPanel";
 import { getDefaultCourseId } from "@/data/race/getCourseData";
 import {
   buildTacticalBoardDraftDefaults,
@@ -89,6 +90,7 @@ export default function Page() {
         title="Read the course and chart"
         detail="Start with the map and course brief, then carry that same picture into the sail call and the rest of the crew plan."
       >
+        <WeatherCourseImpactPanel />
         <div className="grid gap-4 lg:grid-cols-2">
           <div id="conditions-map">
             <RaceConditionsMap showCourseSelector={false} />

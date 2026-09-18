@@ -2,6 +2,7 @@
 
 import dynamic from "next/dynamic";
 import CoursePreviewCard from "@/components/race/CoursePreviewCard";
+import { WeatherCourseImpactPanel } from "@/components/race/WeatherCourseImpactPanel";
 
 const RaceConditionsMap = dynamic(
   () => import("@/components/race/RaceConditionsMap"),
@@ -27,6 +28,7 @@ export default function CourseReadPage() {
     <section>
       <SectionHead badge="Course Read" title="Read the course and chart" />
       <div className="space-y-6">
+        <WeatherCourseImpactPanel />
         <CoursePreviewCard showControls={false} />
         <RaceConditionsMap showCourseSelector={false} />
         <div>
